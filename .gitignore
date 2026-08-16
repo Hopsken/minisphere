@@ -1,4 +1,10 @@
 node_modules/
 dist/
+.turbo/
+.wrangler/
+.dev.vars*
+.env*
+!.env.example
+worker-configuration.d.ts
 *.tsbuildinfo
 .DS_Store
