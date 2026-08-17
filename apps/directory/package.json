@@ -15,11 +15,13 @@
   },
   "dependencies": {
     "@atproto/common": "^0.8.0",
+    "@atproto/crypto": "^0.4.5",
     "@atproto/lex-cbor": "^0.1.6",
     "@did-plc/lib": "^0.0.4",
     "drizzle-orm": "1.0.0-rc.4",
     "hono": "^4.13.2",
-    "multiformats": "^14.0.5"
+    "multiformats": "^14.0.5",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "drizzle-kit": "^1.0.0-rc.4"
