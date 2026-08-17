@@ -4,10 +4,10 @@ A minimal monorepo for experimenting with a small, personal AT Protocol network.
 
 ## Apps
 
-- `apps/directory` — bare Cloudflare Worker for the network directory
+- `apps/directory` — Hono Cloudflare Worker backed by D1 through Drizzle ORM
 - `apps/pds` — bare Cloudflare Worker for the personal data server
 
-Both Workers currently return an empty `204 No Content` response and contain no AT Protocol implementation.
+The directory currently exposes a minimal JSON root and a database-backed health check. The PDS returns an empty `204 No Content` response. Neither contains AT Protocol implementation yet.
 
 ## Requirements
 
@@ -45,3 +45,21 @@ After changing a Worker's bindings in `wrangler.jsonc`, regenerate its Cloudflar
 pnpm --filter @minisphere/directory cf-typegen
 pnpm --filter @minisphere/pds cf-typegen
 ```
+
+## Directory database
+
+Create the production D1 database, then copy the returned database ID into `apps/directory/wrangler.jsonc`:
+
+```sh
+pnpm --filter @minisphere/directory exec wrangler d1 create minisphere-directory
+```
+
+Define tables in `apps/directory/src/schema.ts`, generate migrations, and apply them locally or remotely:
+
+```sh
+pnpm --filter @minisphere/directory db:generate
+pnpm --filter @minisphere/directory db:migrate:local
+pnpm --filter @minisphere/directory db:migrate:remote
+```
+
+The remote command changes the deployed database and requires configured Cloudflare credentials.

@@ -3,4 +3,13 @@
   "name": "minisphere-directory",
   "main": "src/index.ts",
   "compatibility_date": "2026-08-16",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "minisphere-directory",
+      // Replace this placeholder with the ID returned by `wrangler d1 create` before deploying.
+      "database_id": "ba5ebec8-78df-4ff6-84f0-8a28d19c0bc9",
+      "migrations_dir": "migrations",
+    },
+  ],
 }
