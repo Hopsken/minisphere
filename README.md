@@ -1,4 +1,4 @@
-# alto-network
+# minisphere
 
 A minimal monorepo for experimenting with a small, personal AT Protocol network. It uses pnpm workspaces, Turborepo, modern TypeScript, and Cloudflare Workers.
 
@@ -35,13 +35,13 @@ pnpm deploy       # Deploy both Workers to Cloudflare
 Run a command for only one app with a pnpm filter:
 
 ```sh
-pnpm --filter @alto-network/directory dev
-pnpm --filter @alto-network/pds dev
+pnpm --filter @minisphere/directory dev
+pnpm --filter @minisphere/pds dev
 ```
 
 After changing a Worker's bindings in `wrangler.jsonc`, regenerate its Cloudflare types:
 
 ```sh
-pnpm --filter @alto-network/directory cf-typegen
-pnpm --filter @alto-network/pds cf-typegen
+pnpm --filter @minisphere/directory cf-typegen
+pnpm --filter @minisphere/pds cf-typegen
 ```
