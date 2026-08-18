@@ -73,6 +73,12 @@ const assertOperationSize = (operation: OpOrTombstone): void => {
   }
 };
 
+const assertValidSignatureEncoding = (operation: OpOrTombstone): void => {
+  if (operation.sig.endsWith("=")) {
+    throw badRequest("Invalid signature encoding");
+  }
+};
+
 const assertValidAlsoKnownAs = ({ alsoKnownAs }: Operation): void => {
   if (alsoKnownAs.length > MAX_ALSO_KNOWN_AS_ENTRIES) {
     throw badRequest(
@@ -176,6 +182,7 @@ export const validateIncomingOperation = (input: unknown): OpOrTombstone => {
 
   const operation = result.data;
   assertOperationSize(operation);
+  assertValidSignatureEncoding(operation);
   if (operation.type === "plc_tombstone") {
     return operation;
   }

@@ -1,0 +1,137 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "id": "039a3e7a-dbd4-4270-a182-54b659b4cbcb",
+  "prevIds": ["00000000-0000-0000-0000-000000000000"],
+  "ddl": [
+    {
+      "name": "dids",
+      "entityType": "tables"
+    },
+    {
+      "name": "operations",
+      "entityType": "tables"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "did",
+      "entityType": "columns",
+      "table": "dids"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": true,
+      "default": null,
+      "generated": null,
+      "name": "_id",
+      "entityType": "columns",
+      "table": "operations"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "did",
+      "entityType": "columns",
+      "table": "operations"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "operation",
+      "entityType": "columns",
+      "table": "operations"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "cid",
+      "entityType": "columns",
+      "table": "operations"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "false",
+      "generated": null,
+      "name": "nullified",
+      "entityType": "columns",
+      "table": "operations"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "(CURRENT_TIMESTAMP)",
+      "generated": null,
+      "name": "createdAt",
+      "entityType": "columns",
+      "table": "operations"
+    },
+    {
+      "columns": ["did"],
+      "nameExplicit": false,
+      "name": "dids_pk",
+      "table": "dids",
+      "entityType": "pks"
+    },
+    {
+      "columns": ["_id"],
+      "nameExplicit": false,
+      "name": "operations_pk",
+      "table": "operations",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        {
+          "value": "did",
+          "isExpression": false
+        },
+        {
+          "value": "cid",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "origin": "manual",
+      "name": "operations_did_cid_unique_idx",
+      "entityType": "indexes",
+      "table": "operations"
+    },
+    {
+      "columns": [
+        {
+          "value": "did",
+          "isExpression": false
+        },
+        {
+          "value": "createdAt",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "name": "operations_did_createdat_idx",
+      "entityType": "indexes",
+      "table": "operations"
+    }
+  ],
+  "renames": []
+}

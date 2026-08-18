@@ -10,6 +10,7 @@
       // Replace this placeholder with the ID returned by `wrangler d1 create` before deploying.
       "database_id": "ba5ebec8-78df-4ff6-84f0-8a28d19c0bc9",
       "migrations_dir": "migrations",
+      "migrations_pattern": "migrations/*/migration.sql",
     },
   ],
 }

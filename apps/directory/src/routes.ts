@@ -38,8 +38,9 @@ app.get("/:did", async (ctx) => {
   }
 
   const document = plc.formatDidDoc(data);
-  ctx.header("Content-Type", "application/did+ld+json");
-  return ctx.json(document);
+  return ctx.json(document, 200, {
+    "Content-Type": "application/did+ld+json",
+  });
 });
 
 app.get("/:did/data", async (ctx) => {
@@ -79,7 +80,7 @@ app.get("/:did/log/audit", async (ctx) => {
   const did = ctx.req.param("did");
   const didService = ctx.get("didService");
 
-  const ops = await didService.indexedOpsForDid(did);
+  const ops = await didService.indexedOpsForDid(did, true);
   if (!ops.length) {
     throw new HTTPException(404, { message: `DID not registered: ${did}` });
   }

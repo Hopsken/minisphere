@@ -11,7 +11,8 @@
     "db:migrate:remote": "wrangler d1 migrations apply DB --remote",
     "deploy": "wrangler deploy",
     "dev": "wrangler dev",
-    "typecheck": "wrangler types && tsc --noEmit"
+    "test": "vitest run",
+    "typecheck": "wrangler types && tsc --noEmit && tsc --noEmit -p tests/tsconfig.json"
   },
   "dependencies": {
     "@atproto/common": "^0.8.0",
@@ -24,6 +25,9 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
-    "drizzle-kit": "^1.0.0-rc.4"
+    "@cloudflare/vitest-pool-workers": "^0.21.3",
+    "@types/node": "^26.2.0",
+    "drizzle-kit": "^1.0.0-rc.4",
+    "vitest": "^4.1.10"
   }
 }

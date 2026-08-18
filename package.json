@@ -5,13 +5,14 @@
   "type": "module",
   "scripts": {
     "build": "turbo build",
-    "check": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm build",
+    "check": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm test && pnpm build",
     "deploy": "turbo deploy",
     "dev": "turbo dev",
     "format": "oxfmt --write .",
     "format:check": "oxfmt --check .",
     "lint": "oxlint .",
     "lint:fix": "oxlint --fix .",
+    "test": "turbo test",
     "typecheck": "turbo typecheck"
   },
   "devDependencies": {
