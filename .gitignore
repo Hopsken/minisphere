@@ -2,6 +2,7 @@ node_modules/
 dist/
 .turbo/
 .wrangler/
+.amp/portals/*
 .dev.vars*
 .env*
 !.env.example
