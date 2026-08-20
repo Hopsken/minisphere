@@ -5,9 +5,9 @@ A minimal monorepo for experimenting with a small, personal AT Protocol network.
 ## Apps
 
 - `apps/directory` — Hono Cloudflare Worker backed by D1 through Drizzle ORM
-- `apps/pds` — bare Cloudflare Worker for the personal data server
+- `apps/pds` — Cloudflare Worker backed by SQLite Durable Objects through Drizzle ORM
 
-The directory currently exposes a minimal JSON root and a database-backed health check. The PDS returns an empty `204 No Content` response. Neither contains AT Protocol implementation yet.
+The directory currently exposes a minimal JSON root and a database-backed health check. The PDS keeps its empty `204 No Content` response and exposes a database-backed health check at `/_health`. Neither contains AT Protocol implementation yet.
 
 ## Requirements
 
@@ -63,3 +63,13 @@ pnpm --filter @minisphere/directory db:migrate:remote
 ```
 
 The remote command changes the deployed database and requires configured Cloudflare credentials.
+
+## PDS database
+
+The PDS stores one SQLite database in each `PdsDurableObject` instance. Define tables in `apps/pds/src/db/schema.ts`, then generate bundled migrations:
+
+```sh
+pnpm --filter @minisphere/pds db:generate
+```
+
+The Durable Object applies pending migrations before it accepts requests. Wrangler creates the SQLite-backed Durable Object namespace during the first deployment.

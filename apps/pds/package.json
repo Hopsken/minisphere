@@ -6,8 +6,24 @@
   "scripts": {
     "build": "wrangler deploy --dry-run --outdir dist",
     "cf-typegen": "wrangler types",
+    "db:generate": "drizzle-kit generate",
     "deploy": "wrangler deploy",
     "dev": "wrangler dev",
     "typecheck": "wrangler types && tsc --noEmit"
+  },
+  "dependencies": {
+    "@atcute/car": "^6.0.2",
+    "@atcute/cbor": "^2.3.6",
+    "@atcute/cid": "^2.4.2",
+    "@atcute/crypto": "^2.4.4",
+    "@atcute/mst": "^1.0.3",
+    "@atcute/tid": "^1.1.4",
+    "@atproto/lex-data": "^0.1.7",
+    "@atproto/repo": "^0.10.11",
+    "drizzle-orm": "1.0.0-rc.4"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "drizzle-kit": "^1.0.0-rc.4"
   }
 }
