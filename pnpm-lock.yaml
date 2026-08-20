@@ -280,21 +280,36 @@ importers:
       '@atcute/crypto':
         specifier: ^2.4.4
         version: 2.4.4
+      '@atcute/lexicons':
+        specifier: ^2.1.0
+        version: 2.1.0
       '@atcute/mst':
         specifier: ^1.0.3
         version: 1.0.3(@atcute/cbor@2.3.6(@atcute/cid@2.4.2))(@atcute/cid@2.4.2)
       '@atcute/tid':
         specifier: ^1.1.4
         version: 1.1.4
+      '@atproto/crypto':
+        specifier: ^0.4.5
+        version: 0.4.5
       '@atproto/lex-data':
         specifier: ^0.1.7
         version: 0.1.7
       '@atproto/repo':
         specifier: ^0.10.11
         version: 0.10.11
+      '@hono/zod-validator':
+        specifier: ^0.9.0
+        version: 0.9.0(hono@4.13.2)(zod@4.4.3)
       drizzle-orm:
         specifier: 1.0.0-rc.4
         version: 1.0.0-rc.4(zod@4.4.3)
+      hono:
+        specifier: ^4.13.2
+        version: 4.13.2
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
     devDependencies:
       '@types/node':
         specifier: ^26.2.0
@@ -322,6 +337,9 @@ packages:
   '@atcute/crypto@2.4.4':
     resolution: {integrity: sha512-Yc7lXz4ndDjbs+/WrKeGS+sVEr+sx8xi5zSVInKNl0FAEY6KbvcT+bjaU9A3erUVviFp9yEcu/1aSg/f+GPpBg==}
 
+  '@atcute/lexicons@2.1.0':
+    resolution: {integrity: sha512-cqbtPfFctoddrSFBt65xyD7st01d8rNntyinRfRhlRPGlqEg8FWacgc7piBw0SAs1SG+5BoV3d3mhzWfQHcByg==}
+
   '@atcute/mst@1.0.3':
     resolution: {integrity: sha512-MSH7Hl++NBKPNKoatyUeZm6gHK0gA5HWcSeYSMzJsf4uooEQpU+BHJfdeHvAiOyBtK7Pw/Lp4O5YI9i5GYYK9A==}
     peerDependencies:
@@ -339,6 +357,9 @@ packages:
 
   '@atcute/uint8array@1.1.5':
     resolution: {integrity: sha512-1SFCXOtjE3ismP92CqzbOfYSwJmPPPFbj798wLXSpLv2hSd5OIaUrTh6EqRVR1VZ3ZhR+vaBmd3kxAN0wkw+gQ==}
+
+  '@atcute/util-text@1.3.4':
+    resolution: {integrity: sha512-u2UAM7iSM09sQaSG9jtxWFSPgB8boVj50/BoyMvYnhVgGBu+nXIuAcdDUQCsZA44YZgTPPhN/b86JX+jH7SPzQ==}
 
   '@atcute/varint@2.0.2':
     resolution: {integrity: sha512-/+hS1juMgnmf6eL6lICUkTw7wcGTo3I+Q0L1PI521mUz77rGSC6nXAUNKtvm2wYJpuWdEGq+GILGoYkOArn0TQ==}
@@ -784,6 +805,12 @@ packages:
     engines: {node: '>=18'}
     cpu: [x64]
     os: [win32]
+
+  '@hono/zod-validator@0.9.0':
+    resolution: {integrity: sha512-n0ZSXmCiHVIp4Y5wlOOyZCeTd/rsawA/qW1cipB8QOYKZ9N8Tk0nZUZCXho9cu374AN4JpDNKioNKBJ/W+LBug==}
+    peerDependencies:
+      hono: '>=4.11.2'
+      zod: ^3.25.0 || ^4.0.0
 
   '@img/colour@1.1.0':
     resolution: {integrity: sha512-Td76q7j57o/tLVdgS746cYARfSyxk8iEfRxewL9h4OMzYhbW4TAcppl0mT4eyqXddh6L/jwoM75mo7ixa/pCeQ==}
@@ -1869,6 +1896,9 @@ packages:
     engines: {node: '>=18'}
     hasBin: true
 
+  esm-env@1.2.2:
+    resolution: {integrity: sha512-Epxrv+Nr/CaL4ZcFGPJIYLWFom+YeV1DqMLHJoEd9SYRxNbaFruBwfEX/kkHUJf55j2+TUbmDcmuilbP1TmXHA==}
+
   estree-walker@3.0.3:
     resolution: {integrity: sha512-7RUKfXgSMMkzt6ZuXmqapOurLGPPfgj6l9uRZ7lRGolvk0y2yocc35LdcxKC5PQZdn2DMqioAQ2NoWcrTKmm6g==}
 
@@ -2485,6 +2515,9 @@ packages:
   unicode-segmenter@0.14.5:
     resolution: {integrity: sha512-jHGmj2LUuqDcX3hqY12Ql+uhUTn8huuxNZGq7GvtF6bSybzH3aFgedYu/KTzQStEgt1Ra2F3HxadNXsNjb3m3g==}
 
+  unicode-segmenter@0.17.3:
+    resolution: {integrity: sha512-hKZwqBjJDmqNrq1+LjDxck1qLzJFcLLJM2Xq92ORRHOuau6GSHeELmn+uyk6zNH1CK9mogrUJGP9WJCJUQXMAw==}
+
   unicorn-magic@0.3.0:
     resolution: {integrity: sha512-+QBBXBCvifc56fsbuxZQ6Sic3wqqc3WWaqxs58gvJrcOuN83HGTCwz3oS5phzU9LthRNE9VrJCFCLUgHeeFnfA==}
     engines: {node: '>=18'}
@@ -2664,6 +2697,13 @@ snapshots:
       '@atcute/uint8array': 1.1.5
       '@noble/secp256k1': 3.1.0
 
+  '@atcute/lexicons@2.1.0':
+    dependencies:
+      '@atcute/uint8array': 1.1.5
+      '@atcute/util-text': 1.3.4
+      '@standard-schema/spec': 1.1.0
+      esm-env: 1.2.2
+
   '@atcute/mst@1.0.3(@atcute/cbor@2.3.6(@atcute/cid@2.4.2))(@atcute/cid@2.4.2)':
     dependencies:
       '@atcute/cbor': 2.3.6(@atcute/cid@2.4.2)
@@ -2681,6 +2721,10 @@ snapshots:
   '@atcute/time-ms@1.3.3': {}
 
   '@atcute/uint8array@1.1.5': {}
+
+  '@atcute/util-text@1.3.4':
+    dependencies:
+      unicode-segmenter: 0.17.3
 
   '@atcute/varint@2.0.2': {}
 
@@ -3001,6 +3045,11 @@ snapshots:
 
   '@esbuild/win32-x64@0.28.1':
     optional: true
+
+  '@hono/zod-validator@0.9.0(hono@4.13.2)(zod@4.4.3)':
+    dependencies:
+      hono: 4.13.2
+      zod: 4.4.3
 
   '@img/colour@1.1.0': {}
 
@@ -3666,6 +3715,8 @@ snapshots:
       '@esbuild/win32-ia32': 0.28.1
       '@esbuild/win32-x64': 0.28.1
 
+  esm-env@1.2.2: {}
+
   estree-walker@3.0.3:
     dependencies:
       '@types/estree': 1.0.9
@@ -4329,6 +4380,8 @@ snapshots:
       pathe: 2.0.3
 
   unicode-segmenter@0.14.5: {}
+
+  unicode-segmenter@0.17.3: {}
 
   unicorn-magic@0.3.0: {}
 

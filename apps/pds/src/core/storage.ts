@@ -12,7 +12,7 @@ import { BlockStorage } from "./block";
 import type { RootState } from "./type";
 
 export class CoreStorage extends BlockStorage implements RepoStorage {
-  private async getMetadata(): Promise<RootState | null> {
+  async getMetadata(): Promise<RootState | null> {
     const row = await this.db.query.metadataTable.findFirst();
     return row ?? null;
   }
@@ -79,5 +79,10 @@ export class CoreStorage extends BlockStorage implements RepoStorage {
     //   .where(inArray(blocksTable.cid, removedCids));
 
     await this.updateRoot(commit.cid, commit.rev);
+  }
+
+  healthCheck() {
+    this.db.run(sql`SELECT 1`);
+    return { ok: true };
   }
 }
