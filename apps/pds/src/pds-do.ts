@@ -1,3 +1,4 @@
+import { parsePrivateMultikey } from "@atcute/crypto";
 import { Secp256k1Keypair } from "@atproto/crypto";
 import { Repo } from "@atproto/repo";
 import { DurableObject } from "cloudflare:workers";
@@ -5,6 +6,15 @@ import { DurableObject } from "cloudflare:workers";
 import { CoreStorage } from "./core";
 import { createDatabase } from "./db";
 import { serializeRecord } from "./utils/serialize-record";
+
+const importSigningKey = (signingKey: string): Promise<Secp256k1Keypair> => {
+  const parsedKey = parsePrivateMultikey(signingKey);
+  if (parsedKey.type !== "secp256k1") {
+    throw new Error("Repo signing key must be a secp256k1 private multikey");
+  }
+
+  return Secp256k1Keypair.import(parsedKey.privateKeyBytes);
+};
 
 export class PdsDurableObject extends DurableObject<Env> {
   private readonly core: CoreStorage;
@@ -21,26 +31,24 @@ export class PdsDurableObject extends DurableObject<Env> {
       await Promise.resolve(waitMigrations());
 
       const signingKey = ctx.storage.kv.get<string>("signingKey");
-      this.keypair = signingKey
-        ? await Secp256k1Keypair.import(signingKey)
-        : null;
+      this.keypair = signingKey ? await importSigningKey(signingKey) : null;
     });
 
     this.core = new CoreStorage(db);
   }
 
-  async create(did: string, signingKey: string) {
+  async reserveRepo(did: string, signingKey: string): Promise<void> {
     const root = await this.core.getRoot();
     if (root) {
-      throw new Error(`DID(${did}) is used`);
+      throw new Error(`DID(${did}) already has a repo`);
     }
 
-    // No need to verify existing signing keys
-    // allow recreate the same did's repo if previous creation failed for whatever reason
+    const keypair = await importSigningKey(signingKey);
     this.ctx.storage.kv.put("signingKey", signingKey);
-    const keypair = await Secp256k1Keypair.import(signingKey);
-    const repo = await Repo.create(this.core, did, keypair);
-    return repo;
+    this.keypair = keypair;
+
+    await this.core.setDid(did);
+    this.repo = await Repo.create(this.core, did, keypair);
   }
 
   async getRepo(): Promise<Repo> {

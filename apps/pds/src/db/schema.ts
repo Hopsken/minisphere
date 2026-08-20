@@ -11,6 +11,6 @@ export const metadataTable = sqliteTable("metadata", {
 export const blocksTable = sqliteTable("blocks", {
   cid: text().primaryKey(),
 
-  bytes: blob<"buffer">().notNull(),
+  bytes: blob({ mode: "buffer" }).notNull(),
   rev: text().notNull(),
 });

@@ -29,30 +29,36 @@ export class CoreStorage extends BlockStorage implements RepoStorage {
 
   async putBlock(cid: Cid, block: Uint8Array, rev: string): Promise<void> {
     await this.db.insert(blocksTable).values({
-      bytes: block,
+      bytes: Buffer.from(block),
       cid: cid.toString(),
       rev,
     });
   }
 
   async putMany(blocks: BlockMap, rev: string): Promise<void> {
-    // oxlint-disable-next-line anti-slop/no-chained-type-assertions anti-slop/require-safety-comment-for-type-assertion
-    const mappings = blocks as unknown as { map: Map<string, Uint8Array> };
-    if (mappings) {
-      await this.db
-        .insert(blocksTable)
-        .values(
-          Object.entries(mappings).map(([cid, bytes]) => ({
-            bytes,
-            cid: cid.toString(),
-            rev,
-          }))
-        )
-        .onConflictDoUpdate({
-          set: { bytes: sql`excluded.bytes`, rev: sql`excluded.rev` },
-          target: blocksTable.cid,
-        });
+    if (blocks.size === 0) {
+      return;
     }
+
+    await this.db
+      .insert(blocksTable)
+      .values(
+        blocks.entries().map(({ bytes, cid }) => ({
+          bytes: Buffer.from(bytes),
+          cid: cid.toString(),
+          rev,
+        }))
+      )
+      .onConflictDoUpdate({
+        set: { bytes: sql`excluded.bytes`, rev: sql`excluded.rev` },
+        target: blocksTable.cid,
+      });
+  }
+
+  async setDid(did: string): Promise<void> {
+    await this.db
+      .insert(metadataTable)
+      .values({ did, id: 1, rev: "", root_cid: "" });
   }
 
   async updateRoot(cid: Cid, rev: string): Promise<void> {

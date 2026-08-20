@@ -99,3 +99,10 @@ pnpm --filter @minisphere/pds db:generate
 ```
 
 The Durable Object applies pending migrations before it accepts requests. Wrangler creates the SQLite-backed Durable Object namespace during the first deployment.
+
+The PDS registration endpoint requires `PDS_HOSTNAME` to contain its canonical hostname and `PDS_ROTATION_KEY` to contain a secp256k1 private multikey. Store them as Worker secrets:
+
+```sh
+pnpm --filter @minisphere/pds exec wrangler secret put PDS_HOSTNAME
+pnpm --filter @minisphere/pds exec wrangler secret put PDS_ROTATION_KEY
+```

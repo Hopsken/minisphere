@@ -242,7 +242,7 @@ importers:
         version: 0.0.4(debug@4.4.3(supports-color@10.2.2))(supports-color@10.2.2)
       drizzle-orm:
         specifier: 1.0.0-rc.4
-        version: 1.0.0-rc.4(zod@3.25.76)
+        version: 1.0.0-rc.4(valibot@1.4.2(typescript@7.0.2))(zod@3.25.76)
       hono:
         specifier: ^4.13.2
         version: 4.13.2
@@ -280,6 +280,9 @@ importers:
       '@atcute/crypto':
         specifier: ^2.4.4
         version: 2.4.4
+      '@atcute/did-plc':
+        specifier: ^1.0.1
+        version: 1.0.1(@atcute/cbor@2.3.6(@atcute/cid@2.4.2))(@atcute/cid@2.4.2)(@atcute/identity@2.0.2(@atcute/lexicons@2.1.0)(typescript@7.0.2))(@atcute/lexicons@2.1.0)(typescript@7.0.2)
       '@atcute/lexicons':
         specifier: ^2.1.0
         version: 2.1.0
@@ -303,7 +306,7 @@ importers:
         version: 0.9.0(hono@4.13.2)(zod@4.4.3)
       drizzle-orm:
         specifier: 1.0.0-rc.4
-        version: 1.0.0-rc.4(zod@4.4.3)
+        version: 1.0.0-rc.4(valibot@1.4.2(typescript@7.0.2))(zod@4.4.3)
       hono:
         specifier: ^4.13.2
         version: 4.13.2
@@ -311,12 +314,18 @@ importers:
         specifier: ^4.4.3
         version: 4.4.3
     devDependencies:
+      '@cloudflare/vitest-pool-workers':
+        specifier: ^0.21.3
+        version: 0.21.3(@vitest/runner@4.1.10)(@vitest/snapshot@4.1.10)(vitest@4.1.10(@types/node@26.2.0)(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0)))
       '@types/node':
         specifier: ^26.2.0
         version: 26.2.0
       drizzle-kit:
         specifier: ^1.0.0-rc.4
         version: 1.0.0-rc.5-ab785fc
+      vitest:
+        specifier: ^4.1.10
+        version: 4.1.10(@types/node@26.2.0)(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0))
 
 packages:
 
@@ -336,6 +345,19 @@ packages:
 
   '@atcute/crypto@2.4.4':
     resolution: {integrity: sha512-Yc7lXz4ndDjbs+/WrKeGS+sVEr+sx8xi5zSVInKNl0FAEY6KbvcT+bjaU9A3erUVviFp9yEcu/1aSg/f+GPpBg==}
+
+  '@atcute/did-plc@1.0.1':
+    resolution: {integrity: sha512-3JPYCPbx78r8hkTo1ed+1ppTfCaSAnFhwxD0UYdtVO0ZvFrbYfnJI/XpIGgrCHtzgTSnRXbuU6AtsE4EAeqquw==}
+    peerDependencies:
+      '@atcute/cbor': ^2.0.0
+      '@atcute/cid': ^2.0.0
+      '@atcute/identity': ^2.0.0
+      '@atcute/lexicons': ^2.0.0
+
+  '@atcute/identity@2.0.2':
+    resolution: {integrity: sha512-amr/EQceqVtBVmjBK4uUF7nKKYuRttadigpvOcAn4dnO6SNSwSjQi8KDH9LnukEotPsSP4UDsQvNfHWEoUcslw==}
+    peerDependencies:
+      '@atcute/lexicons': ^2.0.0
 
   '@atcute/lexicons@2.1.0':
     resolution: {integrity: sha512-cqbtPfFctoddrSFBt65xyD7st01d8rNntyinRfRhlRPGlqEg8FWacgc7piBw0SAs1SG+5BoV3d3mhzWfQHcByg==}
@@ -357,6 +379,9 @@ packages:
 
   '@atcute/uint8array@1.1.5':
     resolution: {integrity: sha512-1SFCXOtjE3ismP92CqzbOfYSwJmPPPFbj798wLXSpLv2hSd5OIaUrTh6EqRVR1VZ3ZhR+vaBmd3kxAN0wkw+gQ==}
+
+  '@atcute/util-fetch@2.0.2':
+    resolution: {integrity: sha512-I0oenHlJjwRpWPyAJojox5H0z9NthhdMFaEjtkxyjo85VPPxk1vMJk/1ZjMJsrs1SgHhB3spazEWzV5DW8w70A==}
 
   '@atcute/util-text@1.3.4':
     resolution: {integrity: sha512-u2UAM7iSM09sQaSG9jtxWFSPgB8boVj50/BoyMvYnhVgGBu+nXIuAcdDUQCsZA44YZgTPPhN/b86JX+jH7SPzQ==}
@@ -2522,6 +2547,14 @@ packages:
     resolution: {integrity: sha512-+QBBXBCvifc56fsbuxZQ6Sic3wqqc3WWaqxs58gvJrcOuN83HGTCwz3oS5phzU9LthRNE9VrJCFCLUgHeeFnfA==}
     engines: {node: '>=18'}
 
+  valibot@1.4.2:
+    resolution: {integrity: sha512-gjdCvJ6d3RyHAneqxMYMW9QMCwYMb3jpOO0IyHZV1bnRHFBHrX3VkIILt5XYR0WhwHiH7Mty8ovuPZ/O3gamrg==}
+    peerDependencies:
+      typescript: '>=5'
+    peerDependenciesMeta:
+      typescript:
+        optional: true
+
   varint@6.0.0:
     resolution: {integrity: sha512-cXEIW6cfr15lFv563k4GuVuW/fiwjknytD37jIOLSdSWuOI6WnO/oKwmP2FQTU2l01LP8/M5TSAJpzUaGe3uWg==}
 
@@ -2697,6 +2730,27 @@ snapshots:
       '@atcute/uint8array': 1.1.5
       '@noble/secp256k1': 3.1.0
 
+  '@atcute/did-plc@1.0.1(@atcute/cbor@2.3.6(@atcute/cid@2.4.2))(@atcute/cid@2.4.2)(@atcute/identity@2.0.2(@atcute/lexicons@2.1.0)(typescript@7.0.2))(@atcute/lexicons@2.1.0)(typescript@7.0.2)':
+    dependencies:
+      '@atcute/cbor': 2.3.6(@atcute/cid@2.4.2)
+      '@atcute/cid': 2.4.2
+      '@atcute/crypto': 2.4.4
+      '@atcute/identity': 2.0.2(@atcute/lexicons@2.1.0)(typescript@7.0.2)
+      '@atcute/lexicons': 2.1.0
+      '@atcute/multibase': 1.2.5
+      '@atcute/uint8array': 1.1.5
+      '@atcute/util-fetch': 2.0.2(typescript@7.0.2)
+      valibot: 1.4.2(typescript@7.0.2)
+    transitivePeerDependencies:
+      - typescript
+
+  '@atcute/identity@2.0.2(@atcute/lexicons@2.1.0)(typescript@7.0.2)':
+    dependencies:
+      '@atcute/lexicons': 2.1.0
+      valibot: 1.4.2(typescript@7.0.2)
+    transitivePeerDependencies:
+      - typescript
+
   '@atcute/lexicons@2.1.0':
     dependencies:
       '@atcute/uint8array': 1.1.5
@@ -2721,6 +2775,12 @@ snapshots:
   '@atcute/time-ms@1.3.3': {}
 
   '@atcute/uint8array@1.1.5': {}
+
+  '@atcute/util-fetch@2.0.2(typescript@7.0.2)':
+    dependencies:
+      valibot: 1.4.2(typescript@7.0.2)
+    transitivePeerDependencies:
+      - typescript
 
   '@atcute/util-text@1.3.4':
     dependencies:
@@ -3620,12 +3680,14 @@ snapshots:
       get-tsconfig: 4.14.2
       jiti: 2.7.0
 
-  drizzle-orm@1.0.0-rc.4(zod@3.25.76):
+  drizzle-orm@1.0.0-rc.4(valibot@1.4.2(typescript@7.0.2))(zod@3.25.76):
     optionalDependencies:
+      valibot: 1.4.2(typescript@7.0.2)
       zod: 3.25.76
 
-  drizzle-orm@1.0.0-rc.4(zod@4.4.3):
+  drizzle-orm@1.0.0-rc.4(valibot@1.4.2(typescript@7.0.2))(zod@4.4.3):
     optionalDependencies:
+      valibot: 1.4.2(typescript@7.0.2)
       zod: 4.4.3
 
   dunder-proto@1.0.1:
@@ -4384,6 +4446,10 @@ snapshots:
   unicode-segmenter@0.17.3: {}
 
   unicorn-magic@0.3.0: {}
+
+  valibot@1.4.2(typescript@7.0.2):
+    optionalDependencies:
+      typescript: 7.0.2
 
   varint@6.0.0: {}
 

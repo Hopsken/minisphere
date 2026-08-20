@@ -22,7 +22,7 @@ export class BlockStorage extends ReadableBlockstore {
       return null;
     }
 
-    return row.bytes;
+    return new Uint8Array(row.bytes);
   }
 
   async has(cid: Cid): Promise<boolean> {
@@ -49,7 +49,7 @@ export class BlockStorage extends ReadableBlockstore {
       if (!safeCid) {
         continue;
       }
-      blocksMap.set(safeCid, row.bytes);
+      blocksMap.set(safeCid, new Uint8Array(row.bytes));
     }
 
     const missing = [];
