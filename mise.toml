@@ -2,6 +2,6 @@
 node = "24"
 pnpm = "11"
 
-[tasks.install]
+[tasks.install-deps]
 description = "Install npm modules from the lockfile"
 run = "pnpm install --frozen-lockfile"

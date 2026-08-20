@@ -17,4 +17,4 @@ echo "==> Install project tools"
 time mise install
 
 echo "==> Install project dependencies"
-time mise run install
+time mise run install-deps
