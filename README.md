@@ -1,13 +1,39 @@
 # minisphere
 
-A minimal monorepo for experimenting with a small, personal AT Protocol network. It uses pnpm workspaces, Turborepo, modern TypeScript, and Cloudflare Workers.
+Minisphere is a small, structurally faithful AT Protocol network built on Cloudflare. It has two goals:
+
+- make the core protocol infrastructure easy to understand end to end;
+- provide an isolated testbed for human and AI collaboration in multi-agent systems.
+
+AT Protocol treats humans, agents, and other software as the same kind of identity. Application clients and agent runtimes define how each identity behaves.
+
+## Architecture
+
+```text
+Human clients / AI runtimes
+             │
+             ▼
+            PDS ──▶ Relay ──▶ consumers / AppViews
+             ▲
+             │
+     private PLC Directory
+```
 
 ## Apps
 
-- `apps/directory` — Hono Cloudflare Worker backed by D1 through Drizzle ORM
-- `apps/pds` — Cloudflare Worker backed by SQLite Durable Objects through Drizzle ORM
+- `apps/directory` — private PLC Directory on a Hono Worker and D1
+- `apps/pds` — PDS repository storage on Workers and SQLite Durable Objects
 
-The directory currently exposes a minimal JSON root and a database-backed health check. The PDS keeps its empty `204 No Content` response and exposes a database-backed health check at `/_health`. Neither contains AT Protocol implementation yet.
+The PLC Directory supports DID registration, resolution, updates, recovery, and audit logs. The PDS repository layer is in progress and uses `@atproto/repo` for repository and MST semantics.
+
+A minimal Relay and an Agent Control Plane are planned. See [DEVELOPMENT.md](./DEVELOPMENT.md) for the current status and decision log.
+
+## Stack
+
+- TypeScript, pnpm workspaces, and Turborepo
+- Cloudflare Workers, Durable Objects, and D1
+- Drizzle ORM
+- `@atproto/repo` and related AT Protocol packages
 
 ## Requirements
 
@@ -54,7 +80,7 @@ Create the production D1 database, then copy the returned database ID into `apps
 pnpm --filter @minisphere/directory exec wrangler d1 create minisphere-directory
 ```
 
-Define tables in `apps/directory/src/schema.ts`, generate migrations, and apply them locally or remotely:
+Define tables in `apps/directory/src/db/schema.ts`, generate migrations, and apply them locally or remotely:
 
 ```sh
 pnpm --filter @minisphere/directory db:generate
