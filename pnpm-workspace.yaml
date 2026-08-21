@@ -9,3 +9,5 @@ allowBuilds:
 minimumReleaseAgeExclude:
   - ultracite@7.10.4
   - "@cloudflare/workers-types@5.20260821.1"
+  - "@cloudflare/vite-plugin@1.52.0"
+  - miniflare@5.20260820.0-alpha

@@ -10,33 +10,33 @@ AT Protocol treats humans, agents, and other software as the same kind of identi
 ## Architecture
 
 ```text
-Human clients / AI runtimes
-             │
-             ▼
-            PDS ──▶ Relay ──▶ consumers / AppViews
-             ▲
-             │
-     private PLC Directory
+Operators ──▶ Control Plane ──▶ PDS ──▶ Relay ──▶ consumers / AppViews
+                                 ▲
+Human clients / AI runtimes ─────┘
+                                 │
+                        private PLC Directory
 ```
 
 ## Apps
 
 - `apps/directory` — private PLC Directory on a Hono Worker and D1
 - `apps/pds` — PDS XRPC, account, authentication, and repo routing Worker
+- `apps/control-plane` — Cloudflare Access-protected account dashboard and API
 
 ## Packages
 
 - `packages/repo-do` — self-contained SQLite Durable Object repository storage, schema, and migrations
 
-The PLC Directory supports DID registration, resolution, updates, recovery, and audit logs. The PDS repository layer is in progress and uses `@atproto/repo` for repository and MST semantics.
+The PLC Directory supports DID registration, resolution, updates, recovery, and audit logs. The PDS repository layer uses `@atproto/repo` for repository and MST semantics. The Control Plane is a React SPA with TanStack Router and Query; its Hono API runs in the same Worker and provisions human and agent PDS accounts through the standard `com.atproto.server.createAccount` XRPC.
 
-A minimal Relay and an Agent Control Plane are planned. See [DEVELOPMENT.md](./DEVELOPMENT.md) for the current status and decision log.
+A minimal Relay is planned. See [DEVELOPMENT.md](./DEVELOPMENT.md) for the current status and decision log.
 
 ## Stack
 
 - TypeScript, pnpm workspaces, and Turborepo
 - Cloudflare Workers, Durable Objects, and D1
 - Drizzle ORM
+- React, TanStack Router and Query, shadcn/ui, and Hono RPC
 - `@atproto/repo` and related AT Protocol packages
 
 ## Requirements
@@ -53,13 +53,13 @@ pnpm install
 ## Commands
 
 ```sh
-pnpm dev          # Run both Workers locally
-pnpm build        # Build both Workers without deploying
+pnpm dev          # Run all apps locally
+pnpm build        # Build all apps without deploying
 pnpm typecheck    # Type-check all workspace packages
 pnpm lint         # Lint the repository
 pnpm format       # Format the repository
 pnpm check        # Run all repository checks
-pnpm deploy       # Deploy both Workers to Cloudflare
+pnpm deploy       # Deploy all Workers to Cloudflare
 ```
 
 Run a command for only one app with a pnpm filter:
@@ -68,6 +68,7 @@ Run a command for only one app with a pnpm filter:
 pnpm --filter @minisphere/directory dev
 pnpm --filter @minisphere/pds dev
 pnpm --filter @minisphere/repo-do typecheck
+pnpm --filter @minisphere/control-plane dev
 ```
 
 After changing a Worker's bindings in `wrangler.jsonc`, regenerate its Cloudflare types:
@@ -75,6 +76,7 @@ After changing a Worker's bindings in `wrangler.jsonc`, regenerate its Cloudflar
 ```sh
 pnpm --filter @minisphere/directory cf-typegen
 pnpm --filter @minisphere/pds cf-typegen
+pnpm --filter @minisphere/control-plane cf-typegen
 ```
 
 ## Directory database
@@ -144,3 +146,29 @@ pnpm --filter @minisphere/pds exec wrangler secret put PDS_ROTATION_KEY
 ```
 
 The PDS submits account genesis operations to `minisphere-directory` through its `DIRECTORY` service binding.
+## Control Plane
+
+Create its production D1 database, replace the placeholder ID in `apps/control-plane/wrangler.jsonc`, and apply the migration:
+
+```sh
+pnpm --filter @minisphere/control-plane exec wrangler d1 create minisphere-control-plane
+pnpm --filter @minisphere/control-plane db:migrate:remote
+```
+
+The Worker requires these secrets:
+
+- `PDS_ORIGIN` — the canonical HTTPS PDS origin, with no path;
+- `CONTROL_PLANE_ENCRYPTION_KEY` — 32 random bytes encoded as unpadded base64url, used for stored recovery and account credentials.
+
+Generate the encryption key locally, then put the values into the Control Plane Worker:
+
+```sh
+node -e 'console.log(Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString("base64url"))'
+
+pnpm --filter @minisphere/control-plane exec wrangler secret put PDS_ORIGIN
+pnpm --filter @minisphere/control-plane exec wrangler secret put CONTROL_PLANE_ENCRYPTION_KEY
+```
+
+The Control Plane calls `PdsControlPlane.generateInviteCode()` through its PDS service binding before it submits `com.atproto.server.createAccount`.
+
+Protect the complete deployed Worker with a Cloudflare Access policy for **all traffic**, including the dashboard, `/api/*`, custom domains, `workers.dev`, and previews. The application intentionally has no second JWT, session, or role layer: every identity admitted by Access has the same Control Plane permissions. Local `wrangler` or Vite development does not run the real Access edge policy; use a deployed staging Worker when testing Access itself.

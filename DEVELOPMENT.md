@@ -48,3 +48,25 @@ This file records the current implementation state and important architecture de
 1. Implement `createSession`, `refreshSession`, `deleteSession`, and `getSession` against the stored account credentials and refresh-token state.
 2. Authenticate `applyWrites` with the password-session access JWT.
 3. Add handle lookup and account-creation retry handling.
+
+### Control Plane
+
+- The Control Plane account dashboard and Hono API are implemented in one Cloudflare Worker deployment.
+- It uses a client-rendered React SPA with standalone TanStack Router and Query. TanStack Start and SSR are intentionally not used.
+- UI primitives use shadcn/ui with preset `b2D0xPGVM`.
+- `/accounts` manages PDS accounts without defining a separate AT Protocol identity type.
+
+### Decisions
+
+- Cloudflare Access protects the entire deployed Control Plane Worker. The application has no additional JWT, session, or RBAC layer, and all identities admitted by Access have equal permissions.
+- Account creation is orchestrated by `POST /api/accounts` and delegated to the standard PDS `com.atproto.server.createAccount` XRPC.
+- The Control Plane gets account invites from the PDS through the private `PdsControlPlane` service binding.
+- The Control Plane generates account passwords. Passwords, sessions, and PLC recovery private keys are encrypted in Control Plane D1 with AES-256-GCM.
+- MVP account creation has no durable reservation, retry, or reconciliation flow. Failed partial creation can leave an abandoned Durable Object or PLC DID; a later attempt creates a new DID.
+
+### Next
+
+1. Run an end-to-end account creation test through the Control Plane.
+2. Configure Cloudflare Access for production and a deployed staging Worker.
+3. Add authenticated record mutations and repository reads.
+4. Emit repository events and build the minimal Relay.
