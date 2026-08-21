@@ -1,0 +1,130 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "id": "7e9429ec-21af-43cf-8388-2cb9b57863ea",
+  "prevIds": ["00000000-0000-0000-0000-000000000000"],
+  "ddl": [
+    {
+      "name": "accounts",
+      "entityType": "tables"
+    },
+    {
+      "name": "refresh_tokens",
+      "entityType": "tables"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "did",
+      "entityType": "columns",
+      "table": "accounts"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "handle",
+      "entityType": "columns",
+      "table": "accounts"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "password_hash",
+      "entityType": "columns",
+      "table": "accounts"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "did",
+      "entityType": "columns",
+      "table": "refresh_tokens"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "expires_at",
+      "entityType": "columns",
+      "table": "refresh_tokens"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "jti",
+      "entityType": "columns",
+      "table": "refresh_tokens"
+    },
+    {
+      "columns": ["did"],
+      "tableTo": "accounts",
+      "columnsTo": ["did"],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "nameExplicit": false,
+      "name": "fk_refresh_tokens_did_accounts_did_fk",
+      "entityType": "fks",
+      "table": "refresh_tokens"
+    },
+    {
+      "columns": ["did"],
+      "nameExplicit": false,
+      "name": "accounts_pk",
+      "table": "accounts",
+      "entityType": "pks"
+    },
+    {
+      "columns": ["jti"],
+      "nameExplicit": false,
+      "name": "refresh_tokens_pk",
+      "table": "refresh_tokens",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        {
+          "value": "handle",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "origin": "manual",
+      "name": "accounts_handle_unique_idx",
+      "entityType": "indexes",
+      "table": "accounts"
+    },
+    {
+      "columns": [
+        {
+          "value": "did",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "name": "refresh_tokens_did_idx",
+      "entityType": "indexes",
+      "table": "refresh_tokens"
+    }
+  ],
+  "renames": []
+}

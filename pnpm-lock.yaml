@@ -316,6 +316,9 @@ importers:
       hono:
         specifier: ^4.13.2
         version: 4.13.2
+      jose:
+        specifier: ^6.2.9
+        version: 6.2.9
       zod:
         specifier: ^4.4.3
         version: 4.4.3
@@ -2109,6 +2112,9 @@ packages:
   jiti@2.7.0:
     resolution: {integrity: sha512-AC/7JofJvZGrrneWNaEnJeOLUx+JlGt7tNa0wZiRPT4MY1wmfKjt2+6O2p2uz2+skll8OZZmJMNqeke7kKbNgQ==}
     hasBin: true
+
+  jose@6.2.9:
+    resolution: {integrity: sha512-XrchZOFZUl/T3vTwRe8XK+cJrGtMF4th1ARnDfwbBXFKThGhlsxEE4Zu03AD/bjJSt/9jT/mxrOCkJWOg77aPA==}
 
   jsbi@4.3.2:
     resolution: {integrity: sha512-9fqMSQbhJykSeii05nxKl4m6Eqn2P6rOlYiS+C5Dr/HPIU/7yZxu5qzbs40tgaFORiw2Amd0mirjxatXYMkIew==}
@@ -3972,6 +3978,8 @@ snapshots:
   iso-datestring-validator@2.2.2: {}
 
   jiti@2.7.0: {}
+
+  jose@6.2.9: {}
 
   jsbi@4.3.2: {}
 

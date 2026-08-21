@@ -6,9 +6,12 @@
   "scripts": {
     "build": "wrangler deploy --dry-run --outdir dist",
     "cf-typegen": "wrangler types",
-    "db:generate": "drizzle-kit generate",
+    "account-db:generate": "drizzle-kit generate --config drizzle.account.config.ts --name",
+    "account-db:migrate:local": "wrangler d1 migrations apply ACCOUNT_DB --local",
+    "account-db:migrate:remote": "wrangler d1 migrations apply ACCOUNT_DB --remote",
     "deploy": "wrangler deploy",
     "dev": "wrangler dev",
+    "repo-db:generate": "drizzle-kit generate --config drizzle.repo.config.ts --name",
     "test": "vitest run",
     "typecheck": "wrangler types && tsc --noEmit && tsc --noEmit -p tests/tsconfig.json"
   },
@@ -29,6 +32,7 @@
     "@hono/zod-validator": "^0.9.0",
     "drizzle-orm": "1.0.0-rc.4",
     "hono": "^4.13.2",
+    "jose": "^6.2.9",
     "zod": "^4.4.3"
   },
   "devDependencies": {

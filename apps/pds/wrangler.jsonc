@@ -5,8 +5,29 @@
   "compatibility_date": "2026-08-16",
   "compatibility_flags": ["nodejs_compat"],
   "secrets": {
-    "required": ["PDS_HOSTNAME", "PDS_ROTATION_KEY", "PLC_DIRECTORY"],
+    "required": [
+      "CONTROL_PLANE_PUBLIC_KEY",
+      "PDS_HOSTNAME",
+      "PDS_JWT_SECRET",
+      "PDS_ROTATION_KEY",
+    ],
   },
+  "services": [
+    {
+      "binding": "DIRECTORY",
+      "service": "minisphere-directory",
+    },
+  ],
+  "d1_databases": [
+    {
+      "binding": "ACCOUNT_DB",
+      "database_name": "minisphere-pds",
+      // Replace this placeholder with the ID returned by `wrangler d1 create` before deploying.
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations",
+      "migrations_pattern": "migrations/*/migration.sql",
+    },
+  ],
   "kv_namespaces": [
     {
       "binding": "HANDLES",

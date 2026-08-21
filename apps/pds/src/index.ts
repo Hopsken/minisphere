@@ -3,7 +3,6 @@ import { cors } from "hono/cors";
 import { HTTPException } from "hono/http-exception";
 import { logger } from "hono/logger";
 
-import adminRoutes from "./routes/admin";
 import xrpcRoutes from "./routes/xrpc";
 
 const app = new Hono<{
@@ -29,7 +28,6 @@ app.get("/.well-known/atproto-did", async (ctx) => {
   return ctx.text(did);
 });
 
-app.route("/admin", adminRoutes);
 app.route("/xrpc", xrpcRoutes);
 
 // oxlint-disable-next-line promise/prefer-await-to-callbacks
