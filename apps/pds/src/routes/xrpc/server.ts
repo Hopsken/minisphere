@@ -14,11 +14,11 @@ import {
 import type { DidKeyString, UnsignedOperation } from "@atcute/did-plc";
 import { Hono } from "hono";
 
-import { createAccountDatabase } from "../../account-db";
-import { accountsTable, refreshTokensTable } from "../../account-db/schema";
 import { verifyInviteCode } from "../../auth/invite-code";
 import { hashPassword } from "../../auth/password";
 import { createSessionTokens } from "../../auth/session";
+import { createAccountDatabase } from "../../db";
+import { accountsTable, refreshTokensTable } from "../../db/schema";
 import { lexiconJsonValidator } from "../../utils/lexicon-validator";
 
 const app = new Hono<{ Bindings: Env }>();
@@ -169,8 +169,8 @@ app.post(
       repoKey.exportPrivateKey("multikey"),
     ]);
 
-    const pds = c.env.PDS.getByName(did);
-    await pds.reserveRepo(did, repoSigningKeyMultikey);
+    const repo = c.env.REPO.getByName(did);
+    await repo.reserveRepo(did, repoSigningKeyMultikey);
 
     const directory = new PlcClient({
       fetch: (request, init) =>

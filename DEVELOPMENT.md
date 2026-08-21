@@ -8,7 +8,7 @@ This file records the current implementation state and important architecture de
 
 - The private PLC Directory is implemented.
 - The PDS is the current focus.
-- The PDS uses `@atproto/repo` above a Durable Object SQLite storage adapter.
+- The reusable `@minisphere/repo-do` package uses `@atproto/repo` above a Durable Object SQLite storage adapter.
 - Relay and Agent Control Plane work has not started.
 
 ### Decisions
@@ -18,6 +18,7 @@ This file records the current implementation state and important architecture de
 - The Control Plane will manage system-operated agents and PLC rotation keys.
 - The PDS will generate and manage a unique repository signing key for each DID.
 - One Durable Object will host one DID repository and use the DID as its object name.
+- `packages/repo-do` owns `RepoDO`, its repository storage, Drizzle schema, and bundled migrations. PDS owns account D1 state and routes calls through its `REPO` binding.
 - During account creation, the PDS Worker will validate Control Plane admission, generate and submit the PLC genesis operation, derive the DID, and initialize the DID-named Durable Object.
 - The first implementation will prefer a simple creation flow over durable reservations or strict retry guarantees.
 
@@ -39,7 +40,7 @@ This file records the current implementation state and important architecture de
 - `CONTROL_PLANE_PUBLIC_KEY` contains the trusted Control Plane invite-signing public `did:key`. This key is distinct from the per-account `recoveryKey` supplied to `createAccount`.
 - Invite replay tracking is intentionally omitted. The Control Plane is user-controlled, and the invite is only an admission proof.
 - The first `createAccount` implementation supports new local accounts only. It requires a local handle, password, invite code, and one PLC recovery key; account import, email, and verification fields are rejected.
-- Global account, handle, and refresh-token state lives in the PDS Worker D1 database. Each DID-owned Durable Object and its bundled migrations contain repository data only.
+- Global account, handle, and refresh-token state lives in the PDS Worker D1 database. Each DID-owned `RepoDO` and the bundled migrations in `packages/repo-do` contain repository data only.
 - The PDS creates password-session JWTs with `jose` and a separate `PDS_JWT_SECRET`, then submits the generated PLC operation through the private Directory service binding.
 - Migration generation commands require an explicit, readable migration name instead of a Drizzle-generated name.
 

@@ -1,5 +1,6 @@
 packages:
   - apps/*
+  - packages/*
 
 allowBuilds:
   esbuild: true
@@ -7,3 +8,4 @@ allowBuilds:
 
 minimumReleaseAgeExclude:
   - ultracite@7.10.4
+  - "@cloudflare/workers-types@5.20260821.1"

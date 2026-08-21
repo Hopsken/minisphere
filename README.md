@@ -22,7 +22,11 @@ Human clients / AI runtimes
 ## Apps
 
 - `apps/directory` — private PLC Directory on a Hono Worker and D1
-- `apps/pds` — PDS repository storage on Workers and SQLite Durable Objects
+- `apps/pds` — PDS XRPC, account, authentication, and repo routing Worker
+
+## Packages
+
+- `packages/repo-do` — self-contained SQLite Durable Object repository storage, schema, and migrations
 
 The PLC Directory supports DID registration, resolution, updates, recovery, and audit logs. The PDS repository layer is in progress and uses `@atproto/repo` for repository and MST semantics.
 
@@ -63,6 +67,7 @@ Run a command for only one app with a pnpm filter:
 ```sh
 pnpm --filter @minisphere/directory dev
 pnpm --filter @minisphere/pds dev
+pnpm --filter @minisphere/repo-do typecheck
 ```
 
 After changing a Worker's bindings in `wrangler.jsonc`, regenerate its Cloudflare types:
@@ -98,21 +103,21 @@ The PDS Worker stores global account and refresh-token state in D1. Create the p
 pnpm --filter @minisphere/pds exec wrangler d1 create minisphere-pds
 ```
 
-Define account tables in `apps/pds/src/account-db/schema.ts`, then generate and apply D1 migrations:
+Define account tables in `apps/pds/src/db/schema.ts`, then generate and apply D1 migrations:
 
 ```sh
-pnpm --filter @minisphere/pds account-db:generate add-account-column
-pnpm --filter @minisphere/pds account-db:migrate:local
-pnpm --filter @minisphere/pds account-db:migrate:remote
+pnpm --filter @minisphere/pds db:generate add-account-column
+pnpm --filter @minisphere/pds db:migrate:local
+pnpm --filter @minisphere/pds db:migrate:remote
 ```
 
-Repository data remains isolated in each `PdsDurableObject` SQLite database. Define repo tables in `apps/pds/src/db/schema.ts` and generate its bundled DO migrations separately:
+Repository data remains isolated in each `RepoDO` SQLite database. The self-contained `@minisphere/repo-do` package owns the DO implementation, repo schema, Drizzle config, and migrations. Define repo tables in `packages/repo-do/src/db/schema.ts`, then generate bundled migrations in the package:
 
 ```sh
-pnpm --filter @minisphere/pds repo-db:generate add-repo-table
+pnpm --filter @minisphere/repo-do db:generate add-repo-table
 ```
 
-The Durable Object applies repo migrations before it accepts requests. Account D1 migrations are applied explicitly with Wrangler.
+`RepoDO` imports these migrations from `packages/repo-do/migrations` and applies them before it accepts requests. Account D1 migrations remain in `apps/pds/migrations` and are applied explicitly with Wrangler.
 
 Every generate command requires a short, readable migration name as its final argument. Use a name that describes the schema change; do not use Drizzle's generated adjective names.
 

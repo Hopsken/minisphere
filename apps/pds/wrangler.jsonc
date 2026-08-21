@@ -36,15 +36,15 @@
   "durable_objects": {
     "bindings": [
       {
-        "name": "PDS",
-        "class_name": "PdsDurableObject",
+        "name": "REPO",
+        "class_name": "RepoDO",
       },
     ],
   },
   "migrations": [
     {
       "tag": "v1",
-      "new_sqlite_classes": ["PdsDurableObject"],
+      "new_sqlite_classes": ["RepoDO"],
     },
   ],
   "rules": [

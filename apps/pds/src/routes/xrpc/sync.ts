@@ -36,8 +36,8 @@ app.get(
   lexiconQueryValidator(GetRepoStatus.mainSchema.params),
   async (c) => {
     const { did } = c.req.valid("query");
-    const pds = c.env.PDS.getByName(did);
-    const repoStatus = await pds.rpcGetRepoStatus();
+    const repo = c.env.REPO.getByName(did);
+    const repoStatus = await repo.rpcGetRepoStatus();
     // Expected response: GetRepoStatus.$output
     return c.json(repoStatus);
   }
@@ -70,8 +70,8 @@ app.get(
   ),
   async (c) => {
     const { did, collection, rkey } = c.req.valid("query");
-    const pds = c.env.PDS.getByName(did);
-    const record = await pds.rpcGetRecord(collection, rkey);
+    const repo = c.env.REPO.getByName(did);
+    const record = await repo.rpcGetRecord(collection, rkey);
     return c.json(record);
   }
 );

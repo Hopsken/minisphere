@@ -126,7 +126,7 @@ describe("com.atproto.server.createAccount", () => {
     const handleResponse = await exports.default.fetch(
       new Request("https://agent.pds.test/.well-known/atproto-did")
     );
-    const pds = env.PDS.getByName(payload.did);
+    const repoObject = env.REPO.getByName(payload.did);
     const [account, indexedDid, resolvedDid, storedRefreshToken, repo] =
       await Promise.all([
         env.ACCOUNT_DB.prepare(
@@ -141,7 +141,7 @@ describe("com.atproto.server.createAccount", () => {
         )
           .bind(payload.did)
           .first(),
-        pds.rpcGetRepoStatus(),
+        repoObject.rpcGetRepoStatus(),
       ]);
     expect({
       account,

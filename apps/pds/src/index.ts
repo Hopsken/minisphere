@@ -44,4 +44,4 @@ app.onError((err, c) => {
 
 export default app;
 
-export { PdsDurableObject } from "./pds-do";
+export { RepoDO } from "@minisphere/repo-do";

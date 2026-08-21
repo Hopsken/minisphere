@@ -89,7 +89,10 @@ export default defineConfig(async () => {
         optimizer: {
           ssr: {
             enabled: true,
-            include: ["@atcute/crypto", "@atproto/crypto"],
+            include: [
+              "@atcute/crypto",
+              "@minisphere/repo-do > @atproto/crypto",
+            ],
           },
         },
       },
