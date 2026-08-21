@@ -7,6 +7,7 @@ export default defineConfig(async () => {
   const rotationKeyMultikey = await rotationKey.exportPrivateKey("multikey");
   process.env.PDS_HOSTNAME = "pds.test";
   process.env.PDS_ROTATION_KEY = rotationKeyMultikey;
+  process.env.PLC_DIRECTORY = "https://plc.test";
 
   return {
     plugins: [
@@ -15,6 +16,7 @@ export default defineConfig(async () => {
           bindings: {
             PDS_HOSTNAME: "pds.test",
             PDS_ROTATION_KEY: rotationKeyMultikey,
+            PLC_DIRECTORY: "https://plc.test",
           },
         },
         wrangler: { configPath: "./wrangler.jsonc" },

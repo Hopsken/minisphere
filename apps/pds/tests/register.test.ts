@@ -72,12 +72,30 @@ describe("admin register", () => {
       isSignedOperationValid(operation.rotationKeys, operation)
     ).resolves.toBe(pdsDid);
 
+    const indexedDid = await env.HANDLES.get("ab.pds.test");
+    const handleResponse = await exports.default.fetch(
+      new Request("https://ab.pds.test/.well-known/atproto-did")
+    );
+    const resolvedDid = await handleResponse.text();
+
     const pds = env.PDS.getByName(payload.did);
     const repoStatus = await pds.rpcGetRepoStatus();
-    expect(repoStatus).toMatchObject({
-      did: payload.did,
-      head: expect.any(String),
-      rev: expect.any(String),
+    expect({
+      contentType: handleResponse.headers.get("Content-Type"),
+      handleStatus: handleResponse.status,
+      indexedDid,
+      repoStatus,
+      resolvedDid,
+    }).toMatchObject({
+      contentType: expect.stringContaining("text/plain"),
+      handleStatus: 200,
+      indexedDid: payload.did,
+      repoStatus: {
+        did: payload.did,
+        head: expect.any(String),
+        rev: expect.any(String),
+      },
+      resolvedDid: payload.did,
     });
   });
 
@@ -100,5 +118,21 @@ describe("admin register", () => {
       method: "POST",
     });
     expect(shortNameResponse.status).toBe(400);
+  });
+});
+
+describe("well-known handle", () => {
+  it("does not publish unknown or external handles", async () => {
+    const [unknown, external] = await Promise.all([
+      exports.default.fetch(
+        new Request("https://unknown.pds.test/.well-known/atproto-did")
+      ),
+      exports.default.fetch(
+        new Request("https://other.test/.well-known/atproto-did")
+      ),
+    ]);
+
+    expect(unknown.status).toBe(404);
+    expect(external.status).toBe(404);
   });
 });

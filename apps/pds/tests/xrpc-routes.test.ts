@@ -59,7 +59,6 @@ const unimplementedRoutes: [path: string, init?: RequestInit][] = [
   ["/xrpc/com.atproto.sync.getRepo?did=did:plc:alice"],
   ["/xrpc/com.atproto.sync.getLatestCommit?did=did:plc:alice"],
   ["/xrpc/com.atproto.sync.subscribeRepos?cursor=1"],
-  ["/xrpc/com.atproto.identity.resolveHandle?handle=alice.test"],
 ];
 
 const invalidRoutes: [path: string, init?: RequestInit][] = [

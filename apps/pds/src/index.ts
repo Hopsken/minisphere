@@ -14,6 +14,21 @@ app.use(cors()).use(logger());
 
 app.get("/", (ctx) => ctx.json({ name: "pds" }));
 
+app.get("/.well-known/atproto-did", async (ctx) => {
+  const handle = new URL(ctx.req.url).hostname.toLowerCase();
+  const pdsHostname = ctx.env.PDS_HOSTNAME.toLowerCase();
+  if (!handle.endsWith(`.${pdsHostname}`)) {
+    return ctx.notFound();
+  }
+
+  const did = await ctx.env.HANDLES.get(handle);
+  if (!did) {
+    return ctx.notFound();
+  }
+
+  return ctx.text(did);
+});
+
 app.route("/admin", adminRoutes);
 app.route("/xrpc", xrpcRoutes);
 

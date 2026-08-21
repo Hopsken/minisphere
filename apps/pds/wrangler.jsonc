@@ -5,8 +5,13 @@
   "compatibility_date": "2026-08-16",
   "compatibility_flags": ["nodejs_compat"],
   "secrets": {
-    "required": ["PDS_HOSTNAME", "PDS_ROTATION_KEY"],
+    "required": ["PDS_HOSTNAME", "PDS_ROTATION_KEY", "PLC_DIRECTORY"],
   },
+  "kv_namespaces": [
+    {
+      "binding": "HANDLES",
+    },
+  ],
   "durable_objects": {
     "bindings": [
       {

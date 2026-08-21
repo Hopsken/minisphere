@@ -95,6 +95,7 @@ app.post("/register", zValidator("json", registerSchema), async (c) => {
   const repoSigningKeyMultikey = await repoKey.exportPrivateKey("multikey");
   const pds = c.env.PDS.getByName(did);
   await pds.reserveRepo(did, repoSigningKeyMultikey);
+  await c.env.HANDLES.put(handle, did);
 
   return c.json({ did, operation });
 });
