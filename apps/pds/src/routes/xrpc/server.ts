@@ -13,40 +13,57 @@ import {
 } from "@atcute/did-plc";
 import type { DidKeyString, UnsignedOperation } from "@atcute/did-plc";
 import { Hono } from "hono";
+import z from "zod";
 
 import { verifyInviteCode } from "../../auth/invite-code";
 import { hashPassword } from "../../auth/password";
 import { createSessionTokens } from "../../auth/session";
-import { createAccountDatabase } from "../../db";
+import { createPdsDatabase } from "../../db";
 import { accountsTable, refreshTokensTable } from "../../db/schema";
 import { lexiconJsonValidator } from "../../utils/lexicon-validator";
+import { zValidator } from "../../utils/z-validator";
 
 const app = new Hono<{ Bindings: Env }>();
 
 const PASSWORD_MIN_LENGTH = 16;
 const PASSWORD_MAX_LENGTH = 256;
 
-const normalizeDidKey = (value: string): DidKeyString | null => {
-  try {
-    parseDidKey(value);
-    return `did:key:${value.slice("did:key:".length)}`;
-  } catch {
-    return null;
-  }
-};
+const recoveryKeySchema = z
+  .string()
+  .refine(
+    (value) => {
+      try {
+        parseDidKey(value);
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    { error: "Invalid DID PLC recovery key" }
+  )
+  .transform(
+    (value): DidKeyString => `did:key:${value.slice("did:key:".length)}`
+  );
+
+const createAccountSchema = z.strictObject({
+  handle: z.string().transform((value) => value.toLowerCase()),
+  inviteCode: z.string().min(1),
+  password: z.string().min(PASSWORD_MIN_LENGTH).max(PASSWORD_MAX_LENGTH),
+  recoveryKey: recoveryKeySchema,
+});
 
 app.post(
   "/com.atproto.server.createAccount",
   lexiconJsonValidator(CreateAccount.mainSchema.input.schema),
+  zValidator("json", createAccountSchema),
   async (c) => {
-    const input = c.req.valid("json");
+    const { handle, inviteCode, password, recoveryKey } = c.req.valid("json");
     const pdsHostname = c.env.PDS_HOSTNAME.toLowerCase();
     const pdsOrigin = `https://${pdsHostname}`;
 
     if (
-      !input.inviteCode ||
       !(await verifyInviteCode(
-        input.inviteCode,
+        inviteCode,
         pdsOrigin,
         c.env.CONTROL_PLANE_PUBLIC_KEY
       ))
@@ -57,23 +74,6 @@ app.post(
       );
     }
 
-    if (
-      input.did !== undefined ||
-      input.email !== undefined ||
-      input.plcOp !== undefined ||
-      input.verificationCode !== undefined ||
-      input.verificationPhone !== undefined
-    ) {
-      return c.json(
-        {
-          error: "InvalidRequest",
-          message: "Account import, email, and verification are not supported",
-        },
-        400
-      );
-    }
-
-    const handle = input.handle.toLowerCase();
     const handleSuffix = `.${pdsHostname}`;
     const accountName = handle.endsWith(handleSuffix)
       ? handle.slice(0, -handleSuffix.length)
@@ -92,36 +92,8 @@ app.post(
       );
     }
 
-    const { password } = input;
-    if (
-      !password ||
-      password.length < PASSWORD_MIN_LENGTH ||
-      password.length > PASSWORD_MAX_LENGTH
-    ) {
-      return c.json(
-        {
-          error: "InvalidPassword",
-          message: `Password must contain ${PASSWORD_MIN_LENGTH}-${PASSWORD_MAX_LENGTH} characters`,
-        },
-        400
-      );
-    }
-
-    const recoveryKey = input.recoveryKey
-      ? normalizeDidKey(input.recoveryKey)
-      : null;
-    if (!recoveryKey) {
-      return c.json(
-        {
-          error: "InvalidRequest",
-          message: "A valid DID PLC recoveryKey is required",
-        },
-        400
-      );
-    }
-
-    const accountDb = createAccountDatabase(c.env.ACCOUNT_DB);
-    const existingAccount = await accountDb.query.accountsTable.findFirst({
+    const pdsDb = createPdsDatabase(c.env.PDS_DB);
+    const existingAccount = await pdsDb.query.accountsTable.findFirst({
       where: { handle },
     });
     if (existingAccount) {
@@ -179,13 +151,13 @@ app.post(
     });
     await directory.submitOperation(did, operation);
 
-    await accountDb.batch([
-      accountDb.insert(accountsTable).values({
+    await pdsDb.batch([
+      pdsDb.insert(accountsTable).values({
         did,
         handle,
         password_hash: passwordHash,
       }),
-      accountDb.insert(refreshTokensTable).values({
+      pdsDb.insert(refreshTokensTable).values({
         did,
         expires_at: session.refreshToken.expiresAt,
         jti: session.refreshToken.jti,

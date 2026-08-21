@@ -20,7 +20,7 @@
   ],
   "d1_databases": [
     {
-      "binding": "ACCOUNT_DB",
+      "binding": "PDS_DB",
       "database_name": "minisphere-pds",
       // Replace this placeholder with the ID returned by `wrangler d1 create` before deploying.
       "database_id": "00000000-0000-0000-0000-000000000000",

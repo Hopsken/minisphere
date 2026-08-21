@@ -6,7 +6,7 @@ import * as schema from "./schema";
 
 const relations = defineRelations(schema);
 
-export type AccountDatabase = DrizzleD1Database<typeof relations>;
+export type PdsDatabase = DrizzleD1Database<typeof relations>;
 
-export const createAccountDatabase = (d1: D1Database): AccountDatabase =>
+export const createPdsDatabase = (d1: D1Database): PdsDatabase =>
   drizzle(d1, { relations });

@@ -37,6 +37,7 @@ const jwtClaimsSchema = z.object({
 });
 
 interface CreateAccountOverrides {
+  did?: string;
   handle?: string;
   inviteCode?: string;
   password?: string;
@@ -129,14 +130,14 @@ describe("com.atproto.server.createAccount", () => {
     const repoObject = env.REPO.getByName(payload.did);
     const [account, indexedDid, resolvedDid, storedRefreshToken, repo] =
       await Promise.all([
-        env.ACCOUNT_DB.prepare(
+        env.PDS_DB.prepare(
           "SELECT did, handle, password_hash FROM accounts WHERE did = ?"
         )
           .bind(payload.did)
           .first(),
         env.HANDLES.get(payload.handle),
         handleResponse.text(),
-        env.ACCOUNT_DB.prepare(
+        env.PDS_DB.prepare(
           "SELECT did, jti, expires_at FROM refresh_tokens WHERE did = ?"
         )
           .bind(payload.did)
@@ -203,7 +204,10 @@ describe("com.atproto.server.createAccount", () => {
     });
   });
 
-  it("requires the local handle, machine password, and recovery key", async () => {
+  it("rejects account imports and requires local credentials", async () => {
+    const importedAccount = await postAccount({ did: "did:plc:alice" });
+    expect(importedAccount.status).toBe(400);
+
     const invalidHandle = await postAccount({ handle: "agent.example.com" });
     expect(invalidHandle.status).toBe(400);
 
