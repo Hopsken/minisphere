@@ -51,6 +51,6 @@ This file records the current implementation state and important architecture de
 1. Run an end-to-end account creation test through the Control Plane, PDS, and PLC Directory.
 2. Implement PDS session creation and refresh, then use the stored Control Plane password when authentication is required.
 3. Add authenticated record mutations, repository export, and repository event subscriptions.
-4. Configure Cloudflare Access for production and a deployed staging Worker.
+4. Configure Cloudflare Access before deploying the Control Plane.
 5. Convert durable decisions in this file into ADRs.
 6. Build the minimal Relay.

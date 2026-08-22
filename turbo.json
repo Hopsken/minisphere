@@ -2,23 +2,67 @@
   "$schema": "https://turbo.build/schema.json",
   "tasks": {
     "build": {
+      "dependsOn": ["^build"],
       "outputs": ["dist/**"]
+    },
+    "cf-typegen": {
+      "outputs": ["worker-configuration.d.ts"]
+    },
+    "db:migrate:local": {
+      "cache": false
+    },
+    "db:migrate:remote": {
+      "cache": false
     },
     "deploy": {
       "cache": false,
-      "dependsOn": ["build"]
+      "dependsOn": ["build", "db:migrate:remote"]
     },
     "dev": {
       "cache": false,
       "persistent": true
     },
+    "//#format:check:root": {},
+    "//#lint:root": {},
     "test": {
-      "dependsOn": ["^build"],
       "outputs": []
     },
     "typecheck": {
-      "dependsOn": ["^typecheck"],
+      "dependsOn": ["cf-typegen", "^typecheck"],
       "outputs": []
+    },
+    "@minisphere/control-plane#cf-typegen": {
+      "dependsOn": [
+        "@minisphere/directory#cf-typegen",
+        "@minisphere/pds#cf-typegen"
+      ],
+      "outputs": ["worker-configuration.d.ts"]
+    },
+    "@minisphere/control-plane#deploy": {
+      "cache": false,
+      "dependsOn": ["build", "db:migrate:remote", "@minisphere/pds#deploy"]
+    },
+    "@minisphere/control-plane#dev": {
+      "cache": false,
+      "persistent": true,
+      "with": ["@minisphere/directory#dev", "@minisphere/pds#dev"]
+    },
+    "@minisphere/pds#cf-typegen": {
+      "dependsOn": ["@minisphere/directory#cf-typegen"],
+      "outputs": ["worker-configuration.d.ts"]
+    },
+    "@minisphere/pds#deploy": {
+      "cache": false,
+      "dependsOn": [
+        "build",
+        "db:migrate:remote",
+        "@minisphere/directory#deploy"
+      ]
+    },
+    "@minisphere/pds#dev": {
+      "cache": false,
+      "persistent": true,
+      "with": ["@minisphere/directory#dev"]
     }
   }
 }

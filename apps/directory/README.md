@@ -32,10 +32,8 @@ The remote migration command changes deployed data and requires Cloudflare crede
 ## Development
 
 ```sh
-pnpm --filter @minisphere/directory dev
-pnpm --filter @minisphere/directory test
-pnpm --filter @minisphere/directory typecheck
-pnpm --filter @minisphere/directory build
+pnpm dev:directory
+pnpm turbo test typecheck build --filter=@minisphere/directory
 ```
 
-Run `pnpm --filter @minisphere/directory cf-typegen` after a binding change.
+`pnpm setup:local` generates Worker types and applies local D1 migrations for the complete stack.

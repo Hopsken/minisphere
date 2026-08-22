@@ -81,19 +81,23 @@ pnpm --filter @minisphere/control-plane exec wrangler secret put CONTROL_PLANE_A
 
 ## Development
 
-```sh
-pnpm --filter @minisphere/control-plane dev
-pnpm --filter @minisphere/control-plane test
-pnpm --filter @minisphere/control-plane typecheck
-pnpm --filter @minisphere/control-plane build
-```
-
-The type-generation command reads the Control Plane, PDS, and Directory Wrangler configurations so service bindings receive their RPC types. Run it after any bound Worker interface changes:
+Create the local configuration once, then initialize generated types and local databases from the repository root:
 
 ```sh
-pnpm --filter @minisphere/control-plane cf-typegen
+cp apps/control-plane/.env.example apps/control-plane/.env
+cp apps/control-plane/.dev.vars.example apps/control-plane/.dev.vars
+pnpm setup:local
 ```
 
-For Amp orb previews, copy `.env.example` to `.env` or set `VITE_ALLOWED_HOSTS` to a comma-separated host list. A leading dot permits that domain and its subdomains.
+Run the Control Plane with its dependencies or target its checks through Turbo:
 
-Local Vite and Wrangler development does not apply the real Cloudflare Access edge policy. Use a deployed staging Worker to test Access.
+```sh
+pnpm dev:control
+pnpm turbo test typecheck build --filter=@minisphere/control-plane
+```
+
+The Control Plane type-generation task reads its own, PDS, and Directory Wrangler configurations. Turbo reruns it before type-checking when a bound Worker changes.
+
+For Amp orb previews, set `VITE_ALLOWED_HOSTS` in `.env` to a comma-separated host list. A leading dot permits that domain and its subdomains.
+
+Local Vite and Wrangler development does not apply the real Cloudflare Access edge policy. Verify Access on the deployed Worker.

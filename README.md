@@ -38,26 +38,42 @@ A minimal Relay is planned.
 
 ```sh
 pnpm install
+cp apps/control-plane/.env.example apps/control-plane/.env
+cp apps/control-plane/.dev.vars.example apps/control-plane/.dev.vars
+cp apps/pds/.dev.vars.example apps/pds/.dev.vars
+pnpm setup:local
 ```
+
+The example Worker secrets are for local development only. Production secrets are managed with Wrangler and must use different values.
 
 ## Commands
 
 ```sh
-pnpm dev          # Run all apps locally
-pnpm build        # Build all apps without deploying
-pnpm typecheck    # Type-check all workspace projects
-pnpm lint         # Lint the repository
-pnpm format       # Format the repository
-pnpm check        # Run all repository checks
-pnpm deploy       # Deploy all Workers
+pnpm dev:control      # Run the Control Plane and its dependencies
+pnpm dev:pds          # Run the PDS and Directory
+pnpm dev:directory    # Run only the Directory
+pnpm check            # Run all repository checks through Turbo
+pnpm test             # Test all workspace projects
+pnpm typecheck        # Type-check all workspace projects
+pnpm build            # Build all apps without deploying
+pnpm lint             # Lint the repository
+pnpm lint:fix         # Fix supported lint findings
+pnpm format           # Format the repository
+pnpm deploy           # Migrate and deploy the production stack in dependency order
 ```
 
-Use a pnpm filter to run one project's command:
+Use a Turbo filter for a targeted read-only task:
 
 ```sh
-pnpm --filter @minisphere/control-plane dev
-pnpm --filter @minisphere/pds test
-pnpm --filter @minisphere/repo-do typecheck
+pnpm turbo test typecheck --filter=@minisphere/pds
+pnpm turbo build --filter=@minisphere/control-plane
+```
+
+Use a pnpm filter for an explicit project-local write operation:
+
+```sh
+pnpm --filter @minisphere/pds db:generate add-session-index
+pnpm --filter @minisphere/pds db:migrate:local
 ```
 
 ## Documentation

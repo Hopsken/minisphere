@@ -41,11 +41,18 @@ pnpm --filter @minisphere/pds exec wrangler secret put PDS_ROTATION_KEY
 
 ## Development
 
+Create local secrets once and initialize the local stack from the repository root:
+
 ```sh
-pnpm --filter @minisphere/pds dev
-pnpm --filter @minisphere/pds test
-pnpm --filter @minisphere/pds typecheck
-pnpm --filter @minisphere/pds build
+cp apps/pds/.dev.vars.example apps/pds/.dev.vars
+pnpm setup:local
 ```
 
-Run `pnpm --filter @minisphere/pds cf-typegen` after a binding or bound Worker interface changes.
+Run the PDS with its Directory dependency or target its checks through Turbo:
+
+```sh
+pnpm dev:pds
+pnpm turbo test typecheck build --filter=@minisphere/pds
+```
+
+Turbo regenerates PDS Worker types before type-checking when its Wrangler configuration or Directory dependency changes.

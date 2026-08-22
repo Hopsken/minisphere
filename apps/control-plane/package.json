@@ -13,7 +13,7 @@
     "dev": "vite dev",
     "preview": "vite preview",
     "test": "vitest run",
-    "typecheck": "pnpm run cf-typegen && tsc --noEmit && tsc --noEmit -p tests/tsconfig.json"
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tests/tsconfig.json"
   },
   "dependencies": {
     "@atcute/atproto": "^4.0.4",

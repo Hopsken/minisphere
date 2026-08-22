@@ -92,6 +92,8 @@ This document records repository conventions. Read the general sections and the 
 - Test public route behavior separately from service workflows.
 - Assert persisted ownership boundaries, not only response values.
 - Regenerate migrations and Worker types before test and type-check validation when their sources change.
+- Run repository and read-only project checks through Turbo so task dependencies and caches remain effective.
+- Use a pnpm package filter for explicit project-local write operations such as migration generation.
 - Run the narrow project checks first, then repository-wide checks for shared changes.
 
 ## Documentation
