@@ -48,7 +48,7 @@ This document records repository conventions. Read the general sections and the 
 - Use `@minisphere/hono-utils` for validation behavior shared by Hono applications.
 - Prefer Worker service bindings over public HTTP calls between Minisphere Workers.
 - Generate service-binding types from every bound Worker's Wrangler configuration.
-- Run `cf-typegen` after a binding or named RPC entrypoint changes. Do not edit `worker-configuration.d.ts`.
+- Run `typegen` after a binding or named RPC entrypoint changes. Do not edit `worker-configuration.d.ts`.
 
 ## Databases and migrations
 
