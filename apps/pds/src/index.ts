@@ -1,8 +1,10 @@
+import { WorkerEntrypoint } from "cloudflare:workers";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { HTTPException } from "hono/http-exception";
 import { logger } from "hono/logger";
 
+import { generateInviteCode } from "./auth/invite-code";
 import { createPdsDatabase } from "./db";
 import xrpcRoutes from "./routes/xrpc";
 
@@ -46,5 +48,11 @@ app.onError((err, c) => {
 });
 
 export default app;
+
+export class PdsControlPlane extends WorkerEntrypoint<Env> {
+  generateInviteCode(): Promise<string> {
+    return generateInviteCode(this.env.PDS_KV);
+  }
+}
 
 export { RepoDO } from "@minisphere/repo-do";

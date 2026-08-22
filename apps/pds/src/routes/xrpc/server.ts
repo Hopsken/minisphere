@@ -17,7 +17,7 @@ import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import z from "zod";
 
-import { verifyInviteCode } from "../../auth/invite-code";
+import { deleteInviteCode, verifyInviteCode } from "../../auth/invite-code";
 import { hashPassword } from "../../auth/password";
 import { createSessionTokens } from "../../auth/session";
 import { createPdsDatabase } from "../../db";
@@ -75,13 +75,7 @@ app.post(
     const pdsHostname = c.env.PDS_HOSTNAME.toLowerCase();
     const pdsOrigin = `https://${pdsHostname}`;
 
-    if (
-      !(await verifyInviteCode(
-        inviteCode,
-        pdsOrigin,
-        c.env.CONTROL_PLANE_PUBLIC_KEY
-      ))
-    ) {
+    if (!(await verifyInviteCode(c.env.PDS_KV, inviteCode))) {
       throw new HTTPException(400, { message: "Invalid invite code" });
     }
 
@@ -160,6 +154,8 @@ app.post(
         jti: session.refreshToken.jti,
       }),
     ]);
+
+    await deleteInviteCode(c.env.PDS_KV, inviteCode);
 
     return c.json({
       accessJwt: session.accessJwt,
