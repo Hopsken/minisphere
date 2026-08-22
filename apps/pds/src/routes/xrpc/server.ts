@@ -17,11 +17,11 @@ import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import z from "zod";
 
-import { verifyInviteCode } from "../../auth/invite-code";
 import { hashPassword } from "../../auth/password";
 import { createSessionTokens } from "../../auth/session";
 import { createPdsDatabase } from "../../db";
 import { accountsTable, refreshTokensTable } from "../../db/schema";
+import { InviteCodeRepository } from "../../repositories/invite-code";
 import { lexiconJsonValidator } from "../../utils/lexicon-validator";
 import { zValidator } from "../../utils/z-validator";
 
@@ -74,14 +74,9 @@ app.post(
     const { handle, inviteCode, password, recoveryKey } = c.req.valid("json");
     const pdsHostname = c.env.PDS_HOSTNAME.toLowerCase();
     const pdsOrigin = `https://${pdsHostname}`;
+    const inviteCodes = new InviteCodeRepository(c.env.PDS_KV);
 
-    if (
-      !(await verifyInviteCode(
-        inviteCode,
-        pdsOrigin,
-        c.env.CONTROL_PLANE_PUBLIC_KEY
-      ))
-    ) {
+    if (!(await inviteCodes.exists(inviteCode))) {
       throw new HTTPException(400, { message: "Invalid invite code" });
     }
 
@@ -160,6 +155,12 @@ app.post(
         jti: session.refreshToken.jti,
       }),
     ]);
+
+    try {
+      await inviteCodes.delete(inviteCode);
+    } catch (error) {
+      console.error("failed to delete used invite code", error);
+    }
 
     return c.json({
       accessJwt: session.accessJwt,

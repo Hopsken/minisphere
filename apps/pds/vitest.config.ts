@@ -1,10 +1,7 @@
 import { readdir } from "node:fs/promises";
 import path from "node:path";
 
-import {
-  Secp256k1PrivateKey,
-  Secp256k1PrivateKeyExportable,
-} from "@atcute/crypto";
+import { Secp256k1PrivateKeyExportable } from "@atcute/crypto";
 import {
   cloudflareTest,
   readD1Migrations,
@@ -32,14 +29,9 @@ export default defineConfig(async () => {
     })
   );
 
-  const controlPlaneKey = await Secp256k1PrivateKey.importRaw(
-    new Uint8Array(32).fill(1)
-  );
-  const controlPlanePublicKey = await controlPlaneKey.exportPublicKey("did");
   const rotationKey = await Secp256k1PrivateKeyExportable.createKeypair();
   const rotationKeyMultikey = await rotationKey.exportPrivateKey("multikey");
   const jwtSecret = "test-pds-jwt-secret-with-at-least-32-bytes";
-  process.env.CONTROL_PLANE_PUBLIC_KEY = controlPlanePublicKey;
   process.env.PDS_HOSTNAME = "pds.test";
   process.env.PDS_JWT_SECRET = jwtSecret;
   process.env.PDS_ROTATION_KEY = rotationKeyMultikey;
@@ -49,7 +41,6 @@ export default defineConfig(async () => {
       cloudflareTest({
         miniflare: {
           bindings: {
-            CONTROL_PLANE_PUBLIC_KEY: controlPlanePublicKey,
             PDS_HOSTNAME: "pds.test",
             PDS_JWT_SECRET: jwtSecret,
             PDS_ROTATION_KEY: rotationKeyMultikey,

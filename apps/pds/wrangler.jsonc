@@ -5,17 +5,19 @@
   "compatibility_date": "2026-08-16",
   "compatibility_flags": ["nodejs_compat"],
   "secrets": {
-    "required": [
-      "CONTROL_PLANE_PUBLIC_KEY",
-      "PDS_HOSTNAME",
-      "PDS_JWT_SECRET",
-      "PDS_ROTATION_KEY",
-    ],
+    "required": ["PDS_HOSTNAME", "PDS_JWT_SECRET", "PDS_ROTATION_KEY"],
   },
   "services": [
     {
       "binding": "DIRECTORY",
       "service": "minisphere-directory",
+    },
+  ],
+  "kv_namespaces": [
+    {
+      "binding": "PDS_KV",
+      // Replace this placeholder with the ID returned by `wrangler kv namespace create` before deploying.
+      "id": "00000000000000000000000000000000",
     },
   ],
   "d1_databases": [

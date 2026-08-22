@@ -121,9 +121,16 @@ pnpm --filter @minisphere/repo-do db:generate add-repo-table
 
 Every generate command requires a short, readable migration name as its final argument. Use a name that describes the schema change; do not use Drizzle's generated adjective names.
 
-The PDS `com.atproto.server.createAccount` endpoint requires:
+Create the general-purpose Workers KV namespace for PDS state, then copy its ID into the `PDS_KV` binding in `apps/pds/wrangler.jsonc`:
 
-- `CONTROL_PLANE_PUBLIC_KEY` — the Control Plane invite-signing public `did:key`;
+```sh
+pnpm --filter @minisphere/pds exec wrangler kv namespace create minisphere-pds-kv
+```
+
+The PDS exports `PdsControlPlane.generateInviteCode()` as a named RPC entrypoint. The Control Plane calls this method through a service binding to create an invite. A successful `com.atproto.server.createAccount` request deletes the invite from KV.
+
+The PDS requires these Worker secrets:
+
 - `PDS_HOSTNAME` — the canonical PDS hostname;
 - `PDS_JWT_SECRET` — at least 32 bytes used only for password-session JWTs;
 - `PDS_ROTATION_KEY` — the PDS secp256k1 private multikey used for PLC operations.
@@ -131,7 +138,6 @@ The PDS `com.atproto.server.createAccount` endpoint requires:
 Store them as Worker secrets:
 
 ```sh
-pnpm --filter @minisphere/pds exec wrangler secret put CONTROL_PLANE_PUBLIC_KEY
 pnpm --filter @minisphere/pds exec wrangler secret put PDS_HOSTNAME
 pnpm --filter @minisphere/pds exec wrangler secret put PDS_JWT_SECRET
 pnpm --filter @minisphere/pds exec wrangler secret put PDS_ROTATION_KEY
