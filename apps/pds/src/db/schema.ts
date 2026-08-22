@@ -1,20 +1,9 @@
-import {
-  index,
-  integer,
-  sqliteTable,
-  text,
-  uniqueIndex,
-} from "drizzle-orm/sqlite-core";
+import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
-export const accountsTable = sqliteTable(
-  "accounts",
-  {
-    did: text().primaryKey(),
-    handle: text().notNull(),
-    password_hash: text().notNull(),
-  },
-  (table) => [uniqueIndex("accounts_handle_unique_idx").on(table.handle)]
-);
+export const accountsTable = sqliteTable("accounts", {
+  did: text().primaryKey(),
+  password_hash: text().notNull(),
+});
 
 export const refreshTokensTable = sqliteTable(
   "refresh_tokens",

@@ -4,6 +4,16 @@ import { createDatabase } from "./db";
 import { Registry } from "./registry";
 import type { RegisterHandleInput } from "./registry";
 
+export type Result<T> =
+  | {
+      ok: true;
+      data: T;
+    }
+  | {
+      ok: false;
+      reason: string;
+    };
+
 export class HandleRegistryEntrypoint extends WorkerEntrypoint<Env> {
   private registry: Registry;
 
@@ -16,20 +26,28 @@ export class HandleRegistryEntrypoint extends WorkerEntrypoint<Env> {
     return this.registry.exists(handle);
   }
 
-  register({ handle, did }: RegisterHandleInput) {
+  async register({
+    handle,
+    did,
+  }: RegisterHandleInput): Promise<Result<string>> {
     const domain = this.env.DOMAIN;
 
     if (!handle.endsWith(domain)) {
-      throw new Error(`Handle must be in format: handle.${domain}`);
+      return {
+        ok: false,
+        reason: `Handle must be in format: handle.${domain}`,
+      };
     }
 
-    if (
-      handle.split(".").length !==
-      domain.split(".").filter(Boolean).length + 1
-    ) {
-      throw new Error(`Handle must be in format: handle.${domain}`);
+    const [, ...handleDomainParts] = handle.split(".");
+    if (handleDomainParts.join(".") !== domain) {
+      return {
+        ok: false,
+        reason: `Handle must be in format: handle.${domain}`,
+      };
     }
 
-    return this.registry.register({ did, handle });
+    await this.registry.register({ did, handle });
+    return { data: handle, ok: true };
   }
 }

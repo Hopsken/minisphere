@@ -80,21 +80,7 @@ app.post(
       throw new HTTPException(400, { message: "Invalid invite code" });
     }
 
-    const [, ...handleDomainParts] = handle.split(".");
-    if (handleDomainParts.join(".") !== pdsHostname) {
-      throw new HTTPException(400, {
-        message: `Handle must be a single account name under ${pdsHostname}`,
-      });
-    }
-
     const pdsDb = createPdsDatabase(c.env.PDS_DB);
-    const existingAccount = await pdsDb.query.accountsTable.findFirst({
-      where: { handle },
-    });
-    if (existingAccount) {
-      throw new HTTPException(400, { message: "Handle is not available" });
-    }
-
     const parsedRotationKey = parsePrivateMultikey(c.env.PDS_ROTATION_KEY);
     if (parsedRotationKey.type !== "secp256k1") {
       throw new Error("PDS_ROTATION_KEY must be a secp256k1 private multikey");
@@ -146,7 +132,6 @@ app.post(
     await pdsDb.batch([
       pdsDb.insert(accountsTable).values({
         did,
-        handle,
         password_hash: passwordHash,
       }),
       pdsDb.insert(refreshTokensTable).values({

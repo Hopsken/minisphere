@@ -27,8 +27,15 @@ export class AccountService {
     env: Env,
     input: { name: string; inviteCode?: string }
   ) {
-    const pdsHostname = new URL(env.PDS_ORIGIN).hostname;
-    const handle: `${string}.${string}` = `${input.name}.${pdsHostname}`;
+    const handleDomain = env.HANDLE_DOMAIN.toLowerCase();
+    const handle: `${string}.${string}` = `${input.name}.${handleDomain}`;
+
+    const handleTaken = await env.HandleRegistry.exists(handle);
+
+    if (handleTaken) {
+      throw new HTTPException(409, { message: "Handle is taken" });
+    }
+
     const password = randomBytes(MACHINE_PASSWORD_BYTES);
 
     const response = await this.pdsClient.call(ComAtprotoServerCreateAccount, {
@@ -54,6 +61,12 @@ export class AccountService {
       did
     );
     await this.accountRepository.create({ did, encryptedCredentials });
+
+    // Register handle
+    const registration = await env.HandleRegistry.register({ did, handle });
+    if (!registration.ok) {
+      throw new HTTPException(400, { message: registration.reason });
+    }
 
     return response.data;
   }

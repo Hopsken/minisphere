@@ -13,6 +13,7 @@
       "CONTROL_PLANE_ENCRYPTION_KEY",
       "CONTROL_PLANE_ACCOUNT_RECOVERY_KEY",
       "PDS_ORIGIN",
+      "HANDLE_DOMAIN",
     ],
   },
   "services": [

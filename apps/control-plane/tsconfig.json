@@ -11,6 +11,7 @@
       "./worker-configuration.d.ts",
       "../directory/worker-configuration.d.ts",
       "../pds/worker-configuration.d.ts",
+      "../handle-registry/worker-configuration.d.ts",
       "vite/client"
     ]
   },

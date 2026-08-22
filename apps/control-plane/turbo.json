@@ -10,7 +10,7 @@
       ]
     },
     "deploy": {
-      "dependsOn": ["build", "db:migrate:remote", "@minisphere/pds#deploy"]
+      "dependsOn": ["build", "db:migrate:remote"]
     },
     "dev": {
       "with": [

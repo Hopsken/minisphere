@@ -4,7 +4,6 @@ import { cors } from "hono/cors";
 import { HTTPException } from "hono/http-exception";
 import { logger } from "hono/logger";
 
-import { createPdsDatabase } from "./db";
 import { InviteCodeRepository } from "./repositories/invite-code";
 import xrpcRoutes from "./routes/xrpc";
 
@@ -15,23 +14,6 @@ const app = new Hono<{
 app.use(cors()).use(logger());
 
 app.get("/", (ctx) => ctx.json({ name: "pds" }));
-
-app.get("/.well-known/atproto-did", async (ctx) => {
-  const handle = new URL(ctx.req.url).hostname.toLowerCase();
-  const pdsHostname = ctx.env.PDS_HOSTNAME.toLowerCase();
-  if (!handle.endsWith(`.${pdsHostname}`)) {
-    return ctx.notFound();
-  }
-
-  const account = await createPdsDatabase(
-    ctx.env.PDS_DB
-  ).query.accountsTable.findFirst({ where: { handle } });
-  if (!account) {
-    return ctx.notFound();
-  }
-
-  return ctx.text(account.did);
-});
 
 app.route("/xrpc", xrpcRoutes);
 
