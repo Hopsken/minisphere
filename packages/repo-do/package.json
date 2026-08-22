@@ -1,0 +1,25 @@
+{
+  "name": "@minisphere/repo-do",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "db:generate": "drizzle-kit generate --name",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@atcute/crypto": "^2.4.4",
+    "@atproto/crypto": "^0.4.5",
+    "@atproto/lex-data": "^0.1.7",
+    "@atproto/repo": "^0.10.11",
+    "drizzle-orm": "1.0.0-rc.4"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260821.1",
+    "@types/node": "^26.2.0",
+    "drizzle-kit": "^1.0.0-rc.4"
+  }
+}

@@ -3,7 +3,7 @@ import { cors } from "hono/cors";
 import { HTTPException } from "hono/http-exception";
 import { logger } from "hono/logger";
 
-import adminRoutes from "./routes/admin";
+import { createPdsDatabase } from "./db";
 import xrpcRoutes from "./routes/xrpc";
 
 const app = new Hono<{
@@ -21,15 +21,16 @@ app.get("/.well-known/atproto-did", async (ctx) => {
     return ctx.notFound();
   }
 
-  const did = await ctx.env.HANDLES.get(handle);
-  if (!did) {
+  const account = await createPdsDatabase(
+    ctx.env.PDS_DB
+  ).query.accountsTable.findFirst({ where: { handle } });
+  if (!account) {
     return ctx.notFound();
   }
 
-  return ctx.text(did);
+  return ctx.text(account.did);
 });
 
-app.route("/admin", adminRoutes);
 app.route("/xrpc", xrpcRoutes);
 
 // oxlint-disable-next-line promise/prefer-await-to-callbacks
@@ -46,4 +47,4 @@ app.onError((err, c) => {
 
 export default app;
 
-export { PdsDurableObject } from "./pds-do";
+export { RepoDO } from "@minisphere/repo-do";

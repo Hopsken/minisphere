@@ -5,7 +5,7 @@ import { DurableObject } from "cloudflare:workers";
 
 import { CoreStorage } from "./core";
 import { createDatabase } from "./db";
-import { serializeRecord } from "./utils/serialize-record";
+import { serializeRecord } from "./serialize-record";
 
 const importSigningKey = (signingKey: string): Promise<Secp256k1Keypair> => {
   const parsedKey = parsePrivateMultikey(signingKey);
@@ -16,13 +16,13 @@ const importSigningKey = (signingKey: string): Promise<Secp256k1Keypair> => {
   return Secp256k1Keypair.import(parsedKey.privateKeyBytes);
 };
 
-export class PdsDurableObject extends DurableObject<Env> {
+export class RepoDO extends DurableObject<Record<string, never>> {
   private readonly core: CoreStorage;
 
   private keypair: Secp256k1Keypair | null = null;
   private repo: Repo | null = null;
 
-  constructor(ctx: DurableObjectState, env: Env) {
+  constructor(ctx: DurableObjectState, env: Record<string, never>) {
     super(ctx, env);
 
     // initialize db and run migrations

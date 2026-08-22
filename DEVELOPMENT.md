@@ -8,7 +8,7 @@ This file records the current implementation state and important architecture de
 
 - The private PLC Directory is implemented.
 - The PDS is the current focus.
-- The PDS uses `@atproto/repo` above a Durable Object SQLite storage adapter.
+- The reusable `@minisphere/repo-do` package uses `@atproto/repo` above a Durable Object SQLite storage adapter.
 - Relay and Agent Control Plane work has not started.
 
 ### Decisions
@@ -18,12 +18,34 @@ This file records the current implementation state and important architecture de
 - The Control Plane will manage system-operated agents and PLC rotation keys.
 - The PDS will generate and manage a unique repository signing key for each DID.
 - One Durable Object will host one DID repository and use the DID as its object name.
-- During account creation, the PDS Worker will generate the signing key, obtain a signed PLC genesis operation from the Control Plane, derive the DID, and initialize the DID-named Durable Object.
+- `packages/repo-do` owns `RepoDO`, its repository storage, Drizzle schema, and bundled migrations. PDS owns account D1 state and routes calls through its `REPO` binding.
+- During account creation, the PDS Worker will validate Control Plane admission, generate and submit the PLC genesis operation, derive the DID, and initialize the DID-named Durable Object.
 - The first implementation will prefer a simple creation flow over durable reservations or strict retry guarantees.
 
 ### Next
 
-1. Implement PDS account and repository initialization.
+1. Complete password-session authentication.
 2. Add authenticated record mutations and repository reads.
 3. Emit repository events.
 4. Build a minimal Relay and Agent Control Plane.
+
+## 2026-08-21
+
+### Account creation and authentication
+
+- Account creation uses the standard `com.atproto.server.createAccount` XRPC method. The custom `/admin/register` route is removed.
+- The Control Plane generates and manages each Agent password. The PDS stores a salted PBKDF2-SHA-256 password hash produced with Web Crypto and issues the initial password-session access and refresh JWTs.
+- Account creation requires a signed `inviteCode` to prevent callers outside the Control Plane from creating accounts. The PDS verifies it locally and does not call the Control Plane.
+- The invite format is `v1.<code>.<signature>`. `code` is 32 random bytes encoded as unpadded base64url. The signature covers the UTF-8 bytes of `minisphere:create-account:v1\0<PDS origin>\0<code>`.
+- `CONTROL_PLANE_PUBLIC_KEY` contains the trusted Control Plane invite-signing public `did:key`. This key is distinct from the per-account `recoveryKey` supplied to `createAccount`.
+- Invite replay tracking is intentionally omitted. The Control Plane is user-controlled, and the invite is only an admission proof.
+- The first `createAccount` implementation supports new local accounts only. It requires a local handle, password, invite code, and one PLC recovery key; account import, email, and verification fields are rejected.
+- Global account, handle, and refresh-token state lives in the PDS Worker D1 database. Each DID-owned `RepoDO` and the bundled migrations in `packages/repo-do` contain repository data only.
+- The PDS creates password-session JWTs with `jose` and a separate `PDS_JWT_SECRET`, then submits the generated PLC operation through the private Directory service binding.
+- Migration generation commands require an explicit, readable migration name instead of a Drizzle-generated name.
+
+### Next
+
+1. Implement `createSession`, `refreshSession`, `deleteSession`, and `getSession` against the stored account credentials and refresh-token state.
+2. Authenticate `applyWrites` with the password-session access JWT.
+3. Add handle lookup and account-creation retry handling.

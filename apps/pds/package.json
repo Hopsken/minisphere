@@ -6,7 +6,9 @@
   "scripts": {
     "build": "wrangler deploy --dry-run --outdir dist",
     "cf-typegen": "wrangler types",
-    "db:generate": "drizzle-kit generate",
+    "db:generate": "drizzle-kit generate --name",
+    "db:migrate:local": "wrangler d1 migrations apply PDS_DB --local",
+    "db:migrate:remote": "wrangler d1 migrations apply PDS_DB --remote",
     "deploy": "wrangler deploy",
     "dev": "wrangler dev",
     "test": "vitest run",
@@ -23,12 +25,11 @@
     "@atcute/lexicons": "^2.1.0",
     "@atcute/mst": "^1.0.3",
     "@atcute/tid": "^1.1.4",
-    "@atproto/crypto": "^0.4.5",
-    "@atproto/lex-data": "^0.1.7",
-    "@atproto/repo": "^0.10.11",
     "@hono/zod-validator": "^0.9.0",
+    "@minisphere/repo-do": "workspace:*",
     "drizzle-orm": "1.0.0-rc.4",
     "hono": "^4.13.2",
+    "jose": "^6.2.9",
     "zod": "^4.4.3"
   },
   "devDependencies": {

@@ -14,7 +14,6 @@ const post = (body: unknown): RequestInit => ({
 });
 
 const unimplementedRoutes: [path: string, init?: RequestInit][] = [
-  ["/xrpc/com.atproto.server.createAccount", post({ handle: "alice.test" })],
   [
     "/xrpc/com.atproto.server.createSession",
     post({ identifier: "alice.test", password: "password" }),

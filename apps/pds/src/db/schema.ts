@@ -1,16 +1,29 @@
-import { blob, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import {
+  index,
+  integer,
+  sqliteTable,
+  text,
+  uniqueIndex,
+} from "drizzle-orm/sqlite-core";
 
-export const metadataTable = sqliteTable("metadata", {
-  id: integer().primaryKey().default(1),
+export const accountsTable = sqliteTable(
+  "accounts",
+  {
+    did: text().primaryKey(),
+    handle: text().notNull(),
+    password_hash: text().notNull(),
+  },
+  (table) => [uniqueIndex("accounts_handle_unique_idx").on(table.handle)]
+);
 
-  did: text().notNull(),
-  rev: text().notNull(),
-  root_cid: text().notNull(),
-});
-
-export const blocksTable = sqliteTable("blocks", {
-  cid: text().primaryKey(),
-
-  bytes: blob({ mode: "buffer" }).notNull(),
-  rev: text().notNull(),
-});
+export const refreshTokensTable = sqliteTable(
+  "refresh_tokens",
+  {
+    did: text()
+      .notNull()
+      .references(() => accountsTable.did, { onDelete: "cascade" }),
+    expires_at: integer().notNull(),
+    jti: text().primaryKey(),
+  },
+  (table) => [index("refresh_tokens_did_idx").on(table.did)]
+);

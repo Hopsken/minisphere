@@ -2,9 +2,7 @@
   "version": "7",
   "dialect": "sqlite",
   "id": "63f3bfd1-20e8-4497-ae1b-cdddfca9408f",
-  "prevIds": [
-    "00000000-0000-0000-0000-000000000000"
-  ],
+  "prevIds": ["00000000-0000-0000-0000-000000000000"],
   "ddl": [
     {
       "name": "blocks",
@@ -85,18 +83,14 @@
       "table": "metadata"
     },
     {
-      "columns": [
-        "cid"
-      ],
+      "columns": ["cid"],
       "nameExplicit": false,
       "name": "blocks_pk",
       "table": "blocks",
       "entityType": "pks"
     },
     {
-      "columns": [
-        "id"
-      ],
+      "columns": ["id"],
       "nameExplicit": false,
       "name": "metadata_pk",
       "table": "metadata",
