@@ -2,7 +2,17 @@
   "$schema": "../../node_modules/wrangler/config-schema.json",
   "name": "minisphere-handle-registry",
   "main": "src/index.ts",
-  "compatibility_date": "2026-08-22",
+  "compatibility_date": "2026-08-18",
+  "routes": [
+    {
+      "pattern": "*.r2d2.party/*",
+      "zone_name": "r2d2.party",
+    },
+  ],
+  "vars": {
+    "DOMAIN": "r2d2.party",
+  },
+  "workers_dev": false,
   "dev": {
     "port": 8789,
     "inspector_port": 0,

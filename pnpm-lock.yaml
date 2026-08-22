@@ -395,12 +395,18 @@ importers:
 
   apps/handle-registry:
     dependencies:
+      '@atcute/lexicons':
+        specifier: ^2.1.0
+        version: 2.1.0
       drizzle-orm:
         specifier: 1.0.0-rc.4
         version: 1.0.0-rc.4(@cloudflare/workers-types@5.20260821.1)(valibot@1.4.2(typescript@7.0.2))(zod@4.4.3)
       hono:
         specifier: ^4.13.3
         version: 4.13.3
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
     devDependencies:
       '@cloudflare/vitest-pool-workers':
         specifier: ^0.22.0

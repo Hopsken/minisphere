@@ -5,39 +5,54 @@ import { logger } from "hono/logger";
 
 import { createDatabase } from "./db";
 import type { Database } from "./db";
+import { Registry } from "./registry";
 
 const app = new Hono<{
   Bindings: Env;
-  Variables: {
-    db: Database;
-  };
+  Variables: { db: Database };
 }>();
 
-app.use(logger()).use((ctx, next) => {
-  ctx.set("db", createDatabase(ctx.env.DB));
-  return next();
-});
+app
+  .use(logger())
+  .use((ctx, next) => {
+    const db = createDatabase(ctx.env.DB);
+    ctx.set("db", db);
+    return next();
+  })
+  .get("/", (ctx) => ctx.json({ name: "minisphere-handle-registry" }))
+  .get("/.well-known/atproto-did", async (ctx) => {
+    const handle = new URL(ctx.req.url).hostname.toLowerCase();
 
-app.get("/", (ctx) => ctx.json({ name: "minisphere-handle-registry" }));
+    const db = ctx.get("db");
+    const registry = new Registry(db);
 
-app.get("/_health", async (ctx) => {
-  try {
-    await ctx.var.db.run(sql`SELECT 1`);
-    return ctx.json({ status: "ok" });
-  } catch (error) {
-    console.error("failed health check", error);
-    throw new HTTPException(503, { message: "service unavailable" });
-  }
-});
+    const did = await registry.getDidByHandle(handle);
 
-// oxlint-disable-next-line promise/prefer-await-to-callbacks
-app.onError((error, ctx) => {
-  if (error instanceof HTTPException) {
-    return error.getResponse();
-  }
+    if (!did) {
+      return ctx.notFound();
+    }
 
-  console.error(error);
-  return ctx.text("Internal Server Error", 500);
-});
+    return ctx.text(did);
+  })
+  .get("/_health", async (ctx) => {
+    try {
+      await ctx.var.db.run(sql`SELECT 1`);
+      return ctx.json({ status: "ok" });
+    } catch (error) {
+      console.error("failed health check", error);
+      throw new HTTPException(503, { message: "service unavailable" });
+    }
+  })
+  // oxlint-disable-next-line promise/prefer-await-to-callbacks
+  .onError((error, ctx) => {
+    if (error instanceof HTTPException) {
+      return error.getResponse();
+    }
+
+    console.error(error);
+    return ctx.text("Internal Server Error", 500);
+  });
 
 export default app;
+
+export { HandleRegistryEntrypoint } from "./worker-entrypoint";
