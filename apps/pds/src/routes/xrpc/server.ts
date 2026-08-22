@@ -12,7 +12,9 @@ import {
   signOperation,
 } from "@atcute/did-plc";
 import type { DidKeyString, UnsignedOperation } from "@atcute/did-plc";
+import { isHandle } from "@atcute/lexicons/syntax";
 import { Hono } from "hono";
+import { HTTPException } from "hono/http-exception";
 import z from "zod";
 
 import { verifyInviteCode } from "../../auth/invite-code";
@@ -45,8 +47,20 @@ const recoveryKeySchema = z
     (value): DidKeyString => `did:key:${value.slice("did:key:".length)}`
   );
 
+const handleSchema = z
+  .string()
+  .transform((value) => value.toLowerCase())
+  .refine(isHandle, { error: "Invalid handle" })
+  .refine(
+    (value) => {
+      const accountNameLength = value.split(".", 1)[0]?.length ?? 0;
+      return accountNameLength >= 2 && accountNameLength <= 63;
+    },
+    { error: "Account name must contain 2-63 characters" }
+  );
+
 const createAccountSchema = z.strictObject({
-  handle: z.string().transform((value) => value.toLowerCase()),
+  handle: handleSchema,
   inviteCode: z.string().min(1),
   password: z.string().min(PASSWORD_MIN_LENGTH).max(PASSWORD_MAX_LENGTH),
   recoveryKey: recoveryKeySchema,
@@ -68,28 +82,14 @@ app.post(
         c.env.CONTROL_PLANE_PUBLIC_KEY
       ))
     ) {
-      return c.json(
-        { error: "InvalidInviteCode", message: "Invalid invite code" },
-        400
-      );
+      throw new HTTPException(400, { message: "Invalid invite code" });
     }
 
-    const handleSuffix = `.${pdsHostname}`;
-    const accountName = handle.endsWith(handleSuffix)
-      ? handle.slice(0, -handleSuffix.length)
-      : "";
-    if (
-      accountName.length < 2 ||
-      accountName.length > 63 ||
-      !/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/u.test(accountName)
-    ) {
-      return c.json(
-        {
-          error: "UnsupportedDomain",
-          message: `Handle must be a single account name under ${pdsHostname}`,
-        },
-        400
-      );
+    const [, ...handleDomainParts] = handle.split(".");
+    if (handleDomainParts.join(".") !== pdsHostname) {
+      throw new HTTPException(400, {
+        message: `Handle must be a single account name under ${pdsHostname}`,
+      });
     }
 
     const pdsDb = createPdsDatabase(c.env.PDS_DB);
@@ -97,10 +97,7 @@ app.post(
       where: { handle },
     });
     if (existingAccount) {
-      return c.json(
-        { error: "HandleNotAvailable", message: "Handle is not available" },
-        400
-      );
+      throw new HTTPException(400, { message: "Handle is not available" });
     }
 
     const parsedRotationKey = parsePrivateMultikey(c.env.PDS_ROTATION_KEY);
@@ -163,7 +160,6 @@ app.post(
         jti: session.refreshToken.jti,
       }),
     ]);
-    await c.env.HANDLES.put(handle, did);
 
     return c.json({
       accessJwt: session.accessJwt,

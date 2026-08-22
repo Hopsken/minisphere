@@ -3,6 +3,7 @@ import { cors } from "hono/cors";
 import { HTTPException } from "hono/http-exception";
 import { logger } from "hono/logger";
 
+import { createPdsDatabase } from "./db";
 import xrpcRoutes from "./routes/xrpc";
 
 const app = new Hono<{
@@ -20,12 +21,14 @@ app.get("/.well-known/atproto-did", async (ctx) => {
     return ctx.notFound();
   }
 
-  const did = await ctx.env.HANDLES.get(handle);
-  if (!did) {
+  const account = await createPdsDatabase(
+    ctx.env.PDS_DB
+  ).query.accountsTable.findFirst({ where: { handle } });
+  if (!account) {
     return ctx.notFound();
   }
 
-  return ctx.text(did);
+  return ctx.text(account.did);
 });
 
 app.route("/xrpc", xrpcRoutes);

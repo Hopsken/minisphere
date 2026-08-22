@@ -28,11 +28,6 @@
       "migrations_pattern": "migrations/*/migration.sql",
     },
   ],
-  "kv_namespaces": [
-    {
-      "binding": "HANDLES",
-    },
-  ],
   "durable_objects": {
     "bindings": [
       {

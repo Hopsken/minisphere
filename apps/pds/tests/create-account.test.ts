@@ -128,27 +128,24 @@ describe("com.atproto.server.createAccount", () => {
       new Request("https://agent.pds.test/.well-known/atproto-did")
     );
     const repoObject = env.REPO.getByName(payload.did);
-    const [account, indexedDid, resolvedDid, storedRefreshToken, repo] =
-      await Promise.all([
-        env.PDS_DB.prepare(
-          "SELECT did, handle, password_hash FROM accounts WHERE did = ?"
-        )
-          .bind(payload.did)
-          .first(),
-        env.HANDLES.get(payload.handle),
-        handleResponse.text(),
-        env.PDS_DB.prepare(
-          "SELECT did, jti, expires_at FROM refresh_tokens WHERE did = ?"
-        )
-          .bind(payload.did)
-          .first(),
-        repoObject.rpcGetRepoStatus(),
-      ]);
+    const [account, resolvedDid, storedRefreshToken, repo] = await Promise.all([
+      env.PDS_DB.prepare(
+        "SELECT did, handle, password_hash FROM accounts WHERE did = ?"
+      )
+        .bind(payload.did)
+        .first(),
+      handleResponse.text(),
+      env.PDS_DB.prepare(
+        "SELECT did, jti, expires_at FROM refresh_tokens WHERE did = ?"
+      )
+        .bind(payload.did)
+        .first(),
+      repoObject.rpcGetRepoStatus(),
+    ]);
     expect({
       account,
       handleContentType: handleResponse.headers.get("Content-Type"),
       handleStatus: handleResponse.status,
-      indexedDid,
       repo,
       resolvedDid,
       storedRefreshToken,
@@ -162,7 +159,6 @@ describe("com.atproto.server.createAccount", () => {
       },
       handleContentType: expect.stringContaining("text/plain"),
       handleStatus: 200,
-      indexedDid: payload.did,
       repo: {
         did: payload.did,
         head: expect.any(String),
@@ -184,10 +180,7 @@ describe("com.atproto.server.createAccount", () => {
 
     const duplicate = await postAccount({ handle });
     expect(duplicate.status).toBe(400);
-    await expect(duplicate.json()).resolves.toStrictEqual({
-      error: "HandleNotAvailable",
-      message: "Handle is not available",
-    });
+    await expect(duplicate.text()).resolves.toBe("Handle is not available");
   });
 
   it("rejects an invite not signed by the control plane", async () => {
@@ -198,10 +191,7 @@ describe("com.atproto.server.createAccount", () => {
     });
 
     expect(response.status).toBe(400);
-    await expect(response.json()).resolves.toStrictEqual({
-      error: "InvalidInviteCode",
-      message: "Invalid invite code",
-    });
+    await expect(response.text()).resolves.toBe("Invalid invite code");
   });
 
   it("rejects account imports and requires local credentials", async () => {
@@ -222,6 +212,16 @@ describe("com.atproto.server.createAccount", () => {
       recoveryKey: "not-a-key",
     });
     expect(invalidRecoveryKey.status).toBe(400);
+  });
+
+  it("requires a 2-63 character account name", async () => {
+    const shortAccountName = await postAccount({ handle: "a.pds.test" });
+    expect(shortAccountName.status).toBe(400);
+
+    const longAccountName = await postAccount({
+      handle: `${"a".repeat(64)}.pds.test`,
+    });
+    expect(longAccountName.status).toBe(400);
   });
 
   it("removes the former custom admin registration endpoint", async () => {
