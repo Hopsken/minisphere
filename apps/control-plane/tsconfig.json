@@ -11,6 +11,7 @@
   "include": [
     "src/**/*.ts",
     "src/**/*.tsx",
+    "schema/**/*.ts",
     "worker/**/*.ts",
     "vite.config.ts",
     "vitest.config.ts",

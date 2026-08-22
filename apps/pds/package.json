@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "wrangler deploy --dry-run --outdir dist",
-    "cf-typegen": "wrangler types",
+    "cf-typegen": "wrangler types -c wrangler.jsonc -c ../directory/wrangler.jsonc",
     "db:generate": "drizzle-kit generate --name",
     "db:migrate:local": "wrangler d1 migrations apply PDS_DB --local",
     "db:migrate:remote": "wrangler d1 migrations apply PDS_DB --remote",
@@ -26,6 +26,7 @@
     "@atcute/mst": "^1.0.3",
     "@atcute/tid": "^1.1.4",
     "@hono/zod-validator": "^0.9.0",
+    "@minisphere/hono-utils": "workspace:*",
     "@minisphere/repo-do": "workspace:*",
     "drizzle-orm": "1.0.0-rc.4",
     "hono": "^4.13.2",
