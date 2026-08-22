@@ -9,6 +9,7 @@
     "deploy": "turbo deploy",
     "dev:control": "turbo dev --filter=@minisphere/control-plane",
     "dev:directory": "turbo dev --filter=@minisphere/directory",
+    "dev:handle-registry": "turbo dev --filter=@minisphere/handle-registry",
     "dev:pds": "turbo dev --filter=@minisphere/pds",
     "format": "oxfmt --write .",
     "format:check": "turbo format:check:root",

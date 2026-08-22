@@ -10,6 +10,11 @@ This file records the current implementation state and important architecture de
 - D1 stores the append-only PLC operation log and derived DID state.
 - The PDS submits genesis operations through its private `DIRECTORY` service binding.
 
+### Handle Registry
+
+- The Hono Worker, D1 handle-to-DID schema, migration workflow, and test harness are initialized.
+- Registration, authorization, and handle-resolution routes are not implemented yet.
+
 ### PDS
 
 - Account creation uses `com.atproto.server.createAccount` and supports new local accounts only.

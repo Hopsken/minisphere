@@ -21,6 +21,7 @@ Clients / runtimes ──────────────┘
 - [`apps/directory`](./apps/directory/README.md) — private PLC Directory on a Hono Worker and D1
 - [`apps/pds`](./apps/pds/README.md) — PDS XRPC, account, authentication, and repository routing Worker
 - [`apps/control-plane`](./apps/control-plane/README.md) — Cloudflare Access-protected account dashboard and API
+- [`apps/handle-registry`](./apps/handle-registry/README.md) — AT Protocol handle registry on a Hono Worker and D1
 
 ### Packages
 
@@ -52,6 +53,7 @@ The example Worker secrets are for local development only. Production secrets ar
 pnpm dev:control      # Run the Control Plane and its dependencies
 pnpm dev:pds          # Run the PDS and Directory
 pnpm dev:directory    # Run only the Directory
+pnpm dev:handle-registry # Run only the Handle Registry
 pnpm check            # Run all repository checks through Turbo
 pnpm test             # Test all workspace projects
 pnpm typecheck        # Type-check all workspace projects
