@@ -1,4 +1,5 @@
 import { isHandle, isDid } from "@atcute/lexicons/syntax";
+import { sql } from "drizzle-orm";
 import z from "zod";
 
 import { RESERVED_WORDS } from "./constants";
@@ -8,6 +9,7 @@ import { handlesTable } from "./db/schema";
 export const registerHandleInputSchema = z.object({
   did: z.string().refine(isDid, { error: "Invalid did format" }),
   handle: z.string().refine(isHandle, { error: "Invalid handle format" }),
+  override: z.boolean().optional().default(false),
 });
 
 export type RegisterHandleInput = z.infer<typeof registerHandleInputSchema>;
@@ -43,10 +45,17 @@ export class Registry {
 
     const existed = await this.exists(handle);
 
-    if (existed) {
+    if (existed && !input.override) {
       throw new Error("Handle is taken");
     }
 
-    await this.db.insert(handlesTable).values({ did, handle });
+    // Handle could be overrided by another one, this is fine since register is only open to admins
+    await this.db
+      .insert(handlesTable)
+      .values({ did, handle })
+      .onConflictDoUpdate({
+        set: { did: sql`excluded.did` },
+        target: handlesTable.handle,
+      });
   }
 }

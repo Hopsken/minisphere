@@ -26,10 +26,8 @@ export class HandleRegistryEntrypoint extends WorkerEntrypoint<Env> {
     return this.registry.exists(handle);
   }
 
-  async register({
-    handle,
-    did,
-  }: RegisterHandleInput): Promise<Result<string>> {
+  async register(input: RegisterHandleInput): Promise<Result<string>> {
+    const { handle } = input;
     const domain = this.env.DOMAIN;
 
     if (!handle.endsWith(domain)) {
@@ -47,7 +45,7 @@ export class HandleRegistryEntrypoint extends WorkerEntrypoint<Env> {
       };
     }
 
-    await this.registry.register({ did, handle });
+    await this.registry.register(input);
     return { data: handle, ok: true };
   }
 }
