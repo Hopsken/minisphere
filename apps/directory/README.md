@@ -36,4 +36,6 @@ pnpm dev:directory
 pnpm turbo test typecheck build --filter=@minisphere/directory
 ```
 
+The local Directory listens on port `8788`. Its inspector port is assigned dynamically.
+
 `pnpm setup:local` generates Worker types and applies local D1 migrations for the complete stack.

@@ -16,7 +16,7 @@
     "lint": "turbo lint:root",
     "lint:fix": "oxlint --fix .",
     "lint:root": "oxlint .",
-    "setup:local": "turbo run cf-typegen db:migrate:local",
+    "setup:local": "turbo run typegen db:migrate:local",
     "test": "turbo test",
     "typecheck": "turbo typecheck"
   },

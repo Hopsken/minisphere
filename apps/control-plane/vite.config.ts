@@ -16,7 +16,7 @@ export default defineConfig(({ mode }) => {
       tanstackRouter({ autoCodeSplitting: true, target: "react" }),
       react(),
       tailwindcss(),
-      cloudflare(),
+      cloudflare({ inspectorPort: 0 }),
     ],
     resolve: {
       tsconfigPaths: true,

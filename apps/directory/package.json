@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "wrangler deploy --dry-run --outdir dist",
-    "cf-typegen": "wrangler types",
+    "typegen": "wrangler types",
     "db:generate": "drizzle-kit generate --name",
     "db:migrate:local": "wrangler d1 migrations apply DB --local",
     "db:migrate:remote": "wrangler d1 migrations apply DB --remote",

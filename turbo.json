@@ -5,7 +5,7 @@
       "dependsOn": ["^build"],
       "outputs": ["dist/**"]
     },
-    "cf-typegen": {
+    "typegen": {
       "outputs": ["worker-configuration.d.ts"]
     },
     "db:migrate:local": {
@@ -28,41 +28,8 @@
       "outputs": []
     },
     "typecheck": {
-      "dependsOn": ["cf-typegen", "^typecheck"],
+      "dependsOn": ["typegen", "^typecheck"],
       "outputs": []
-    },
-    "@minisphere/control-plane#cf-typegen": {
-      "dependsOn": [
-        "@minisphere/directory#cf-typegen",
-        "@minisphere/pds#cf-typegen"
-      ],
-      "outputs": ["worker-configuration.d.ts"]
-    },
-    "@minisphere/control-plane#deploy": {
-      "cache": false,
-      "dependsOn": ["build", "db:migrate:remote", "@minisphere/pds#deploy"]
-    },
-    "@minisphere/control-plane#dev": {
-      "cache": false,
-      "persistent": true,
-      "with": ["@minisphere/directory#dev", "@minisphere/pds#dev"]
-    },
-    "@minisphere/pds#cf-typegen": {
-      "dependsOn": ["@minisphere/directory#cf-typegen"],
-      "outputs": ["worker-configuration.d.ts"]
-    },
-    "@minisphere/pds#deploy": {
-      "cache": false,
-      "dependsOn": [
-        "build",
-        "db:migrate:remote",
-        "@minisphere/directory#deploy"
-      ]
-    },
-    "@minisphere/pds#dev": {
-      "cache": false,
-      "persistent": true,
-      "with": ["@minisphere/directory#dev"]
     }
   }
 }
