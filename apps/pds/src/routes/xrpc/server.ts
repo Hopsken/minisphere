@@ -156,7 +156,11 @@ app.post(
       }),
     ]);
 
-    await inviteCodes.delete(inviteCode);
+    try {
+      await inviteCodes.delete(inviteCode);
+    } catch (error) {
+      console.error("failed to delete used invite code", error);
+    }
 
     return c.json({
       accessJwt: session.accessJwt,

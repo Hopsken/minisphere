@@ -1,7 +1,7 @@
 import { Secp256k1PrivateKeyExportable } from "@atcute/crypto";
 import { env, exports } from "cloudflare:workers";
 import { jwtVerify } from "jose";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import z from "zod";
 
 import { InviteCodeRepository } from "../src/repositories/invite-code";
@@ -62,6 +62,10 @@ const postAccount = async (
 };
 
 describe("com.atproto.server.createAccount", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("uses a control-plane invite and creates an account session", async () => {
     const inviteCode = await createInviteCode();
     const response = await postAccount({ inviteCode });
@@ -218,6 +222,26 @@ describe("com.atproto.server.createAccount", () => {
     });
     expect(second.status).toBe(400);
     await expect(second.text()).resolves.toBe("Invalid invite code");
+  });
+
+  it("returns the created account when invite deletion fails", async () => {
+    const deleteError = new Error("KV delete failed");
+    const deleteInvite = vi
+      .spyOn(InviteCodeRepository.prototype, "delete")
+      .mockRejectedValueOnce(deleteError);
+    const logError = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const response = await postAccount({ handle: "delete-failure.pds.test" });
+
+    expect(response.status).toBe(200);
+    expect(
+      createAccountResponseSchema.parse(await response.json())
+    ).toMatchObject({ handle: "delete-failure.pds.test" });
+    expect(deleteInvite).toHaveBeenCalledOnce();
+    expect(logError).toHaveBeenCalledWith(
+      "failed to delete used invite code",
+      deleteError
+    );
   });
 
   it("rejects account imports and requires local credentials", async () => {

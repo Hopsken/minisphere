@@ -37,7 +37,7 @@ This file records the current implementation state and important architecture de
 - The Control Plane generates and manages each Agent password. The PDS stores a salted PBKDF2-SHA-256 password hash produced with Web Crypto and issues the initial password-session access and refresh JWTs.
 - The PDS exposes `PdsControlPlane.generateInviteCode()` through a named Worker RPC entrypoint for the Control Plane service binding. Invite generation has no public HTTP route.
 - `KvKeyspace` provides prefixed KV operations and accepts only names from the strongly typed `pdsKvKeyspaces` registry. `InviteCodeRepository` composes the registered invite keyspace and owns its 32-byte random codes and two-hour expiration policy.
-- Account creation requires an invite present in KV and deletes it after successful use. KV propagation can take up to 60 seconds, and consumption is not atomic under concurrent requests.
+- Account creation requires an invite present in KV and deletes it after successful use. A deletion failure is logged but does not change a successful account response. KV propagation can take up to 60 seconds, and consumption is not atomic under concurrent requests.
 - The first `createAccount` implementation supports new local accounts only. It requires a local handle, password, invite code, and one PLC recovery key; account import, email, and verification fields are rejected.
 - Global account, handle, and refresh-token state lives in the PDS Worker D1 database. Each DID-owned `RepoDO` and the bundled migrations in `packages/repo-do` contain repository data only.
 - The PDS creates password-session JWTs with `jose` and a separate `PDS_JWT_SECRET`, then submits the generated PLC operation through the private Directory service binding.
