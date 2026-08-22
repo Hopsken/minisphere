@@ -19,7 +19,7 @@ const importKey = (encodedKey: string): Promise<CryptoKey> => {
   ]);
 };
 
-export const encryptCrendential = async (
+export const encryptCredential = async (
   credential: string,
   key: string,
   signature: string

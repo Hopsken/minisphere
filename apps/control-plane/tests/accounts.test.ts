@@ -1,19 +1,16 @@
-import { parsePrivateMultikey } from "@atcute/crypto";
+import { Client, simpleFetchHandler } from "@atcute/client";
 import { env, exports } from "cloudflare:workers";
+import { HTTPException } from "hono/http-exception";
 import { describe, expect, it } from "vitest";
 import z from "zod";
 
-import { PdsAccountError } from "../worker/accounts/pds-client";
-import {
-  AccountAlreadyExistsError,
-  createManagedAccount,
-} from "../worker/accounts/service";
-import { decryptText } from "../worker/crypto/encryption";
+import { createDatabase } from "../worker/db";
+import { decryptCredential } from "../worker/lib/credential";
+import { AccountService } from "../worker/services/account-service";
 
 const ORIGIN = "https://control-plane.test";
 const PDS_ORIGIN = "https://pds.test";
 const INVITE_CODE = "test-invite";
-const generateInviteCode = (): Promise<string> => Promise.resolve(INVITE_CODE);
 
 const createAccountRequestSchema = z.object({
   handle: z.string(),
@@ -23,22 +20,19 @@ const createAccountRequestSchema = z.object({
 });
 type CreateAccountRequest = z.infer<typeof createAccountRequestSchema>;
 
-const storedCredentialsSchema = z.object({
-  accessJwt: z.string(),
-  password: z.string(),
-  recoveryKey: z.string(),
-  refreshJwt: z.string(),
-});
-
 interface StoredAccount {
+  created_at: number;
   did: string;
   encrypted_credentials: string;
-  handle: string;
-  pds_origin: string;
 }
 
-const request = (path: string, init?: RequestInit): Promise<Response> =>
+const fetchApi = (path: string, init?: RequestInit): Promise<Response> =>
   exports.default.fetch(new Request(`${ORIGIN}${path}`, init));
+
+const createPdsClient = (fetch: typeof globalThis.fetch): Client =>
+  new Client({
+    handler: simpleFetchHandler({ fetch, service: PDS_ORIGIN }),
+  });
 
 const createSuccessfulPds =
   (
@@ -74,7 +68,7 @@ const rejectingPds: typeof globalThis.fetch = () =>
 
 const readStoredAccount = async (did: string): Promise<StoredAccount> => {
   const account = await env.DB.prepare(
-    `SELECT did, handle, pds_origin, encrypted_credentials
+    `SELECT did, encrypted_credentials, created_at
      FROM accounts WHERE did = ?`
   )
     .bind(did)
@@ -85,156 +79,97 @@ const readStoredAccount = async (did: string): Promise<StoredAccount> => {
   return account;
 };
 
-describe("managed accounts", () => {
-  it("creates an account with a PDS invite and encrypted credentials", async () => {
+describe("managed account service", () => {
+  it("stores only the DID and encrypted generated password", async () => {
     const received: CreateAccountRequest[] = [];
     const did = "did:plc:account00000000000000000";
-    const account = await createManagedAccount(
-      { name: "atlas" },
-      env,
-      createSuccessfulPds(did, received),
-      generateInviteCode
+    const service = new AccountService(
+      createDatabase(env.DB),
+      createPdsClient(createSuccessfulPds(did, received))
     );
 
-    expect(account).toMatchObject({
-      did,
-      handle: "atlas.pds.test",
-      pdsOrigin: PDS_ORIGIN,
+    const created = await service.createManagedAccount(env, {
+      inviteCode: INVITE_CODE,
+      name: "atlas",
     });
-    expect(received).toHaveLength(1);
+
+    expect({
+      createdDid: created.did,
+      requestCount: received.length,
+    }).toStrictEqual({
+      createdDid: did,
+      requestCount: 1,
+    });
     const [createRequest] = received;
     if (!createRequest) {
       throw new Error("Expected a PDS createAccount request");
     }
     expect(createRequest).toMatchObject({
       handle: "atlas.pds.test",
+      inviteCode: INVITE_CODE,
       password: expect.stringMatching(/^[A-Za-z0-9_-]{43}$/u),
-      recoveryKey: expect.stringMatching(/^did:key:/u),
+      recoveryKey: env.CONTROL_PLANE_ACCOUNT_RECOVERY_KEY,
     });
-    expect(createRequest.inviteCode).toBe(INVITE_CODE);
 
     const stored = await readStoredAccount(did);
-    const serializedCredentials = await decryptText(
-      stored.encrypted_credentials,
-      env.CONTROL_PLANE_ENCRYPTION_KEY,
-      did
-    );
-    const credentials = storedCredentialsSchema.parse(
-      JSON.parse(serializedCredentials)
-    );
-    expect({
-      credentials,
-      recoveryKeyType: parsePrivateMultikey(credentials.recoveryKey).type,
-      stored,
-    }).toMatchObject({
-      credentials: {
-        accessJwt: `access-${did}`,
-        password: createRequest.password,
-        recoveryKey: expect.stringMatching(/^z/u),
-        refreshJwt: `refresh-${did}`,
-      },
-      recoveryKeyType: "secp256k1",
-      stored: {
-        did,
-        encrypted_credentials: expect.not.stringContaining(
-          createRequest.password
-        ),
-        handle: "atlas.pds.test",
-        pds_origin: PDS_ORIGIN,
-      },
+    expect(stored).toMatchObject({
+      created_at: expect.anything(),
+      did,
+      encrypted_credentials: expect.not.stringContaining(
+        createRequest.password
+      ),
+    });
+    await expect(
+      decryptCredential(
+        stored.encrypted_credentials,
+        env.CONTROL_PLANE_ENCRYPTION_KEY,
+        did
+      )
+    ).resolves.toBe(createRequest.password);
+    await expect(service.listManagedAccounts()).resolves.toContainEqual({
+      did,
     });
   });
 
-  it("does not write an account when the PDS rejects creation", async () => {
+  it("does not store an account when the PDS rejects creation", async () => {
+    const service = new AccountService(
+      createDatabase(env.DB),
+      createPdsClient(rejectingPds)
+    );
     const before = await env.DB.prepare(
       "SELECT COUNT(*) AS count FROM accounts"
     ).first<{ count: number }>();
 
     await expect(
-      createManagedAccount(
-        { name: "taken" },
-        env,
-        rejectingPds,
-        generateInviteCode
-      )
-    ).rejects.toBeInstanceOf(PdsAccountError);
+      service.createManagedAccount(env, {
+        inviteCode: INVITE_CODE,
+        name: "taken",
+      })
+    ).rejects.toBeInstanceOf(HTTPException);
     const result = await env.DB.prepare(
       "SELECT COUNT(*) AS count FROM accounts"
     ).first<{ count: number }>();
     expect(result?.count).toBe(before?.count);
   });
-
-  it("rejects a handle that is already managed before calling the PDS", async () => {
-    const received: CreateAccountRequest[] = [];
-    const firstPds = createSuccessfulPds(
-      "did:plc:first0000000000000000000",
-      received
-    );
-    await createManagedAccount(
-      { name: "duplicate" },
-      env,
-      firstPds,
-      generateInviteCode
-    );
-
-    await expect(
-      createManagedAccount(
-        { name: "duplicate" },
-        env,
-        () => {
-          throw new Error("PDS must not be called for a managed handle");
-        },
-        generateInviteCode
-      )
-    ).rejects.toBeInstanceOf(AccountAlreadyExistsError);
-    expect(received).toHaveLength(1);
-  });
 });
 
 describe("accounts API", () => {
-  it("lists and reads managed accounts", async () => {
-    const received: CreateAccountRequest[] = [];
+  it("lists managed DIDs", async () => {
     const did = "did:plc:api000000000000000000000";
-    const account = await createManagedAccount(
-      { name: "api-account" },
-      env,
-      createSuccessfulPds(did, received),
-      generateInviteCode
-    );
-    const [listResponse, detailResponse] = await Promise.all([
-      request("/api/accounts"),
-      request(`/api/accounts/${encodeURIComponent(did)}`),
-    ]);
+    await env.DB.prepare(
+      "INSERT INTO accounts (did, encrypted_credentials) VALUES (?, ?)"
+    )
+      .bind(did, "encrypted-password")
+      .run();
 
-    expect(listResponse.status).toBe(200);
-    await expect(listResponse.json()).resolves.toMatchObject({
-      accounts: expect.arrayContaining([account]),
-    });
-    expect(detailResponse.status).toBe(200);
-    await expect(detailResponse.json()).resolves.toStrictEqual({ account });
+    const response = await fetchApi("/api/accounts");
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toContainEqual({ did });
   });
 
-  it("returns public configuration and account endpoints", async () => {
-    const [config, accounts, missing] = await Promise.all([
-      request("/api/config"),
-      request("/api/accounts"),
-      request("/api/accounts/did%3Aplc%3Amissing"),
-    ]);
-
-    expect(config.status).toBe(200);
-    await expect(config.json()).resolves.toStrictEqual({
-      pdsHostname: "pds.test",
-      pdsOrigin: PDS_ORIGIN,
-    });
-    expect(accounts.status).toBe(200);
-    await expect(accounts.json()).resolves.toMatchObject({
-      accounts: expect.any(Array),
-    });
-    expect(missing.status).toBe(404);
-  });
-
-  it("validates account creation before contacting the PDS", async () => {
-    const response = await request("/api/accounts", {
+  it("validates account creation before calling service bindings", async () => {
+    const response = await fetchApi("/api/accounts", {
       body: JSON.stringify({ name: "Invalid.Name" }),
       headers: { "Content-Type": "application/json" },
       method: "POST",

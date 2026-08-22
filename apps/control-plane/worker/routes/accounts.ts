@@ -24,7 +24,7 @@ const app = new Hono<WorkerEnv>()
     const { name } = ctx.req.valid("json");
     const accountService = createAccountService(ctx.env);
     const inviteCode = await ctx.env.PDS.generateInviteCode();
-    const created = await accountService.createManagedAccont(ctx.env, {
+    const created = await accountService.createManagedAccount(ctx.env, {
       inviteCode,
       name,
     });

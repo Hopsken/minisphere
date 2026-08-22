@@ -5,7 +5,7 @@ const textEncoder = new TextEncoder();
 
 const derivePasswordHash = async (
   password: string,
-  salt: Uint8Array
+  salt: Uint8Array<ArrayBuffer>
 ): Promise<Uint8Array> => {
   const passwordKey = await crypto.subtle.importKey(
     "raw",

@@ -29,7 +29,10 @@ export default defineConfig(async () => {
   );
 
   const encryptionKey = Buffer.alloc(32, 7).toString("base64url");
+  const recoveryKey =
+    "did:key:z6MkjwbBXZnFqL8su24wGL2Fdjti6GSLv9SWdYGswfazUPm9";
   const pdsOrigin = "https://pds.test";
+  process.env.CONTROL_PLANE_ACCOUNT_RECOVERY_KEY = recoveryKey;
   process.env.CONTROL_PLANE_ENCRYPTION_KEY = encryptionKey;
   process.env.PDS_ORIGIN = pdsOrigin;
 
@@ -38,17 +41,23 @@ export default defineConfig(async () => {
       cloudflareTest({
         miniflare: {
           bindings: {
+            CONTROL_PLANE_ACCOUNT_RECOVERY_KEY: recoveryKey,
             CONTROL_PLANE_ENCRYPTION_KEY: encryptionKey,
             PDS_ORIGIN: pdsOrigin,
             TEST_MIGRATIONS: migrations,
           },
           serviceBindings: {
             PDS: () => new Response("Not implemented", { status: 501 }),
+            PlcDirectory: () =>
+              new Response("Not implemented", { status: 501 }),
           },
         },
         wrangler: { configPath: "./wrangler.jsonc" },
       }),
     ],
+    resolve: {
+      tsconfigPaths: true,
+    },
     test: {
       deps: {
         optimizer: {

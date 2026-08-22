@@ -1,3 +1,6 @@
 # Repository Guidelines
 
-- For shadcn components, always use the project's configured shadcn CLI and `components.json`. Never manually write or copy a component that the CLI can install. Keep the configured component base (currently Base UI); do not substitute Radix UI or another primitive library.
+- Read [Coding Style](./docs/CODING_STYLE.md) before changing code. Apply its general rules and the framework-specific section for the module you edit.
+- Read the owning project's README for project-specific architecture, setup, bindings, and commands.
+- Architecture decisions are indexed in [docs/adr/README.md](./docs/adr/README.md). Until the ADR migration is complete, use [DEVELOPMENT.md](./DEVELOPMENT.md) for current status and existing decisions.
+- Update the owning documentation when a change affects architecture, storage ownership, configuration, setup, or development workflow.

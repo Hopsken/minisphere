@@ -4,7 +4,7 @@ import { HTTPException } from "hono/http-exception";
 
 import type { ManagedAccount } from "../../schema";
 import type { Database } from "../db";
-import { encryptCrendential } from "../lib/credential";
+import { encryptCredential } from "../lib/credential";
 import { randomBytes } from "../lib/random-bytes";
 import { AccountRepository } from "../repositories/account";
 
@@ -23,7 +23,7 @@ export class AccountService {
     return this.accountRepository.list();
   }
 
-  async createManagedAccont(
+  async createManagedAccount(
     env: Env,
     input: { name: string; inviteCode?: string }
   ) {
@@ -48,7 +48,7 @@ export class AccountService {
     }
 
     const { did } = response.data;
-    const encryptedCredentials = await encryptCrendential(
+    const encryptedCredentials = await encryptCredential(
       password,
       env.CONTROL_PLANE_ENCRYPTION_KEY,
       did
