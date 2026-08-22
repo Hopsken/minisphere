@@ -3,6 +3,10 @@
   "name": "minisphere-directory",
   "main": "src/index.ts",
   "compatibility_date": "2026-08-16",
+  "dev": {
+    "port": 0,
+    "inspector_port": 0,
+  },
   "d1_databases": [
     {
       "binding": "DB",

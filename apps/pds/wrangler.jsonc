@@ -4,6 +4,10 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-08-16",
   "compatibility_flags": ["nodejs_compat"],
+  "dev": {
+    "port": 0,
+    "inspector_port": 0,
+  },
   "secrets": {
     "required": ["PDS_HOSTNAME", "PDS_JWT_SECRET", "PDS_ROTATION_KEY"],
   },
