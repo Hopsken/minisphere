@@ -1,13 +1,13 @@
+import { KvKeyspace, pdsKvKeyspaces } from "../storage/kv-keyspace";
+
 const INVITE_CODE_BYTES = 32;
 const INVITE_CODE_TTL_SECONDS = 2 * 60 * 60;
 
 export class InviteCodeRepository {
-  private static readonly keyPrefix = "invite:";
-
-  private readonly kv: KVNamespace;
+  private readonly codes: KvKeyspace;
 
   constructor(kv: KVNamespace) {
-    this.kv = kv;
+    this.codes = new KvKeyspace(kv, pdsKvKeyspaces.inviteCodes);
   }
 
   async create(): Promise<string> {
@@ -17,23 +17,17 @@ export class InviteCodeRepository {
       .replaceAll("/", "_")
       .replaceAll("=", "");
 
-    await this.kv.put(InviteCodeRepository.getKey(inviteCode), "1", {
+    await this.codes.put(inviteCode, "1", {
       expirationTtl: INVITE_CODE_TTL_SECONDS,
     });
     return inviteCode;
   }
 
-  async exists(inviteCode: string): Promise<boolean> {
-    return (
-      (await this.kv.get(InviteCodeRepository.getKey(inviteCode))) !== null
-    );
+  exists(inviteCode: string): Promise<boolean> {
+    return this.codes.has(inviteCode);
   }
 
   delete(inviteCode: string): Promise<void> {
-    return this.kv.delete(InviteCodeRepository.getKey(inviteCode));
-  }
-
-  private static getKey(inviteCode: string): string {
-    return `${InviteCodeRepository.keyPrefix}${inviteCode}`;
+    return this.codes.delete(inviteCode);
   }
 }
