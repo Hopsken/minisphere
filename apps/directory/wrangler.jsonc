@@ -4,7 +4,7 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-08-16",
   "dev": {
-    "port": 0,
+    "port": 8788,
     "inspector_port": 0,
   },
   "d1_databases": [

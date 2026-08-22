@@ -55,4 +55,6 @@ pnpm dev:pds
 pnpm turbo test typecheck build --filter=@minisphere/pds
 ```
 
+The local PDS listens on port `8787`. Its Directory dependency listens on port `8788`. Inspector ports remain dynamic so both Workers can run together.
+
 Turbo regenerates PDS Worker types before type-checking when its Wrangler configuration or Directory dependency changes.
