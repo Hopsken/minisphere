@@ -2,49 +2,55 @@
 
 This file records the current implementation state and important architecture decisions. Keep entries concise and update them when a decision changes.
 
-## 2026-08-20
+## Current state — 2026-08-22
 
-### Current state
+### PLC Directory
 
-- The private PLC Directory is implemented.
-- The PDS is the current focus.
-- The reusable `@minisphere/repo-do` package uses `@atproto/repo` above a Durable Object SQLite storage adapter.
-- Relay and Agent Control Plane work has not started.
+- The private PLC Directory supports DID registration, resolution, updates, recovery, and audit logs.
+- D1 stores the append-only PLC operation log and derived DID state.
+- The PDS submits genesis operations through its private `DIRECTORY` service binding.
 
-### Decisions
+### PDS
 
-- AT Protocol identities do not distinguish humans from AI agents.
-- Custom Lexicons will define human and agent collaboration above the generic protocol infrastructure.
-- The Control Plane will manage system-operated agents and PLC rotation keys.
-- The PDS will generate and manage a unique repository signing key for each DID.
-- One Durable Object will host one DID repository and use the DID as its object name.
-- `packages/repo-do` owns `RepoDO`, its repository storage, Drizzle schema, and bundled migrations. PDS owns account D1 state and routes calls through its `REPO` binding.
-- During account creation, the PDS Worker will validate Control Plane admission, generate and submit the PLC genesis operation, derive the DID, and initialize the DID-named Durable Object.
-- The first implementation will prefer a simple creation flow over durable reservations or strict retry guarantees.
+- Account creation uses `com.atproto.server.createAccount` and supports new local accounts only.
+- The PDS validates a local handle, password, KV-backed invite code, and PLC recovery key.
+- Account and refresh-token state lives in PDS D1. Passwords use salted PBKDF2-SHA-256 hashes.
+- A DID-named `RepoDO` stores each repository, repository signing key, schema, and bundled migrations through `@minisphere/repo-do`.
+- Account creation generates the repository key, creates and submits the PLC genesis operation, initializes the repository, and issues the first access and refresh JWTs.
+- `PdsControlPlane.generateInviteCode()` exposes invite creation through a named Worker RPC entrypoint. Invite generation has no public HTTP route.
+- Successful account creation removes the invite from KV. Cleanup failure is logged without changing the successful account response.
+- `getRepoStatus` and sync `getRecord` read initialized repositories. Session creation, other session methods, record mutations, repository export, and repository subscriptions are not implemented.
 
-### Next
+### Control Plane
 
-1. Complete password-session authentication.
-2. Add authenticated record mutations and repository reads.
-3. Emit repository events.
-4. Build a minimal Relay and Agent Control Plane.
+- The Control Plane dashboard and Hono API run in one Cloudflare Worker deployment.
+- The frontend is a client-rendered React SPA with TanStack Router, TanStack Query, and Base UI shadcn components. It does not use TanStack Start or SSR.
+- TanStack routes use directory-based files. Route-private components live under each route's `-components` directory.
+- `POST /api/accounts` gets an invite through the typed `PDS` service binding, generates a random password, and calls `com.atproto.server.createAccount` through the PDS binding.
+- One configured public `CONTROL_PLANE_ACCOUNT_RECOVERY_KEY` is included in every account's PLC genesis operation. Its private key is not stored by the application.
+- Control Plane D1 records only the managed DID, the encrypted generated password, and a local creation timestamp. It does not duplicate the handle, PDS endpoint, session tokens, or PLC document.
+- Passwords are compact JWE values encrypted with direct A256GCM through `jose`. The protected header binds each value to its DID. The encryption key is a separate Worker secret.
+- The account API currently returns managed DIDs. The dashboard derives Blobatars from those DIDs and does not yet resolve handles or profile names.
+- Worker code is divided into routes, services, repositories, external clients, database code, and small library functions. Shared request validation lives in `@minisphere/hono-utils`.
+- Cloudflare Access is the Control Plane authorization boundary. The application has no additional session, JWT, role, or RBAC layer.
 
-## 2026-08-21
+## Decisions
 
-### Account creation and authentication
+- Every AT Protocol identity uses the same account model. The system does not store an account type or classification.
+- The PLC Directory is the source of truth for DID documents. The PDS is the source of truth for account and authentication state.
+- The Control Plane database defines which DIDs it manages and stores the generated password needed for future PDS authentication. Derived identity fields do not belong in this database.
+- Access and refresh JWTs are session artifacts and are not persisted by the Control Plane.
+- Recoverable credentials use standard JWE instead of a custom encryption envelope.
+- One Durable Object hosts one DID repository and uses the DID as its object name.
+- `packages/repo-do` owns `RepoDO`, repository storage, its Drizzle schema, and bundled migrations. The PDS owns global account and refresh-token D1 state.
+- Account creation favors a simple flow over durable reservations, retries, or reconciliation. Partial failure can leave an abandoned DID or repository.
+- Migration generation commands require an explicit, readable migration name.
 
-- Account creation uses the standard `com.atproto.server.createAccount` XRPC method. The custom `/admin/register` route is removed.
-- The Control Plane generates and manages each Agent password. The PDS stores a salted PBKDF2-SHA-256 password hash produced with Web Crypto and issues the initial password-session access and refresh JWTs.
-- The PDS exposes `PdsControlPlane.generateInviteCode()` through a named Worker RPC entrypoint for the Control Plane service binding. Invite generation has no public HTTP route.
-- `KvKeyspace` provides prefixed KV operations and accepts only names from the strongly typed `pdsKvKeyspaces` registry. `InviteCodeRepository` composes the registered invite keyspace and owns its 32-byte random codes and two-hour expiration policy.
-- Account creation requires an invite present in KV and deletes it after successful use. A deletion failure is logged but does not change a successful account response. KV propagation can take up to 60 seconds, and consumption is not atomic under concurrent requests.
-- The first `createAccount` implementation supports new local accounts only. It requires a local handle, password, invite code, and one PLC recovery key; account import, email, and verification fields are rejected.
-- Global account, handle, and refresh-token state lives in the PDS Worker D1 database. Each DID-owned `RepoDO` and the bundled migrations in `packages/repo-do` contain repository data only.
-- The PDS creates password-session JWTs with `jose` and a separate `PDS_JWT_SECRET`, then submits the generated PLC operation through the private Directory service binding.
-- Migration generation commands require an explicit, readable migration name instead of a Drizzle-generated name.
+## Next
 
-### Next
-
-1. Implement `createSession`, `refreshSession`, `deleteSession`, and `getSession` against the stored account credentials and refresh-token state.
-2. Authenticate `applyWrites` with the password-session access JWT.
-3. Add handle lookup and account-creation retry handling.
+1. Run an end-to-end account creation test through the Control Plane, PDS, and PLC Directory.
+2. Implement PDS session creation and refresh, then use the stored Control Plane password when authentication is required.
+3. Add authenticated record mutations, repository export, and repository event subscriptions.
+4. Configure Cloudflare Access before deploying the Control Plane.
+5. Convert durable decisions in this file into ADRs.
+6. Build the minimal Relay.

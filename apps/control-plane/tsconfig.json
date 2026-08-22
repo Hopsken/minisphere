@@ -1,0 +1,26 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
+    "paths": {
+      "@/*": ["./src/*"],
+      "~/schema/*": ["./schema/*"]
+    },
+    "types": [
+      "./worker-configuration.d.ts",
+      "../directory/worker-configuration.d.ts",
+      "../pds/worker-configuration.d.ts",
+      "vite/client"
+    ]
+  },
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "schema/**/*.ts",
+    "worker/**/*.ts",
+    "vite.config.ts",
+    "vitest.config.ts",
+    "worker-configuration.d.ts"
+  ]
+}
