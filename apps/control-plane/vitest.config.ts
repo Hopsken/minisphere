@@ -1,7 +1,6 @@
 import { readdir } from "node:fs/promises";
 import path from "node:path";
 
-import { Secp256k1PrivateKeyExportable } from "@atcute/crypto";
 import {
   cloudflareTest,
   readD1Migrations,
@@ -29,14 +28,9 @@ export default defineConfig(async () => {
     })
   );
 
-  const inviteKey = await Secp256k1PrivateKeyExportable.importRaw(
-    new Uint8Array(32).fill(1)
-  );
-  const invitePrivateMultikey = await inviteKey.exportPrivateKey("multikey");
   const encryptionKey = Buffer.alloc(32, 7).toString("base64url");
   const pdsOrigin = "https://pds.test";
   process.env.CONTROL_PLANE_ENCRYPTION_KEY = encryptionKey;
-  process.env.CONTROL_PLANE_INVITE_KEY = invitePrivateMultikey;
   process.env.PDS_ORIGIN = pdsOrigin;
 
   return {
@@ -45,9 +39,11 @@ export default defineConfig(async () => {
         miniflare: {
           bindings: {
             CONTROL_PLANE_ENCRYPTION_KEY: encryptionKey,
-            CONTROL_PLANE_INVITE_KEY: invitePrivateMultikey,
             PDS_ORIGIN: pdsOrigin,
             TEST_MIGRATIONS: migrations,
+          },
+          serviceBindings: {
+            PDS: () => new Response("Not implemented", { status: 501 }),
           },
         },
         wrangler: { configPath: "./wrangler.jsonc" },

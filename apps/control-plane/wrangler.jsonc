@@ -9,12 +9,15 @@
     "run_worker_first": ["/api/*"],
   },
   "secrets": {
-    "required": [
-      "CONTROL_PLANE_ENCRYPTION_KEY",
-      "CONTROL_PLANE_INVITE_KEY",
-      "PDS_ORIGIN",
-    ],
+    "required": ["CONTROL_PLANE_ENCRYPTION_KEY", "PDS_ORIGIN"],
   },
+  "services": [
+    {
+      "binding": "PDS",
+      "service": "minisphere-pds",
+      "entrypoint": "PdsControlPlane",
+    },
+  ],
   "d1_databases": [
     {
       "binding": "DB",

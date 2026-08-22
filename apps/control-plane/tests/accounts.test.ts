@@ -1,7 +1,4 @@
-import {
-  parsePrivateMultikey,
-  Secp256k1PrivateKeyExportable,
-} from "@atcute/crypto";
+import { parsePrivateMultikey } from "@atcute/crypto";
 import { env, exports } from "cloudflare:workers";
 import { describe, expect, it } from "vitest";
 import z from "zod";
@@ -11,12 +8,12 @@ import {
   AccountAlreadyExistsError,
   createManagedAccount,
 } from "../worker/accounts/service";
-import { decodeBase64Url } from "../worker/crypto/base64";
 import { decryptText } from "../worker/crypto/encryption";
-import { getInviteCodeSigningInput } from "../worker/crypto/invite-code";
 
 const ORIGIN = "https://control-plane.test";
 const PDS_ORIGIN = "https://pds.test";
+const INVITE_CODE = "test-invite";
+const generateInviteCode = (): Promise<string> => Promise.resolve(INVITE_CODE);
 
 const createAccountRequestSchema = z.object({
   handle: z.string(),
@@ -88,36 +85,15 @@ const readStoredAccount = async (did: string): Promise<StoredAccount> => {
   return account;
 };
 
-const parseAndVerifyInvite = async (inviteCode: string): Promise<void> => {
-  const [version, code, signature, ...rest] = inviteCode.split(".");
-  expect({ code, rest, version }).toMatchObject({
-    code: expect.stringMatching(/^[A-Za-z0-9_-]{43}$/u),
-    rest: [],
-    version: "v1",
-  });
-  if (!code || !signature) {
-    throw new Error("Expected a complete invite code");
-  }
-
-  const inviteKey = await Secp256k1PrivateKeyExportable.importRaw(
-    new Uint8Array(32).fill(1)
-  );
-  await expect(
-    inviteKey.verify(
-      decodeBase64Url(signature),
-      getInviteCodeSigningInput(code, PDS_ORIGIN)
-    )
-  ).resolves.toBeTruthy();
-};
-
 describe("managed accounts", () => {
-  it("creates an account with a signed invite and encrypted credentials", async () => {
+  it("creates an account with a PDS invite and encrypted credentials", async () => {
     const received: CreateAccountRequest[] = [];
     const did = "did:plc:account00000000000000000";
     const account = await createManagedAccount(
       { name: "atlas" },
       env,
-      createSuccessfulPds(did, received)
+      createSuccessfulPds(did, received),
+      generateInviteCode
     );
 
     expect(account).toMatchObject({
@@ -135,7 +111,7 @@ describe("managed accounts", () => {
       password: expect.stringMatching(/^[A-Za-z0-9_-]{43}$/u),
       recoveryKey: expect.stringMatching(/^did:key:/u),
     });
-    await parseAndVerifyInvite(createRequest.inviteCode);
+    expect(createRequest.inviteCode).toBe(INVITE_CODE);
 
     const stored = await readStoredAccount(did);
     const serializedCredentials = await decryptText(
@@ -175,7 +151,12 @@ describe("managed accounts", () => {
     ).first<{ count: number }>();
 
     await expect(
-      createManagedAccount({ name: "taken" }, env, rejectingPds)
+      createManagedAccount(
+        { name: "taken" },
+        env,
+        rejectingPds,
+        generateInviteCode
+      )
     ).rejects.toBeInstanceOf(PdsAccountError);
     const result = await env.DB.prepare(
       "SELECT COUNT(*) AS count FROM accounts"
@@ -189,12 +170,22 @@ describe("managed accounts", () => {
       "did:plc:first0000000000000000000",
       received
     );
-    await createManagedAccount({ name: "duplicate" }, env, firstPds);
+    await createManagedAccount(
+      { name: "duplicate" },
+      env,
+      firstPds,
+      generateInviteCode
+    );
 
     await expect(
-      createManagedAccount({ name: "duplicate" }, env, () => {
-        throw new Error("PDS must not be called for a managed handle");
-      })
+      createManagedAccount(
+        { name: "duplicate" },
+        env,
+        () => {
+          throw new Error("PDS must not be called for a managed handle");
+        },
+        generateInviteCode
+      )
     ).rejects.toBeInstanceOf(AccountAlreadyExistsError);
     expect(received).toHaveLength(1);
   });
@@ -207,7 +198,8 @@ describe("accounts API", () => {
     const account = await createManagedAccount(
       { name: "api-account" },
       env,
-      createSuccessfulPds(did, received)
+      createSuccessfulPds(did, received),
+      generateInviteCode
     );
     const [listResponse, detailResponse] = await Promise.all([
       request("/api/accounts"),

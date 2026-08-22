@@ -3,7 +3,6 @@ import { eq } from "drizzle-orm";
 
 import { encodeBase64Url } from "../crypto/base64";
 import { encryptText } from "../crypto/encryption";
-import { createInviteCode } from "../crypto/invite-code";
 import { createDatabase } from "../db";
 import { accountsTable } from "../db/schema";
 import type { Account } from "../db/schema";
@@ -20,6 +19,10 @@ interface StoredCredentials {
   accessJwt: string;
   password: string;
   refreshJwt: string;
+}
+
+interface PdsControlPlaneService extends Service {
+  generateInviteCode: () => Promise<string>;
 }
 
 export interface ManagedAccount {
@@ -63,10 +66,18 @@ const createMachinePassword = (): string =>
     crypto.getRandomValues(new Uint8Array(MACHINE_PASSWORD_BYTES))
   );
 
+const generatePdsInviteCode = (service: Service): Promise<string> => {
+  // SAFETY: wrangler.jsonc binds PDS to the PdsControlPlane named entrypoint.
+  const pds = service as PdsControlPlaneService;
+  return pds.generateInviteCode();
+};
+
 export const createManagedAccount = async (
   input: CreateManagedAccountInput,
   env: Env,
-  request: typeof globalThis.fetch = globalThis.fetch
+  request: typeof globalThis.fetch = globalThis.fetch,
+  generateInviteCode: () => Promise<string> = () =>
+    generatePdsInviteCode(env.PDS)
 ): Promise<ManagedAccount> => {
   const pds = normalizePdsOrigin(env.PDS_ORIGIN);
   const handle: `${string}.${string}` = `${input.name}.${pds.hostname}`;
@@ -83,7 +94,7 @@ export const createManagedAccount = async (
   const password = createMachinePassword();
   const recoveryKey = await Secp256k1PrivateKeyExportable.createKeypair();
   const [inviteCode, recoveryKeyDid, recoveryKeyMultikey] = await Promise.all([
-    createInviteCode(env.CONTROL_PLANE_INVITE_KEY, pds.origin),
+    generateInviteCode(),
     recoveryKey.exportPublicKey("did"),
     recoveryKey.exportPrivateKey("multikey"),
   ]);
