@@ -7,7 +7,7 @@ export const ManagedAccountSchema = z.object({
 
 export type ManagedAccount = z.infer<typeof ManagedAccountSchema>;
 
-const accountNameSchema = z
+export const AccountNameSchema = z
   .string()
   .trim()
   .toLowerCase()
@@ -18,5 +18,5 @@ const accountNameSchema = z
   });
 
 export const CreateAccountInputSchema = z.object({
-  name: accountNameSchema,
+  name: AccountNameSchema,
 });

@@ -1,9 +1,11 @@
 /* oxlint-disable eslint/func-style, eslint/no-use-before-define -- TanStack file routes export Route before their component declarations. */
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import type { InferRequestType } from "hono";
 import { LoaderCircleIcon, PlusIcon } from "lucide-react";
 import { useState } from "react";
-import type { FormEvent } from "react";
+import type { SubmitEvent } from "react";
 import { toast } from "sonner";
+import z from "zod";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -17,25 +19,24 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { accountKeys } from "@/features/accounts/queries";
-import { createAccount } from "@/lib/api";
-import type { ManagedAccount } from "@/lib/api";
-
-const accountNamePattern = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/u;
+import { api } from "@/lib/api";
+import * as managedAccount from "~/schema/managed-account";
 
 export const NewAccountDialog = () => {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
+
   const queryClient = useQueryClient();
   const normalizedName = name.trim().toLowerCase();
-  const isValid =
-    normalizedName.length >= 2 &&
-    normalizedName.length <= 63 &&
-    accountNamePattern.test(normalizedName);
+  const isValid = z.safeParse(managedAccount.AccountNameSchema, name).success;
+
   const mutation = useMutation({
-    mutationFn: createAccount,
-    onError: (error) => toast.error(error.message),
+    mutationFn: async (arg: InferRequestType<typeof api.accounts.$post>) => {
+      const response = await api.accounts.$post(arg);
+      return response.json();
+    },
     onSuccess: (account) => {
-      queryClient.setQueryData<ManagedAccount[]>(
+      queryClient.setQueryData<managedAccount.ManagedAccount[]>(
         accountKeys.all,
         (accounts) => [account, ...(accounts ?? [])]
       );
@@ -55,10 +56,10 @@ export const NewAccountDialog = () => {
     }
   };
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (isValid && !mutation.isPending) {
-      mutation.mutate({ name: normalizedName });
+      mutation.mutate({ json: { name: normalizedName } });
     }
   };
 
@@ -92,7 +93,6 @@ export const NewAccountDialog = () => {
             disabled={mutation.isPending}
             minLength={2}
             maxLength={63}
-            pattern="[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?"
             autoComplete="off"
             autoCapitalize="none"
             spellCheck={false}

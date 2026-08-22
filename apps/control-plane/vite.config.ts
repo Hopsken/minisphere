@@ -19,9 +19,7 @@ export default defineConfig(({ mode }) => {
       cloudflare(),
     ],
     resolve: {
-      alias: {
-        "@": new URL("src", import.meta.url).pathname,
-      },
+      tsconfigPaths: true,
     },
   };
   if (allowedHosts) {
