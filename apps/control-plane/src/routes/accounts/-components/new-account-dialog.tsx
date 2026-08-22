@@ -1,18 +1,11 @@
 /* oxlint-disable eslint/func-style, eslint/no-use-before-define -- TanStack file routes export Route before their component declarations. */
-import {
-  useMutation,
-  useQueryClient,
-  useSuspenseQuery,
-} from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { LoaderCircleIcon, PlusIcon } from "lucide-react";
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { toast } from "sonner";
 
-import { Blobatar } from "@/components/ui/blobatar";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
   DialogClose,
@@ -23,71 +16,13 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { accountKeys, accountsQuery } from "@/features/accounts/queries";
+import { accountKeys } from "@/features/accounts/queries";
 import { createAccount } from "@/lib/api";
 import type { ManagedAccount } from "@/lib/api";
 
-export const Route = createFileRoute("/accounts/")({
-  component: AccountsPage,
-  loader: ({ context }) => context.queryClient.ensureQueryData(accountsQuery),
-});
-
-function AccountsPage() {
-  const { data: accounts } = useSuspenseQuery(accountsQuery);
-
-  return (
-    <div className="bg-background min-h-dvh">
-      <main className="mx-auto w-full max-w-5xl px-4 py-7 sm:px-6 sm:py-10 lg:py-14">
-        <header className="mb-6 flex items-center justify-between px-1 sm:mb-8 sm:px-2">
-          <h1 className="font-heading text-xl font-semibold tracking-[-0.025em] sm:text-2xl">
-            minisphere
-          </h1>
-          <NewAccountDialog />
-        </header>
-
-        <Card
-          aria-label="Accounts"
-          role="region"
-          className="min-h-56 gap-0 py-8 sm:py-10"
-        >
-          <CardContent className="px-4 sm:px-8">
-            {accounts.length > 0 ? (
-              <div className="grid grid-cols-3 gap-x-3 gap-y-8 sm:grid-cols-4 sm:gap-x-6 sm:gap-y-10 lg:grid-cols-6">
-                {accounts.map((account) => (
-                  <AccountItem key={account.did} account={account} />
-                ))}
-              </div>
-            ) : (
-              <div className="text-muted-foreground flex min-h-36 items-center justify-center text-sm">
-                No accounts yet
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </main>
-    </div>
-  );
-}
-
-function AccountItem({ account }: { account: ManagedAccount }) {
-  const name = account.handle.split(".", 1)[0] ?? account.handle;
-
-  return (
-    <div className="group flex min-w-0 flex-col items-center gap-3">
-      <Blobatar
-        name={account.did}
-        className="size-20 shadow-sm transition-[box-shadow] group-hover:shadow-md sm:size-24"
-      />
-      <span className="w-full truncate px-1 text-center text-sm font-medium">
-        {name}
-      </span>
-    </div>
-  );
-}
-
 const accountNamePattern = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/u;
 
-function NewAccountDialog() {
+export const NewAccountDialog = () => {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const queryClient = useQueryClient();
@@ -186,4 +121,4 @@ function NewAccountDialog() {
       </DialogContent>
     </Dialog>
   );
-}
+};
