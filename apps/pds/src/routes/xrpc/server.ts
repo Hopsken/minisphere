@@ -17,11 +17,11 @@ import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import z from "zod";
 
-import { deleteInviteCode, verifyInviteCode } from "../../auth/invite-code";
 import { hashPassword } from "../../auth/password";
 import { createSessionTokens } from "../../auth/session";
 import { createPdsDatabase } from "../../db";
 import { accountsTable, refreshTokensTable } from "../../db/schema";
+import { InviteCodeRepository } from "../../repositories/invite-code";
 import { lexiconJsonValidator } from "../../utils/lexicon-validator";
 import { zValidator } from "../../utils/z-validator";
 
@@ -74,8 +74,9 @@ app.post(
     const { handle, inviteCode, password, recoveryKey } = c.req.valid("json");
     const pdsHostname = c.env.PDS_HOSTNAME.toLowerCase();
     const pdsOrigin = `https://${pdsHostname}`;
+    const inviteCodes = new InviteCodeRepository(c.env.PDS_KV);
 
-    if (!(await verifyInviteCode(c.env.PDS_KV, inviteCode))) {
+    if (!(await inviteCodes.exists(inviteCode))) {
       throw new HTTPException(400, { message: "Invalid invite code" });
     }
 
@@ -155,7 +156,7 @@ app.post(
       }),
     ]);
 
-    await deleteInviteCode(c.env.PDS_KV, inviteCode);
+    await inviteCodes.delete(inviteCode);
 
     return c.json({
       accessJwt: session.accessJwt,

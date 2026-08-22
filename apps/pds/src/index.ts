@@ -4,8 +4,8 @@ import { cors } from "hono/cors";
 import { HTTPException } from "hono/http-exception";
 import { logger } from "hono/logger";
 
-import { generateInviteCode } from "./auth/invite-code";
 import { createPdsDatabase } from "./db";
+import { InviteCodeRepository } from "./repositories/invite-code";
 import xrpcRoutes from "./routes/xrpc";
 
 const app = new Hono<{
@@ -51,7 +51,7 @@ export default app;
 
 export class PdsControlPlane extends WorkerEntrypoint<Env> {
   generateInviteCode(): Promise<string> {
-    return generateInviteCode(this.env.PDS_KV);
+    return new InviteCodeRepository(this.env.PDS_KV).create();
   }
 }
 

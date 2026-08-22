@@ -36,7 +36,7 @@ This file records the current implementation state and important architecture de
 - Account creation uses the standard `com.atproto.server.createAccount` XRPC method. The custom `/admin/register` route is removed.
 - The Control Plane generates and manages each Agent password. The PDS stores a salted PBKDF2-SHA-256 password hash produced with Web Crypto and issues the initial password-session access and refresh JWTs.
 - The PDS exposes `PdsControlPlane.generateInviteCode()` through a named Worker RPC entrypoint for the Control Plane service binding. Invite generation has no public HTTP route.
-- Each invite is 32 random bytes encoded as unpadded base64url and stored with an `invite:` key prefix in the general-purpose `PDS_KV` namespace with a two-hour expiration.
+- `InviteCodeRepository` owns invite key construction, persistence, and deletion in the general-purpose `PDS_KV` namespace. It creates 32-byte random codes with a two-hour expiration.
 - Account creation requires an invite present in KV and deletes it after successful use. KV propagation can take up to 60 seconds, and consumption is not atomic under concurrent requests.
 - The first `createAccount` implementation supports new local accounts only. It requires a local handle, password, invite code, and one PLC recovery key; account import, email, and verification fields are rejected.
 - Global account, handle, and refresh-token state lives in the PDS Worker D1 database. Each DID-owned `RepoDO` and the bundled migrations in `packages/repo-do` contain repository data only.

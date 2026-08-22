@@ -4,6 +4,8 @@ import { jwtVerify } from "jose";
 import { describe, expect, it } from "vitest";
 import z from "zod";
 
+import { InviteCodeRepository } from "../src/repositories/invite-code";
+
 const ORIGIN = "https://internal.test";
 const PASSWORD = "machine-generated-password";
 
@@ -113,7 +115,8 @@ describe("com.atproto.server.createAccount", () => {
       new Request("https://agent.pds.test/.well-known/atproto-did")
     );
     const repoObject = env.REPO.getByName(payload.did);
-    const [account, resolvedDid, storedRefreshToken, inviteCodeValue, repo] =
+    const inviteCodes = new InviteCodeRepository(env.PDS_KV);
+    const [account, resolvedDid, storedRefreshToken, inviteCodeExists, repo] =
       await Promise.all([
         env.PDS_DB.prepare(
           "SELECT did, handle, password_hash FROM accounts WHERE did = ?"
@@ -126,14 +129,14 @@ describe("com.atproto.server.createAccount", () => {
         )
           .bind(payload.did)
           .first(),
-        env.PDS_KV.get(`invite:${inviteCode}`),
+        inviteCodes.exists(inviteCode),
         repoObject.rpcGetRepoStatus(),
       ]);
     expect({
       account,
       handleContentType: handleResponse.headers.get("Content-Type"),
       handleStatus: handleResponse.status,
-      inviteCodeValue,
+      inviteCodeExists,
       repo,
       resolvedDid,
       storedRefreshToken,
@@ -147,7 +150,7 @@ describe("com.atproto.server.createAccount", () => {
       },
       handleContentType: expect.stringContaining("text/plain"),
       handleStatus: 200,
-      inviteCodeValue: null,
+      inviteCodeExists: false,
       repo: {
         did: payload.did,
         head: expect.any(String),
@@ -165,16 +168,18 @@ describe("com.atproto.server.createAccount", () => {
   it("generates invite codes that expire after two hours", async () => {
     const generatedAt = Math.floor(Date.now() / 1000);
     const inviteCode = await createInviteCode();
-    const key = `invite:${inviteCode}`;
-    const listed = await env.PDS_KV.list({ prefix: key });
+    const inviteCodes = new InviteCodeRepository(env.PDS_KV);
+    const listed = await env.PDS_KV.list();
+    const storedInvite = listed.keys.find(({ name }) =>
+      name.endsWith(inviteCode)
+    );
 
     expect(inviteCode).toMatch(/^[A-Za-z0-9_-]{43}$/u);
-    await expect(env.PDS_KV.get(key)).resolves.toBe("1");
-    expect(listed.keys).toHaveLength(1);
-    expect(listed.keys[0]?.expiration).toBeGreaterThanOrEqual(
+    await expect(inviteCodes.exists(inviteCode)).resolves.toBeTruthy();
+    expect(storedInvite?.expiration).toBeGreaterThanOrEqual(
       generatedAt + 2 * 60 * 60
     );
-    expect(listed.keys[0]?.expiration).toBeLessThanOrEqual(
+    expect(storedInvite?.expiration).toBeLessThanOrEqual(
       Math.floor(Date.now() / 1000) + 2 * 60 * 60
     );
   });
