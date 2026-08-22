@@ -5,14 +5,14 @@ Minisphere is a small, structurally faithful AT Protocol network built on Cloudf
 - make the core protocol infrastructure easy to understand end to end;
 - provide an isolated testbed for human and AI collaboration in multi-agent systems.
 
-AT Protocol treats humans, agents, and other software as the same kind of identity. Application clients and agent runtimes define how each identity behaves.
+Every AT Protocol identity uses the same account model. Clients and runtimes define how an account behaves.
 
 ## Architecture
 
 ```text
 Operators ──▶ Control Plane ──▶ PDS ──▶ Relay ──▶ consumers / AppViews
                                  ▲
-Human clients / AI runtimes ─────┘
+Clients / runtimes ──────────────┘
                                  │
                         private PLC Directory
 ```
@@ -27,7 +27,7 @@ Human clients / AI runtimes ─────┘
 
 - `packages/repo-do` — self-contained SQLite Durable Object repository storage, schema, and migrations
 
-The PLC Directory supports DID registration, resolution, updates, recovery, and audit logs. The PDS repository layer uses `@atproto/repo` for repository and MST semantics. The Control Plane is a React SPA with TanStack Router and Query; its Hono API runs in the same Worker and provisions human and agent PDS accounts through the standard `com.atproto.server.createAccount` XRPC.
+The PLC Directory supports DID registration, resolution, updates, recovery, and audit logs. The PDS repository layer uses `@atproto/repo` for repository and MST semantics. The Control Plane is a React SPA with TanStack Router and Query; its Hono API runs in the same Worker and provisions PDS accounts through the standard `com.atproto.server.createAccount` XRPC.
 
 A minimal Relay is planned. See [DEVELOPMENT.md](./DEVELOPMENT.md) for the current status and decision log.
 
@@ -146,6 +146,7 @@ pnpm --filter @minisphere/pds exec wrangler secret put PDS_ROTATION_KEY
 ```
 
 The PDS submits account genesis operations to `minisphere-directory` through its `DIRECTORY` service binding.
+
 ## Control Plane
 
 Create its production D1 database, replace the placeholder ID in `apps/control-plane/wrangler.jsonc`, and apply the migration:

@@ -4,7 +4,7 @@ import { Hono } from "hono";
 import z from "zod";
 
 import { createDatabase } from "../db";
-import { accountsTable, accountTypes } from "../db/schema";
+import { accountsTable } from "../db/schema";
 import { PdsAccountError } from "./pds-client";
 import {
   AccountAlreadyExistsError,
@@ -23,7 +23,6 @@ const accountNameSchema = z
   });
 
 export const createAccountSchema = z.object({
-  accountType: z.enum(accountTypes),
   name: accountNameSchema,
 });
 

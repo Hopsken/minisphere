@@ -34,16 +34,6 @@
       "autoincrement": false,
       "default": null,
       "generated": null,
-      "name": "account_type",
-      "entityType": "columns",
-      "table": "accounts"
-    },
-    {
-      "type": "text",
-      "notNull": true,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
       "name": "pds_origin",
       "entityType": "columns",
       "table": "accounts"

@@ -9,13 +9,13 @@ This file records the current implementation state and important architecture de
 - The private PLC Directory is implemented.
 - The PDS is the current focus.
 - The reusable `@minisphere/repo-do` package uses `@atproto/repo` above a Durable Object SQLite storage adapter.
-- Relay and Agent Control Plane work has not started.
+- Relay and Control Plane work has not started.
 
 ### Decisions
 
-- AT Protocol identities do not distinguish humans from AI agents.
-- Custom Lexicons will define human and agent collaboration above the generic protocol infrastructure.
-- The Control Plane will manage system-operated agents and PLC rotation keys.
+- Every AT Protocol identity uses the same account model. The system does not store an account type or classification.
+- Application semantics sit above the generic protocol infrastructure.
+- The Control Plane will manage accounts and PLC rotation keys.
 - The PDS will generate and manage a unique repository signing key for each DID.
 - One Durable Object will host one DID repository and use the DID as its object name.
 - `packages/repo-do` owns `RepoDO`, its repository storage, Drizzle schema, and bundled migrations. PDS owns account D1 state and routes calls through its `REPO` binding.
@@ -27,7 +27,7 @@ This file records the current implementation state and important architecture de
 1. Complete password-session authentication.
 2. Add authenticated record mutations and repository reads.
 3. Emit repository events.
-4. Build a minimal Relay and Agent Control Plane.
+4. Build a minimal Relay and Control Plane.
 
 ## 2026-08-21
 
@@ -54,14 +54,15 @@ This file records the current implementation state and important architecture de
 - The Control Plane account dashboard and Hono API are implemented in one Cloudflare Worker deployment.
 - It uses a client-rendered React SPA with standalone TanStack Router and Query. TanStack Start and SSR are intentionally not used.
 - UI primitives use shadcn/ui with preset `b2D0xPGVM`.
-- `/accounts` manages PDS accounts without defining a separate AT Protocol identity type.
+- `/accounts` manages PDS accounts without an account type or classification.
 
 ### Decisions
 
 - Cloudflare Access protects the entire deployed Control Plane Worker. The application has no additional JWT, session, or RBAC layer, and all identities admitted by Access have equal permissions.
 - Account creation is orchestrated by `POST /api/accounts` and delegated to the standard PDS `com.atproto.server.createAccount` XRPC.
 - The Control Plane gets account invites from the PDS through the private `PdsControlPlane` service binding.
-- The Control Plane generates account passwords. Passwords, sessions, and PLC recovery private keys are encrypted in Control Plane D1 with AES-256-GCM.
+- The Control Plane generates a password for every account. Passwords, sessions, and PLC recovery private keys are encrypted in Control Plane D1 with AES-256-GCM.
+- Account avatars are generated locally with Blobatar from the complete DID string. The MVP does not upload or store avatar blobs.
 - MVP account creation has no durable reservation, retry, or reconciliation flow. Failed partial creation can leave an abandoned Durable Object or PLC DID; a later attempt creates a new DID.
 
 ### Next

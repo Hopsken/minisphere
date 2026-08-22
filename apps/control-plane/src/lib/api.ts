@@ -14,10 +14,8 @@ type ConfigResponse = InferResponseType<typeof client.config.$get, 200>;
 
 export type ManagedAccount = AccountsResponse["accounts"][number];
 export type ControlPlaneConfig = ConfigResponse;
-export type AccountType = ManagedAccount["accountType"];
 
 export interface CreateAccountInput {
-  accountType: AccountType;
   name: string;
 }
 

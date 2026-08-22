@@ -6,13 +6,12 @@ import { encryptText } from "../crypto/encryption";
 import { createInviteCode } from "../crypto/invite-code";
 import { createDatabase } from "../db";
 import { accountsTable } from "../db/schema";
-import type { Account, AccountType } from "../db/schema";
+import type { Account } from "../db/schema";
 import { createPdsAccount } from "./pds-client";
 
 const MACHINE_PASSWORD_BYTES = 32;
 
 export interface CreateManagedAccountInput {
-  accountType: AccountType;
   name: string;
 }
 
@@ -24,7 +23,6 @@ interface StoredCredentials {
 }
 
 export interface ManagedAccount {
-  accountType: AccountType;
   createdAt: string;
   did: string;
   handle: string;
@@ -54,7 +52,6 @@ export const normalizePdsOrigin = (value: string): URL => {
 };
 
 export const toManagedAccount = (account: Account): ManagedAccount => ({
-  accountType: account.accountType,
   createdAt: account.createdAt.toISOString(),
   did: account.did,
   handle: account.handle,
@@ -103,7 +100,6 @@ export const createManagedAccount = async (
     refreshJwt: created.refreshJwt,
   };
   const account: Account = {
-    accountType: input.accountType,
     createdAt: new Date(),
     did: created.did,
     encryptedCredentials: await encryptText(
