@@ -1,5 +1,6 @@
 {
   "$schema": "https://turbo.build/schema.json",
+  "ui": "tui",
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
@@ -9,6 +10,7 @@
       "outputs": ["worker-configuration.d.ts"]
     },
     "db:migrate:local": {
+      "interactive": true,
       "cache": false
     },
     "db:migrate:remote": {
@@ -20,7 +22,8 @@
     },
     "dev": {
       "cache": false,
-      "persistent": true
+      "persistent": true,
+      "interactive": true
     },
     "//#format:check:root": {},
     "//#lint:root": {},
