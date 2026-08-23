@@ -7,6 +7,7 @@
   "assets": {
     "not_found_handling": "single-page-application",
     "run_worker_first": ["/api/*"],
+    "directory": "./dist/client",
   },
   "routes": [
     {
@@ -45,7 +46,7 @@
       "binding": "DB",
       "database_name": "minisphere-control-plane",
       // Replace this placeholder with the ID returned by `wrangler d1 create` before deploying.
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      "database_id": "ee5cd4ab-7199-48b8-a86b-ae20f12d8f7e",
       "migrations_dir": "migrations",
       "migrations_pattern": "migrations/*/migration.sql",
     },

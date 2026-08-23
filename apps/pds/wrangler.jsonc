@@ -16,7 +16,7 @@
     },
   ],
   "secrets": {
-    "required": ["PDS_HOSTNAME", "PDS_JWT_SECRET", "PDS_ROTATION_KEY"],
+    "required": ["PDS_JWT_SECRET", "PDS_ROTATION_KEY"],
   },
   "services": [
     {
@@ -26,9 +26,9 @@
   ],
   "kv_namespaces": [
     {
-      "binding": "PDS_KV",
       // Replace this placeholder with the ID returned by `wrangler kv namespace create` before deploying.
-      "id": "00000000000000000000000000000000",
+      "binding": "PDS_KV",
+      "id": "76fd5fe0f29e4098972414a59c35d167",
     },
   ],
   "d1_databases": [
@@ -36,7 +36,7 @@
       "binding": "PDS_DB",
       "database_name": "minisphere-pds",
       // Replace this placeholder with the ID returned by `wrangler d1 create` before deploying.
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      "database_id": "72a38bfb-f793-43ec-b07d-51299499c79f",
       "migrations_dir": "migrations",
       "migrations_pattern": "migrations/*/migration.sql",
     },

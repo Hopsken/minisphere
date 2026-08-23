@@ -31,12 +31,10 @@ pnpm --filter @minisphere/pds db:migrate:remote
 
 ## Secrets
 
-- `PDS_HOSTNAME` — canonical PDS hostname
 - `PDS_JWT_SECRET` — at least 32 random bytes used for password-session JWTs
 - `PDS_ROTATION_KEY` — secp256k1 private multikey used to sign PLC operations
 
 ```sh
-pnpm --filter @minisphere/pds exec wrangler secret put PDS_HOSTNAME
 pnpm --filter @minisphere/pds exec wrangler secret put PDS_JWT_SECRET
 pnpm --filter @minisphere/pds exec wrangler secret put PDS_ROTATION_KEY
 ```

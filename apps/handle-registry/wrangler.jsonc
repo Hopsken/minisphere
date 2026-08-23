@@ -22,7 +22,7 @@
       "binding": "DB",
       "database_name": "minisphere-handle-registry",
       // Replace this placeholder with the ID returned by `wrangler d1 create` before deploying.
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      "database_id": "01e88087-1cbc-4457-8e66-2c52ecfb07ab",
       "migrations_dir": "migrations",
       "migrations_pattern": "migrations/*/migration.sql",
     },

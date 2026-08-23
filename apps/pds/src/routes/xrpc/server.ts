@@ -72,8 +72,11 @@ app.post(
   zValidator("json", createAccountSchema),
   async (c) => {
     const { handle, inviteCode, password, recoveryKey } = c.req.valid("json");
-    const pdsHostname = c.env.PDS_HOSTNAME.toLowerCase();
-    const pdsOrigin = `https://${pdsHostname}`;
+
+    const reqUrl = new URL(c.req.url);
+    const pdsHostname = reqUrl.hostname;
+    const pdsOrigin = reqUrl.origin;
+
     const inviteCodes = new InviteCodeRepository(c.env.PDS_KV);
 
     if (!(await inviteCodes.exists(inviteCode))) {
