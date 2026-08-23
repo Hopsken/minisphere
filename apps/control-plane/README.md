@@ -7,7 +7,8 @@ The Control Plane combines a React account dashboard and a Hono API in one Cloud
 ```text
 React dashboard ──▶ Hono routes ──▶ services ──▶ repositories ──▶ D1
                                       │
-                                      └───────▶ PDS / PLC clients
+                                      ├───────▶ PDS / PLC clients
+                                      └───────▶ Handle Registry RPC
 ```
 
 Worker code is divided into routes, services, repositories, external clients, database code, and small library functions. Runtime request and response schemas live in `schema/`. The frontend uses the typed Hono client directly.
@@ -22,7 +23,7 @@ Control Plane D1 records:
 - the generated password as a compact JWE;
 - a local creation timestamp.
 
-It does not copy the handle, PDS endpoint, PLC operation, access JWT, or refresh JWT. The PLC Directory owns DID documents, and the PDS owns account and authentication state.
+It does not copy the handle, PDS endpoint, PLC operation, access JWT, or refresh JWT. The Handle Registry owns handle-to-DID mappings, the PLC Directory owns DID documents, and the PDS owns account and authentication state.
 
 The dashboard currently lists managed DIDs and derives each Blobatar from the full DID. It does not yet resolve handles or profile names.
 
@@ -31,11 +32,15 @@ The dashboard currently lists managed DIDs and derives each Blobatar from the fu
 `POST /api/accounts`:
 
 1. validates the requested account name with the shared Zod schema;
-2. gets an invite from `PdsControlPlane.generateInviteCode()`;
-3. generates a random 32-byte password;
-4. calls `com.atproto.server.createAccount` through the PDS service binding;
-5. encrypts the password as a compact JWE bound to the returned DID;
-6. stores the DID and encrypted password in D1.
+2. forms a handle under `HANDLE_DOMAIN` and checks its current availability through `HandleRegistryEntrypoint`;
+3. gets an invite from `PdsControlPlane.generateInviteCode()`;
+4. generates a random 32-byte password;
+5. calls `com.atproto.server.createAccount` through the PDS service binding;
+6. encrypts the password as a compact JWE bound to the returned DID;
+7. stores the DID and encrypted password in D1;
+8. registers the handle through the Handle Registry administrative RPC.
+
+The PDS writes the handle claim to the PLC genesis operation. The later registry write makes the handle resolve to that DID and completes bidirectional handle verification. This small deployment does not use durable handle reservations or reconciliation. A failure between account creation and registration can leave an account whose claimed handle does not resolve, and a rare concurrent claim can be replaced by the final administrative upsert.
 
 The configured public `CONTROL_PLANE_ACCOUNT_RECOVERY_KEY` is included in each PLC genesis operation. Its private key is not stored by the application.
 
@@ -61,10 +66,15 @@ Service bindings:
 
 - `PDS` — the PDS `PdsControlPlane` named entrypoint
 - `PlcDirectory` — the private PLC Directory Worker
+- `HandleRegistry` — the Handle Registry `HandleRegistryEntrypoint` named entrypoint
+
+Variable bindings:
+
+- `HANDLE_DOMAIN` — handle suffix used for managed account names
 
 Secret bindings:
 
-- `PDS_ORIGIN` — canonical HTTPS PDS origin; its hostname is the account handle suffix
+- `PDS_ORIGIN` — canonical HTTPS PDS origin used by the PDS client
 - `CONTROL_PLANE_ENCRYPTION_KEY` — 32 random bytes encoded as unpadded Base64URL for direct A256GCM
 - `CONTROL_PLANE_ACCOUNT_RECOVERY_KEY` — shared public PLC recovery `did:key`
 
@@ -96,7 +106,7 @@ pnpm dev:control
 pnpm turbo test typecheck build --filter=@minisphere/control-plane
 ```
 
-The Control Plane type-generation task reads its own, PDS, and Directory Wrangler configurations. Turbo reruns it before type-checking when a bound Worker changes.
+The Control Plane type-generation task reads its own, PDS, Directory, and Handle Registry Wrangler configurations. Turbo reruns it before type-checking when a bound Worker changes.
 
 For Amp orb previews, set `VITE_ALLOWED_HOSTS` in `.env` to a comma-separated host list. A leading dot permits that domain and its subdomains.
 

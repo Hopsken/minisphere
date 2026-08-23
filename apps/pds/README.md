@@ -4,11 +4,13 @@ The PDS is a Hono Cloudflare Worker that exposes AT Protocol XRPC routes. It own
 
 ## Data ownership and bindings
 
-- PDS D1 stores accounts, password hashes, and refresh-token records.
+- PDS D1 stores account DIDs, password hashes, and refresh-token records. It does not store handles.
 - PDS KV stores short-lived account invite codes.
 - [`@minisphere/repo-do`](../../packages/repo-do/README.md) owns repository data and repository signing keys.
 - The private `DIRECTORY` service binding receives PLC genesis operations.
 - `PdsControlPlane.generateInviteCode()` is a named RPC entrypoint for the Control Plane.
+
+Account creation accepts a syntactically valid handle and records it as an `alsoKnownAs` claim in the PLC genesis operation. The PDS does not prove or publish the reverse handle-to-DID mapping. The separate Handle Registry owns HTTPS handle resolution and completes bidirectional verification for managed handles.
 
 ## D1 and KV
 

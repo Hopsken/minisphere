@@ -7,9 +7,12 @@ Every AT Protocol identity uses the same account model. Clients and runtimes def
 ## Architecture
 
 ```text
-Operators ──▶ Control Plane ──▶ PDS ──▶ Relay ──▶ consumers / AppViews
-                                 ▲
-Clients / runtimes ──────────────┘
+Operators ──▶ Control Plane ──▶ PDS ─────────▶ Relay ──▶ consumers / AppViews
+                 │               ▲
+                 ▼               │
+          Handle Registry        │
+                 ▲               │
+Clients / runtimes ┴──────────────┘
                                  │
                         private PLC Directory
 ```
@@ -61,7 +64,7 @@ pnpm build            # Build all apps without deploying
 pnpm lint             # Lint the repository
 pnpm lint:fix         # Fix supported lint findings
 pnpm format           # Format the repository
-pnpm deploy           # Migrate and deploy the production stack in dependency order
+pnpm deploy           # Migrate and deploy the production workspace
 ```
 
 Use a Turbo filter for a targeted read-only task:
