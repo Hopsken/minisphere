@@ -1,0 +1,29 @@
+{
+  "name": "@minisphere/handle-registry",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "wrangler deploy --dry-run --outdir dist",
+    "typegen": "wrangler types",
+    "db:generate": "drizzle-kit generate --name",
+    "db:migrate:local": "wrangler d1 migrations apply DB --local",
+    "db:migrate:remote": "wrangler d1 migrations apply DB --remote",
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tests/tsconfig.json"
+  },
+  "dependencies": {
+    "@atcute/lexicons": "^2.1.0",
+    "drizzle-orm": "1.0.0-rc.4",
+    "hono": "^4.13.3",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.22.0",
+    "@types/node": "^26.2.0",
+    "drizzle-kit": "^1.0.0-rc.4",
+    "vitest": "^4.1.11"
+  }
+}

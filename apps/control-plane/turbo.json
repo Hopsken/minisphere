@@ -3,13 +3,21 @@
   "extends": ["//"],
   "tasks": {
     "typegen": {
-      "dependsOn": ["@minisphere/directory#typegen", "@minisphere/pds#typegen"]
+      "dependsOn": [
+        "@minisphere/directory#typegen",
+        "@minisphere/pds#typegen",
+        "@minisphere/handle-registry#typegen"
+      ]
     },
     "deploy": {
-      "dependsOn": ["build", "db:migrate:remote", "@minisphere/pds#deploy"]
+      "dependsOn": ["build", "db:migrate:remote"]
     },
     "dev": {
-      "with": ["@minisphere/directory#dev", "@minisphere/pds#dev"]
+      "with": [
+        "@minisphere/directory#dev",
+        "@minisphere/pds#dev",
+        "@minisphere/handle-registry#dev"
+      ]
     }
   }
 }

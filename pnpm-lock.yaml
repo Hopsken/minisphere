@@ -393,6 +393,34 @@ importers:
         specifier: ^4.1.10
         version: 4.1.10(@types/node@26.2.0)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0))
 
+  apps/handle-registry:
+    dependencies:
+      '@atcute/lexicons':
+        specifier: ^2.1.0
+        version: 2.1.0
+      drizzle-orm:
+        specifier: 1.0.0-rc.4
+        version: 1.0.0-rc.4(@cloudflare/workers-types@5.20260821.1)(valibot@1.4.2(typescript@7.0.2))(zod@4.4.3)
+      hono:
+        specifier: ^4.13.3
+        version: 4.13.3
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
+    devDependencies:
+      '@cloudflare/vitest-pool-workers':
+        specifier: ^0.22.0
+        version: 0.22.0(@cloudflare/workers-types@5.20260821.1)(@vitest/runner@4.1.11)(@vitest/snapshot@4.1.11)(vitest@4.1.11(@types/node@26.2.0)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0)))
+      '@types/node':
+        specifier: ^26.2.0
+        version: 26.2.0
+      drizzle-kit:
+        specifier: ^1.0.0-rc.4
+        version: 1.0.0-rc.5-ab785fc
+      vitest:
+        specifier: ^4.1.11
+        version: 4.1.11(@types/node@26.2.0)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0))
+
   apps/pds:
     dependencies:
       '@atcute/atproto':

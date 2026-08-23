@@ -7,9 +7,12 @@ Every AT Protocol identity uses the same account model. Clients and runtimes def
 ## Architecture
 
 ```text
-Operators ──▶ Control Plane ──▶ PDS ──▶ Relay ──▶ consumers / AppViews
-                                 ▲
-Clients / runtimes ──────────────┘
+Operators ──▶ Control Plane ──▶ PDS ─────────▶ Relay ──▶ consumers / AppViews
+                 │               ▲
+                 ▼               │
+          Handle Registry        │
+                 ▲               │
+Clients / runtimes ┴──────────────┘
                                  │
                         private PLC Directory
 ```
@@ -21,6 +24,7 @@ Clients / runtimes ──────────────┘
 - [`apps/directory`](./apps/directory/README.md) — private PLC Directory on a Hono Worker and D1
 - [`apps/pds`](./apps/pds/README.md) — PDS XRPC, account, authentication, and repository routing Worker
 - [`apps/control-plane`](./apps/control-plane/README.md) — Cloudflare Access-protected account dashboard and API
+- [`apps/handle-registry`](./apps/handle-registry/README.md) — AT Protocol handle registry on a Hono Worker and D1
 
 ### Packages
 
@@ -52,6 +56,7 @@ The example Worker secrets are for local development only. Production secrets ar
 pnpm dev:control      # Run the Control Plane and its dependencies
 pnpm dev:pds          # Run the PDS and Directory
 pnpm dev:directory    # Run only the Directory
+pnpm dev:handle-registry # Run only the Handle Registry
 pnpm check            # Run all repository checks through Turbo
 pnpm test             # Test all workspace projects
 pnpm typecheck        # Type-check all workspace projects
@@ -59,7 +64,7 @@ pnpm build            # Build all apps without deploying
 pnpm lint             # Lint the repository
 pnpm lint:fix         # Fix supported lint findings
 pnpm format           # Format the repository
-pnpm deploy           # Migrate and deploy the production stack in dependency order
+pnpm deploy           # Migrate and deploy the production workspace
 ```
 
 Use a Turbo filter for a targeted read-only task:

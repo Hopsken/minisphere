@@ -115,19 +115,15 @@ describe("com.atproto.server.createAccount", () => {
       header: { alg: "HS256", typ: "refresh+jwt" },
     });
 
-    const handleResponse = await exports.default.fetch(
-      new Request("https://agent.pds.test/.well-known/atproto-did")
-    );
     const repoObject = env.REPO.getByName(payload.did);
     const inviteCodes = new InviteCodeRepository(env.PDS_KV);
-    const [account, resolvedDid, storedRefreshToken, inviteCodeExists, repo] =
+    const [account, storedRefreshToken, inviteCodeExists, repo] =
       await Promise.all([
         env.PDS_DB.prepare(
-          "SELECT did, handle, password_hash FROM accounts WHERE did = ?"
+          "SELECT did, password_hash FROM accounts WHERE did = ?"
         )
           .bind(payload.did)
           .first(),
-        handleResponse.text(),
         env.PDS_DB.prepare(
           "SELECT did, jti, expires_at FROM refresh_tokens WHERE did = ?"
         )
@@ -138,29 +134,22 @@ describe("com.atproto.server.createAccount", () => {
       ]);
     expect({
       account,
-      handleContentType: handleResponse.headers.get("Content-Type"),
-      handleStatus: handleResponse.status,
       inviteCodeExists,
       repo,
-      resolvedDid,
       storedRefreshToken,
     }).toMatchObject({
       account: {
         did: payload.did,
-        handle: payload.handle,
         password_hash: expect.stringMatching(
           /^pbkdf2-sha256\$210000\$[0-9a-f]{32}\$[0-9a-f]{64}$/u
         ),
       },
-      handleContentType: expect.stringContaining("text/plain"),
-      handleStatus: 200,
       inviteCodeExists: false,
       repo: {
         did: payload.did,
         head: expect.any(String),
         rev: expect.any(String),
       },
-      resolvedDid: payload.did,
       storedRefreshToken: {
         did: payload.did,
         expires_at: expect.any(Number),
@@ -188,14 +177,17 @@ describe("com.atproto.server.createAccount", () => {
     );
   });
 
-  it("rejects a handle that already has an account", async () => {
+  it("does not own handle uniqueness", async () => {
     const handle = "duplicate.pds.test";
     const first = await postAccount({ handle });
-    expect(first.status).toBe(200);
+    const second = await postAccount({ handle });
 
-    const duplicate = await postAccount({ handle });
-    expect(duplicate.status).toBe(400);
-    await expect(duplicate.text()).resolves.toBe("Handle is not available");
+    expect([first.status, second.status]).toStrictEqual([200, 200]);
+    const firstAccount = createAccountResponseSchema.parse(await first.json());
+    const secondAccount = createAccountResponseSchema.parse(
+      await second.json()
+    );
+    expect(firstAccount.did).not.toBe(secondAccount.did);
   });
 
   it("rejects an invite not issued by the control plane", async () => {
@@ -248,9 +240,6 @@ describe("com.atproto.server.createAccount", () => {
     const importedAccount = await postAccount({ did: "did:plc:alice" });
     expect(importedAccount.status).toBe(400);
 
-    const invalidHandle = await postAccount({ handle: "agent.example.com" });
-    expect(invalidHandle.status).toBe(400);
-
     const invalidPassword = await postAccount({
       handle: "password.pds.test",
       password: String(),
@@ -262,6 +251,15 @@ describe("com.atproto.server.createAccount", () => {
       recoveryKey: "not-a-key",
     });
     expect(invalidRecoveryKey.status).toBe(400);
+  });
+
+  it("accepts a valid handle outside the PDS domain", async () => {
+    const response = await postAccount({ handle: "agent.example.com" });
+
+    expect(response.status).toBe(200);
+    expect(
+      createAccountResponseSchema.parse(await response.json())
+    ).toMatchObject({ handle: "agent.example.com" });
   });
 
   it("requires a 2-63 character account name", async () => {
@@ -283,7 +281,7 @@ describe("com.atproto.server.createAccount", () => {
     expect(response.status).toBe(404);
   });
 
-  it("does not publish unknown or external handles", async () => {
+  it("does not publish handle mappings", async () => {
     const [unknown, external] = await Promise.all([
       exports.default.fetch(
         new Request("https://unknown.pds.test/.well-known/atproto-did")
