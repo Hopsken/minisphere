@@ -8,6 +8,13 @@
     "port": 8787,
     "inspector_port": 0,
   },
+  "workers_dev": false,
+  "routes": [
+    {
+      "custom_domain": true,
+      "pattern": "pds.hopsken.dev",
+    },
+  ],
   "secrets": {
     "required": ["PDS_HOSTNAME", "PDS_JWT_SECRET", "PDS_ROTATION_KEY"],
   },

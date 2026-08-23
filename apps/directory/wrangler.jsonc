@@ -3,6 +3,13 @@
   "name": "minisphere-directory",
   "main": "src/index.ts",
   "compatibility_date": "2026-08-16",
+  "workers_dev": false,
+  "routes": [
+    {
+      "custom_domain": true,
+      "pattern": "plc.hopsken.dev",
+    },
+  ],
   "dev": {
     "port": 8788,
     "inspector_port": 0,

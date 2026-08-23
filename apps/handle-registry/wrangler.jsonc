@@ -3,6 +3,11 @@
   "name": "minisphere-handle-registry",
   "main": "src/index.ts",
   "compatibility_date": "2026-08-18",
+  "dev": {
+    "port": 8789,
+    "inspector_port": 0,
+  },
+  "workers_dev": false,
   "routes": [
     {
       "pattern": "*.r2d2.party/*",
@@ -11,11 +16,6 @@
   ],
   "vars": {
     "DOMAIN": "r2d2.party",
-  },
-  "workers_dev": false,
-  "dev": {
-    "port": 8789,
-    "inspector_port": 0,
   },
   "d1_databases": [
     {
