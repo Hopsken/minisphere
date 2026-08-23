@@ -29,9 +29,15 @@ app.onError((err, c) => {
   return c.text("Internal Server Error", 500);
 });
 
-export default app;
+export default {
+  fetch: app.fetch,
+};
 
 export class PdsControlPlane extends WorkerEntrypoint<Env> {
+  override fetch(request: Request): Response | Promise<Response> {
+    return app.fetch(request, this.env, this.ctx);
+  }
+
   generateInviteCode(): Promise<string> {
     return new InviteCodeRepository(this.env.PDS_KV).create();
   }

@@ -2,6 +2,6 @@ import { PlcClient } from "@atcute/did-plc";
 
 export const createPlcClient = (env: Env) =>
   new PlcClient({
-    fetch: env.PlcDirectory.fetch,
+    fetch: (request, init) => env.PlcDirectory.fetch(request, init),
     serviceUrl: "https://minisphere-directory.service",
   });

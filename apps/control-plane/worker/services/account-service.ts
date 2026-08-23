@@ -27,6 +27,8 @@ export class AccountService {
     env: Env,
     input: { name: string; inviteCode?: string }
   ) {
+    const { pdsClient, accountRepository } = this;
+
     const handleDomain = env.HANDLE_DOMAIN.toLowerCase();
     const handle: `${string}.${string}` = `${input.name}.${handleDomain}`;
 
@@ -38,7 +40,7 @@ export class AccountService {
 
     const password = randomBytes(MACHINE_PASSWORD_BYTES);
 
-    const response = await this.pdsClient.call(ComAtprotoServerCreateAccount, {
+    const response = await pdsClient.call(ComAtprotoServerCreateAccount, {
       input: {
         handle,
         inviteCode: input.inviteCode,
@@ -60,7 +62,7 @@ export class AccountService {
       env.CONTROL_PLANE_ENCRYPTION_KEY,
       did
     );
-    await this.accountRepository.create({ did, encryptedCredentials });
+    await accountRepository.create({ did, encryptedCredentials });
 
     // Register handle
     const registration = await env.HandleRegistry.register({

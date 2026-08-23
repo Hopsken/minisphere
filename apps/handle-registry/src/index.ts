@@ -53,6 +53,8 @@ app
     return ctx.text("Internal Server Error", 500);
   });
 
-export default app;
+export default {
+  fetch: app.fetch,
+};
 
 export { HandleRegistryEntrypoint } from "./worker-entrypoint";

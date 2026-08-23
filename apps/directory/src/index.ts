@@ -55,4 +55,6 @@ app.onError((err, c) => {
   return c.text("Internal Server Error", 500);
 });
 
-export default app;
+export default {
+  fetch: app.fetch,
+};
