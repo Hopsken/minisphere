@@ -31,10 +31,10 @@ const operationSchema = z
     alsoKnownAs: z.array(z.string()),
     prev: z.string().nullable(),
     rotationKeys: z.array(z.string()),
-    services: z.record(serviceSchema),
+    services: z.record(z.string(), serviceSchema),
     sig: z.string(),
     type: z.literal("plc_operation"),
-    verificationMethods: z.record(z.string()),
+    verificationMethods: z.record(z.string(), z.string()),
   })
   .strict();
 

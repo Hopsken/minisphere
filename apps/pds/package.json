@@ -15,28 +15,28 @@
     "typecheck": "tsc --noEmit && tsc --noEmit -p tests/tsconfig.json"
   },
   "dependencies": {
-    "@atcute/atproto": "^4.0.4",
-    "@atcute/car": "^6.0.2",
-    "@atcute/cbor": "^2.3.6",
-    "@atcute/cid": "^2.4.2",
-    "@atcute/crypto": "^2.4.4",
-    "@atcute/did-plc": "^1.0.1",
-    "@atcute/identity-resolver": "^2.0.1",
-    "@atcute/lexicons": "^2.1.0",
-    "@atcute/mst": "^1.0.3",
-    "@atcute/tid": "^1.1.4",
-    "@hono/zod-validator": "^0.9.0",
+    "@atcute/atproto": "catalog:",
+    "@atcute/car": "catalog:",
+    "@atcute/cbor": "catalog:",
+    "@atcute/cid": "catalog:",
+    "@atcute/crypto": "catalog:",
+    "@atcute/did-plc": "catalog:",
+    "@atcute/identity-resolver": "catalog:",
+    "@atcute/lexicons": "catalog:",
+    "@atcute/mst": "catalog:",
+    "@atcute/tid": "catalog:",
+    "@hono/zod-validator": "catalog:",
     "@minisphere/hono-utils": "workspace:*",
     "@minisphere/repo-do": "workspace:*",
-    "drizzle-orm": "1.0.0-rc.4",
-    "hono": "^4.13.2",
-    "jose": "^6.2.9",
-    "zod": "^4.4.3"
+    "drizzle-orm": "catalog:",
+    "hono": "catalog:",
+    "jose": "catalog:",
+    "zod": "catalog:"
   },
   "devDependencies": {
-    "@cloudflare/vitest-pool-workers": "^0.21.3",
-    "@types/node": "^26.2.0",
-    "drizzle-kit": "^1.0.0-rc.4",
-    "vitest": "^4.1.10"
+    "@cloudflare/vitest-pool-workers": "catalog:",
+    "@types/node": "catalog:",
+    "drizzle-kit": "catalog:",
+    "vitest": "catalog:"
   }
 }

@@ -16,18 +16,18 @@
   },
   "dependencies": {
     "@atproto/common": "^0.8.0",
-    "@atproto/crypto": "^0.4.5",
+    "@atproto/crypto": "catalog:",
     "@atproto/lex-cbor": "^0.1.6",
     "@did-plc/lib": "^0.0.4",
-    "drizzle-orm": "1.0.0-rc.4",
-    "hono": "^4.13.2",
+    "drizzle-orm": "catalog:",
+    "hono": "catalog:",
     "multiformats": "^14.0.5",
-    "zod": "^3.25.76"
+    "zod": "catalog:"
   },
   "devDependencies": {
-    "@cloudflare/vitest-pool-workers": "^0.21.3",
-    "@types/node": "^26.2.0",
-    "drizzle-kit": "^1.0.0-rc.4",
-    "vitest": "^4.1.10"
+    "@cloudflare/vitest-pool-workers": "catalog:",
+    "@types/node": "catalog:",
+    "drizzle-kit": "catalog:",
+    "vitest": "catalog:"
   }
 }

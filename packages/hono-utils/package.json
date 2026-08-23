@@ -10,14 +10,14 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@hono/zod-validator": "^0.9.0",
-    "hono": "^4.13.3"
+    "@hono/zod-validator": "catalog:",
+    "hono": "catalog:"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^5.20260821.1",
-    "@types/node": "^26.2.0"
+    "@cloudflare/workers-types": "catalog:",
+    "@types/node": "catalog:"
   },
   "peerDependencies": {
-    "zod": "^4.4.3"
+    "zod": "catalog:"
   }
 }
