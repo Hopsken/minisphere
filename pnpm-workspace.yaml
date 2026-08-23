@@ -2,6 +2,39 @@ packages:
   - apps/*
   - packages/*
 
+catalogMode: prefer
+
+catalog:
+  "@atcute/atproto": ^4.0.4
+  "@atcute/car": ^6.0.2
+  "@atcute/cbor": ^2.3.6
+  "@atcute/cid": ^2.4.2
+  "@atcute/client": ^5.1.1
+  "@atcute/crypto": ^2.4.4
+  "@atcute/did-plc": ^1.0.1
+  "@atcute/identity-resolver": ^2.0.1
+  "@atcute/lexicons": ^2.1.0
+  "@atcute/mst": ^1.0.3
+  "@atcute/multibase": ^1.2.5
+  "@atcute/tid": ^1.1.4
+  "@atproto/crypto": ^0.4.5
+  "@cloudflare/vitest-pool-workers": ^0.22.0
+  "@cloudflare/workers-types": ^5.20260821.1
+  "@hono/zod-validator": ^0.9.0
+  "@types/node": ^26.2.0
+  drizzle-kit: ^1.0.0-rc.4
+  drizzle-orm: 1.0.0-rc.4
+  hono: ^4.13.3
+  jose: ^6.2.9
+  oxfmt: ^0.63.0
+  oxlint: ^1.78.0
+  turbo: ^2.10.10
+  typescript: ^7.0.2
+  ultracite: ^7.10.4
+  vitest: ^4.1.11
+  wrangler: ^4.123.0
+  zod: ^4.4.3
+
 allowBuilds:
   esbuild: true
   workerd: true

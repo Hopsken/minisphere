@@ -203,51 +203,141 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+catalogs:
+  default:
+    '@atcute/atproto':
+      specifier: ^4.0.4
+      version: 4.0.4
+    '@atcute/car':
+      specifier: ^6.0.2
+      version: 6.0.2
+    '@atcute/cbor':
+      specifier: ^2.3.6
+      version: 2.3.6
+    '@atcute/cid':
+      specifier: ^2.4.2
+      version: 2.4.2
+    '@atcute/client':
+      specifier: ^5.1.1
+      version: 5.1.1
+    '@atcute/crypto':
+      specifier: ^2.4.4
+      version: 2.4.4
+    '@atcute/did-plc':
+      specifier: ^1.0.1
+      version: 1.0.1
+    '@atcute/identity-resolver':
+      specifier: ^2.0.1
+      version: 2.0.1
+    '@atcute/lexicons':
+      specifier: ^2.1.0
+      version: 2.1.0
+    '@atcute/mst':
+      specifier: ^1.0.3
+      version: 1.0.3
+    '@atcute/multibase':
+      specifier: ^1.2.5
+      version: 1.2.5
+    '@atcute/tid':
+      specifier: ^1.1.4
+      version: 1.1.4
+    '@atproto/crypto':
+      specifier: ^0.4.5
+      version: 0.4.5
+    '@cloudflare/vitest-pool-workers':
+      specifier: ^0.22.0
+      version: 0.22.0
+    '@cloudflare/workers-types':
+      specifier: ^5.20260821.1
+      version: 5.20260821.1
+    '@hono/zod-validator':
+      specifier: ^0.9.0
+      version: 0.9.0
+    '@types/node':
+      specifier: ^26.2.0
+      version: 26.2.0
+    drizzle-kit:
+      specifier: ^1.0.0-rc.4
+      version: 1.0.0-rc.5-ab785fc
+    drizzle-orm:
+      specifier: 1.0.0-rc.4
+      version: 1.0.0-rc.4
+    hono:
+      specifier: ^4.13.3
+      version: 4.13.3
+    jose:
+      specifier: ^6.2.9
+      version: 6.2.9
+    oxfmt:
+      specifier: ^0.63.0
+      version: 0.63.0
+    oxlint:
+      specifier: ^1.78.0
+      version: 1.78.0
+    turbo:
+      specifier: ^2.10.10
+      version: 2.10.10
+    typescript:
+      specifier: ^7.0.2
+      version: 7.0.2
+    ultracite:
+      specifier: ^7.10.4
+      version: 7.10.4
+    vitest:
+      specifier: ^4.1.11
+      version: 4.1.11
+    wrangler:
+      specifier: ^4.123.0
+      version: 4.124.0
+    zod:
+      specifier: ^4.4.3
+      version: 4.4.3
+
 importers:
 
   .:
     devDependencies:
       oxfmt:
-        specifier: ^0.63.0
+        specifier: 'catalog:'
         version: 0.63.0
       oxlint:
-        specifier: ^1.78.0
+        specifier: 'catalog:'
         version: 1.78.0
       turbo:
-        specifier: ^2.10.10
+        specifier: 'catalog:'
         version: 2.10.10
       typescript:
-        specifier: ^7.0.2
+        specifier: 'catalog:'
         version: 7.0.2
       ultracite:
-        specifier: ^7.10.4
+        specifier: 'catalog:'
         version: 7.10.4(oxfmt@0.63.0)(oxlint@1.78.0)
       wrangler:
-        specifier: ^4.123.0
-        version: 4.123.0(@cloudflare/workers-types@5.20260821.1)
+        specifier: 'catalog:'
+        version: 4.124.0(@cloudflare/workers-types@5.20260821.1)
 
   apps/control-plane:
     dependencies:
       '@atcute/atproto':
-        specifier: ^4.0.4
+        specifier: 'catalog:'
         version: 4.0.4(@atcute/lexicons@2.1.0)
       '@atcute/client':
-        specifier: ^5.1.1
+        specifier: 'catalog:'
         version: 5.1.1(@atcute/lexicons@2.1.0)(typescript@7.0.2)
       '@atcute/crypto':
-        specifier: ^2.4.4
+        specifier: 'catalog:'
         version: 2.4.4
       '@atcute/did-plc':
-        specifier: ^1.0.1
+        specifier: 'catalog:'
         version: 1.0.1(@atcute/cbor@2.3.6(@atcute/cid@2.4.2))(@atcute/cid@2.4.2)(@atcute/identity@2.0.2(@atcute/lexicons@2.1.0)(typescript@7.0.2))(@atcute/lexicons@2.1.0)(typescript@7.0.2)
       '@atcute/identity-resolver':
-        specifier: ^2.0.1
+        specifier: 'catalog:'
         version: 2.0.1(@atcute/identity@2.0.2(@atcute/lexicons@2.1.0)(typescript@7.0.2))(@atcute/lexicons@2.1.0)(typescript@7.0.2)
       '@atcute/lexicons':
-        specifier: ^2.1.0
+        specifier: 'catalog:'
         version: 2.1.0
       '@atcute/multibase':
-        specifier: ^1.2.5
+        specifier: 'catalog:'
         version: 1.2.5
       '@base-ui/react':
         specifier: ^1.7.0
@@ -259,7 +349,7 @@ importers:
         specifier: ^5.3.0
         version: 5.3.0
       '@hono/zod-validator':
-        specifier: ^0.9.0
+        specifier: 'catalog:'
         version: 0.9.0(hono@4.13.3)(zod@4.4.3)
       '@minisphere/hono-utils':
         specifier: workspace:*
@@ -280,13 +370,13 @@ importers:
         specifier: ^2.1.1
         version: 2.1.1
       drizzle-orm:
-        specifier: 1.0.0-rc.4
+        specifier: 'catalog:'
         version: 1.0.0-rc.4(@cloudflare/workers-types@5.20260821.1)(valibot@1.4.2(typescript@7.0.2))(zod@4.4.3)
       hono:
-        specifier: ^4.13.3
+        specifier: 'catalog:'
         version: 4.13.3
       jose:
-        specifier: ^6.2.9
+        specifier: 'catalog:'
         version: 6.2.9
       lucide-react:
         specifier: ^1.33.0
@@ -313,14 +403,14 @@ importers:
         specifier: ^1.4.0
         version: 1.4.0
       zod:
-        specifier: ^4.4.3
+        specifier: 'catalog:'
         version: 4.4.3
     devDependencies:
       '@cloudflare/vite-plugin':
         specifier: 1.52.0
         version: 1.52.0(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0))(wrangler@4.124.0(@cloudflare/workers-types@5.20260821.1))
       '@cloudflare/vitest-pool-workers':
-        specifier: ^0.22.0
+        specifier: 'catalog:'
         version: 0.22.0(@cloudflare/workers-types@5.20260821.1)(@vitest/runner@4.1.11)(@vitest/snapshot@4.1.11)(vitest@4.1.11(@types/node@26.2.0)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0)))
       '@tailwindcss/vite':
         specifier: ^4.3.3
@@ -329,7 +419,7 @@ importers:
         specifier: ^1.168.34
         version: 1.168.34(@tanstack/react-router@1.170.31(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(esbuild@0.28.1)(rolldown@1.2.4)(supports-color@10.2.2)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0))
       '@types/node':
-        specifier: ^26.2.0
+        specifier: 'catalog:'
         version: 26.2.0
       '@types/react':
         specifier: ^19.2.18
@@ -341,7 +431,7 @@ importers:
         specifier: ^6.1.0
         version: 6.1.0(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0))
       drizzle-kit:
-        specifier: ^1.0.0-rc.4
+        specifier: 'catalog:'
         version: 1.0.0-rc.5-ab785fc
       tailwindcss:
         specifier: ^4.3.3
@@ -350,7 +440,7 @@ importers:
         specifier: ^8.2.2
         version: 8.2.2(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0)
       vitest:
-        specifier: ^4.1.11
+        specifier: 'catalog:'
         version: 4.1.11(@types/node@26.2.0)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0))
 
   apps/directory:
@@ -359,7 +449,7 @@ importers:
         specifier: ^0.8.0
         version: 0.8.0
       '@atproto/crypto':
-        specifier: ^0.4.5
+        specifier: 'catalog:'
         version: 0.4.5
       '@atproto/lex-cbor':
         specifier: ^0.1.6
@@ -368,94 +458,94 @@ importers:
         specifier: ^0.0.4
         version: 0.0.4(debug@4.4.3(supports-color@10.2.2))(supports-color@10.2.2)
       drizzle-orm:
-        specifier: 1.0.0-rc.4
-        version: 1.0.0-rc.4(@cloudflare/workers-types@5.20260821.1)(valibot@1.4.2(typescript@7.0.2))(zod@3.25.76)
+        specifier: 'catalog:'
+        version: 1.0.0-rc.4(@cloudflare/workers-types@5.20260821.1)(valibot@1.4.2(typescript@7.0.2))(zod@4.4.3)
       hono:
-        specifier: ^4.13.2
-        version: 4.13.2
+        specifier: 'catalog:'
+        version: 4.13.3
       multiformats:
         specifier: ^14.0.5
         version: 14.0.5
       zod:
-        specifier: ^3.25.76
-        version: 3.25.76
+        specifier: 'catalog:'
+        version: 4.4.3
     devDependencies:
       '@cloudflare/vitest-pool-workers':
-        specifier: ^0.21.3
-        version: 0.21.3(@cloudflare/workers-types@5.20260821.1)(@vitest/runner@4.1.10)(@vitest/snapshot@4.1.10)(vitest@4.1.10(@types/node@26.2.0)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0)))
+        specifier: 'catalog:'
+        version: 0.22.0(@cloudflare/workers-types@5.20260821.1)(@vitest/runner@4.1.11)(@vitest/snapshot@4.1.11)(vitest@4.1.11(@types/node@26.2.0)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0)))
       '@types/node':
-        specifier: ^26.2.0
+        specifier: 'catalog:'
         version: 26.2.0
       drizzle-kit:
-        specifier: ^1.0.0-rc.4
+        specifier: 'catalog:'
         version: 1.0.0-rc.5-ab785fc
       vitest:
-        specifier: ^4.1.10
-        version: 4.1.10(@types/node@26.2.0)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0))
+        specifier: 'catalog:'
+        version: 4.1.11(@types/node@26.2.0)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0))
 
   apps/handle-registry:
     dependencies:
       '@atcute/lexicons':
-        specifier: ^2.1.0
+        specifier: 'catalog:'
         version: 2.1.0
       drizzle-orm:
-        specifier: 1.0.0-rc.4
+        specifier: 'catalog:'
         version: 1.0.0-rc.4(@cloudflare/workers-types@5.20260821.1)(valibot@1.4.2(typescript@7.0.2))(zod@4.4.3)
       hono:
-        specifier: ^4.13.3
+        specifier: 'catalog:'
         version: 4.13.3
       zod:
-        specifier: ^4.4.3
+        specifier: 'catalog:'
         version: 4.4.3
     devDependencies:
       '@cloudflare/vitest-pool-workers':
-        specifier: ^0.22.0
+        specifier: 'catalog:'
         version: 0.22.0(@cloudflare/workers-types@5.20260821.1)(@vitest/runner@4.1.11)(@vitest/snapshot@4.1.11)(vitest@4.1.11(@types/node@26.2.0)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0)))
       '@types/node':
-        specifier: ^26.2.0
+        specifier: 'catalog:'
         version: 26.2.0
       drizzle-kit:
-        specifier: ^1.0.0-rc.4
+        specifier: 'catalog:'
         version: 1.0.0-rc.5-ab785fc
       vitest:
-        specifier: ^4.1.11
+        specifier: 'catalog:'
         version: 4.1.11(@types/node@26.2.0)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0))
 
   apps/pds:
     dependencies:
       '@atcute/atproto':
-        specifier: ^4.0.4
+        specifier: 'catalog:'
         version: 4.0.4(@atcute/lexicons@2.1.0)
       '@atcute/car':
-        specifier: ^6.0.2
+        specifier: 'catalog:'
         version: 6.0.2(@atcute/cbor@2.3.6(@atcute/cid@2.4.2))(@atcute/cid@2.4.2)
       '@atcute/cbor':
-        specifier: ^2.3.6
+        specifier: 'catalog:'
         version: 2.3.6(@atcute/cid@2.4.2)
       '@atcute/cid':
-        specifier: ^2.4.2
+        specifier: 'catalog:'
         version: 2.4.2
       '@atcute/crypto':
-        specifier: ^2.4.4
+        specifier: 'catalog:'
         version: 2.4.4
       '@atcute/did-plc':
-        specifier: ^1.0.1
+        specifier: 'catalog:'
         version: 1.0.1(@atcute/cbor@2.3.6(@atcute/cid@2.4.2))(@atcute/cid@2.4.2)(@atcute/identity@2.0.2(@atcute/lexicons@2.1.0)(typescript@7.0.2))(@atcute/lexicons@2.1.0)(typescript@7.0.2)
       '@atcute/identity-resolver':
-        specifier: ^2.0.1
+        specifier: 'catalog:'
         version: 2.0.1(@atcute/identity@2.0.2(@atcute/lexicons@2.1.0)(typescript@7.0.2))(@atcute/lexicons@2.1.0)(typescript@7.0.2)
       '@atcute/lexicons':
-        specifier: ^2.1.0
+        specifier: 'catalog:'
         version: 2.1.0
       '@atcute/mst':
-        specifier: ^1.0.3
+        specifier: 'catalog:'
         version: 1.0.3(@atcute/cbor@2.3.6(@atcute/cid@2.4.2))(@atcute/cid@2.4.2)
       '@atcute/tid':
-        specifier: ^1.1.4
+        specifier: 'catalog:'
         version: 1.1.4
       '@hono/zod-validator':
-        specifier: ^0.9.0
-        version: 0.9.0(hono@4.13.2)(zod@4.4.3)
+        specifier: 'catalog:'
+        version: 0.9.0(hono@4.13.3)(zod@4.4.3)
       '@minisphere/hono-utils':
         specifier: workspace:*
         version: link:../../packages/hono-utils
@@ -463,57 +553,57 @@ importers:
         specifier: workspace:*
         version: link:../../packages/repo-do
       drizzle-orm:
-        specifier: 1.0.0-rc.4
+        specifier: 'catalog:'
         version: 1.0.0-rc.4(@cloudflare/workers-types@5.20260821.1)(valibot@1.4.2(typescript@7.0.2))(zod@4.4.3)
       hono:
-        specifier: ^4.13.2
-        version: 4.13.2
+        specifier: 'catalog:'
+        version: 4.13.3
       jose:
-        specifier: ^6.2.9
+        specifier: 'catalog:'
         version: 6.2.9
       zod:
-        specifier: ^4.4.3
+        specifier: 'catalog:'
         version: 4.4.3
     devDependencies:
       '@cloudflare/vitest-pool-workers':
-        specifier: ^0.21.3
-        version: 0.21.3(@cloudflare/workers-types@5.20260821.1)(@vitest/runner@4.1.10)(@vitest/snapshot@4.1.10)(vitest@4.1.10(@types/node@26.2.0)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0)))
+        specifier: 'catalog:'
+        version: 0.22.0(@cloudflare/workers-types@5.20260821.1)(@vitest/runner@4.1.11)(@vitest/snapshot@4.1.11)(vitest@4.1.11(@types/node@26.2.0)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0)))
       '@types/node':
-        specifier: ^26.2.0
+        specifier: 'catalog:'
         version: 26.2.0
       drizzle-kit:
-        specifier: ^1.0.0-rc.4
+        specifier: 'catalog:'
         version: 1.0.0-rc.5-ab785fc
       vitest:
-        specifier: ^4.1.10
-        version: 4.1.10(@types/node@26.2.0)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0))
+        specifier: 'catalog:'
+        version: 4.1.11(@types/node@26.2.0)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0))
 
   packages/hono-utils:
     dependencies:
       '@hono/zod-validator':
-        specifier: ^0.9.0
+        specifier: 'catalog:'
         version: 0.9.0(hono@4.13.3)(zod@4.4.3)
       hono:
-        specifier: ^4.13.3
+        specifier: 'catalog:'
         version: 4.13.3
       zod:
-        specifier: ^4.4.3
+        specifier: 'catalog:'
         version: 4.4.3
     devDependencies:
       '@cloudflare/workers-types':
-        specifier: ^5.20260821.1
+        specifier: 'catalog:'
         version: 5.20260821.1
       '@types/node':
-        specifier: ^26.2.0
+        specifier: 'catalog:'
         version: 26.2.0
 
   packages/repo-do:
     dependencies:
       '@atcute/crypto':
-        specifier: ^2.4.4
+        specifier: 'catalog:'
         version: 2.4.4
       '@atproto/crypto':
-        specifier: ^0.4.5
+        specifier: 'catalog:'
         version: 0.4.5
       '@atproto/lex-data':
         specifier: ^0.1.7
@@ -522,17 +612,17 @@ importers:
         specifier: ^0.10.11
         version: 0.10.11
       drizzle-orm:
-        specifier: 1.0.0-rc.4
+        specifier: 'catalog:'
         version: 1.0.0-rc.4(@cloudflare/workers-types@5.20260821.1)(valibot@1.4.2(typescript@7.0.2))(zod@4.4.3)
     devDependencies:
       '@cloudflare/workers-types':
-        specifier: ^5.20260821.1
+        specifier: 'catalog:'
         version: 5.20260821.1
       '@types/node':
-        specifier: ^26.2.0
+        specifier: 'catalog:'
         version: 26.2.0
       drizzle-kit:
-        specifier: ^1.0.0-rc.4
+        specifier: 'catalog:'
         version: 1.0.0-rc.5-ab785fc
 
 packages:
@@ -848,13 +938,6 @@ packages:
     peerDependencies:
       vite: ^6.1.0 || ^7.0.0 || ^8.0.0
       wrangler: ^4.122.0
-
-  '@cloudflare/vitest-pool-workers@0.21.3':
-    resolution: {integrity: sha512-jCoGRQ6FlsP5adp1GJISvITOGdTHTpsWOq3KkSGIfeDY/5RKjTUagDwaXjpqBXY5gAk6id/QbgnGuCTAg6lSTQ==}
-    peerDependencies:
-      '@vitest/runner': ^4.1.0
-      '@vitest/snapshot': ^4.1.0
-      vitest: ^4.1.0
 
   '@cloudflare/vitest-pool-workers@0.22.0':
     resolution: {integrity: sha512-OJv/qikkOgxnKxJ5xrLS7zuOLZhc/6iziU+llqZm4tiQf2CJUYwlMuXN68VaWIQebORd1AUx4w6A0oy8XRbuaQ==}
@@ -2232,22 +2315,8 @@ packages:
       oxc-transform-react:
         optional: true
 
-  '@vitest/expect@4.1.10':
-    resolution: {integrity: sha512-YsCn+qAk1GWjQOWFEsEcL2gNQ0zmVmQu3T03qP6UyjhtmdtwtbuI+DASn/7iQB3HGTXkdBwGddzxPlmiql5vlA==}
-
   '@vitest/expect@4.1.11':
     resolution: {integrity: sha512-VX2x5vNJXET47KAFzwERI+KRMtTTCSWTfSMKsW7JsUsXV4psq++e3DvZpuTDOpHcxytiDs6p2nhVb2tVDiiUYw==}
-
-  '@vitest/mocker@4.1.10':
-    resolution: {integrity: sha512-v0xaezt+DKEmKfaxg133ldzADrwLGd7Ze1MfQQTYfvs8OqZIwbxyxaYURivwV7sWy5fqn3rH5uOrSp07bp44Ow==}
-    peerDependencies:
-      msw: ^2.4.9
-      vite: ^6.0.0 || ^7.0.0 || ^8.0.0
-    peerDependenciesMeta:
-      msw:
-        optional: true
-      vite:
-        optional: true
 
   '@vitest/mocker@4.1.11':
     resolution: {integrity: sha512-2XJVD55d1o5AZous5CCGKS74g/riOj9odEt2bQpCVZeblHyHdnMeFl4jl0XjU21stf4mbjUkew2eXQZt65g5CQ==}
@@ -2260,32 +2329,17 @@ packages:
       vite:
         optional: true
 
-  '@vitest/pretty-format@4.1.10':
-    resolution: {integrity: sha512-W1HsjSH4MXQ9YfmmhLAoIYf1HRfekQCGngeIgcei6MP5QQGWUe0gkopdZQaVCFO+JDJMrAJGwa5pRpNpvy4P8Q==}
-
   '@vitest/pretty-format@4.1.11':
     resolution: {integrity: sha512-yiZzPbGTS9Sr/JpFl8zHrcIkAofNbFV6k21vIgQN/cY/oxZeXhJv5sc/MBJ5jFKWmWs+oJHw0UXLZjmf931+Vw==}
-
-  '@vitest/runner@4.1.10':
-    resolution: {integrity: sha512-IKI6kpIH+LmpROplyLwBBaCfMgOZOMsygVa6BARD6ahA04VRuJSa6OaVG7kRvSEMD870Vd91rSSw0eegtWyLGg==}
 
   '@vitest/runner@4.1.11':
     resolution: {integrity: sha512-LztvUgdwMNJMIkj3hQnnxiC2Xy1zNxq928W/xhjCLaNCzqTZOudjwbQf6v9IntZGPw132i2Lq2rgTRZHD3JHNw==}
 
-  '@vitest/snapshot@4.1.10':
-    resolution: {integrity: sha512-xRkfOT1qpTAi/Ti4Y1LtfRc3kEuqxGw59eN2jN9pRWMtS/XDevekhcFSqvQqjUNGksfjMJu3Y+oJ+4Ypn2OaJw==}
-
   '@vitest/snapshot@4.1.11':
     resolution: {integrity: sha512-pN7ikn1ON7h8ee4gIAp4AzyK+zBtJPzVbqOgu5LCEh4VaJVbPQcgYQYJIMGQPXVeJJq1fnfazis7a5pFNPahog==}
 
-  '@vitest/spy@4.1.10':
-    resolution: {integrity: sha512-PLf/Ugvoq5wO/b4rwYCR1h2PSIdXz7wnkQFMiUpLdtM7l6pqVFcQIBEHyT1+l+cj7mNwAfZHzqXqDyjvOuwbDw==}
-
   '@vitest/spy@4.1.11':
     resolution: {integrity: sha512-apNa/prQy2qCeywhnixOHPRCgGNhvg7T4Dapfl1GahLp/R+uhBm5cPyFoNVyqsNd2h1nJxL6BqqdIjiABL60YA==}
-
-  '@vitest/utils@4.1.10':
-    resolution: {integrity: sha512-fy9am/HWxbaGt/Sawrp90vt6Y6jQwf1RX77cz3uwoJwJVMli/e1IEwRPnMNJ7vKfPTwo0diXifkpPvwH9v7nGA==}
 
   '@vitest/utils@4.1.11':
     resolution: {integrity: sha512-zTCVGpyFsGWBhllOyKlTw/vnr6D9qxsfSDyfbyZmTyjHw5N/VuvzHpHoQjm2ZJzn4RJgx5w4r7V0er69CmLgPQ==}
@@ -3072,10 +3126,6 @@ packages:
     resolution: {integrity: sha512-T2UbfbBEF32wiepXIsMlTW9+dDYC6wMh/t/vYA4tuOMKqWz/n3vr1NFSxQiyP+zk2mXsoMA/i/7qV6LKut1t1A==}
     engines: {node: '>= 0.4'}
 
-  hono@4.13.2:
-    resolution: {integrity: sha512-JydRilDRkYBQMt9qR9U92mXxmbGqsqSn/IKOrh4e7/gEbn+0zSr8igTu0obwJoNGN4sez28DIql7FBHWydoJpA==}
-    engines: {node: '>=16.9.0'}
-
   hono@4.13.3:
     resolution: {integrity: sha512-r8AO2mYHoLxSHkgafNeC/BXyb2vWRxD3jem4Ts+ptav8oTG5FIRifAjuJEmZI4bSvvc2ns0GxmIYiZnHqN3mMw==}
     engines: {node: '>=16.9.0'}
@@ -3504,10 +3554,6 @@ packages:
 
   miniflare@5.20260811.0-alpha:
     resolution: {integrity: sha512-sypXsD5fjY88fZNedPqnwrwR1dwfnfbfW7MfvMyIfPJdtRiCCOpUnjWGeFVYYZ+0fQVICye6Juu+vZgzTEx8XA==}
-    engines: {node: '>=22.0.0'}
-
-  miniflare@5.20260811.1-alpha:
-    resolution: {integrity: sha512-DtOG0BeanIxs2sH0smFvExZD89cBQwGckbHiFkRJrrNAUu3NGClZkUxqu+zy7HYfKBAgq935EMY49vIPm3JVdA==}
     engines: {node: '>=22.0.0'}
 
   miniflare@5.20260815.0-alpha:
@@ -4292,47 +4338,6 @@ packages:
       yaml:
         optional: true
 
-  vitest@4.1.10:
-    resolution: {integrity: sha512-R9jUTe5S4Qb0HCd4TNqpC7oGcrMssMRGXLW80ubjWsW9VH5GF8y1Y0SFLY9AbqSk6nt0PnOx4H4WNJYZ13GUPw==}
-    engines: {node: ^20.0.0 || ^22.0.0 || >=24.0.0}
-    hasBin: true
-    peerDependencies:
-      '@edge-runtime/vm': '*'
-      '@opentelemetry/api': ^1.9.0
-      '@types/node': ^20.0.0 || ^22.0.0 || >=24.0.0
-      '@vitest/browser-playwright': 4.1.10
-      '@vitest/browser-preview': 4.1.10
-      '@vitest/browser-webdriverio': 4.1.10
-      '@vitest/coverage-istanbul': 4.1.10
-      '@vitest/coverage-v8': 4.1.10
-      '@vitest/ui': 4.1.10
-      happy-dom: '*'
-      jsdom: '*'
-      vite: ^6.0.0 || ^7.0.0 || ^8.0.0
-    peerDependenciesMeta:
-      '@edge-runtime/vm':
-        optional: true
-      '@opentelemetry/api':
-        optional: true
-      '@types/node':
-        optional: true
-      '@vitest/browser-playwright':
-        optional: true
-      '@vitest/browser-preview':
-        optional: true
-      '@vitest/browser-webdriverio':
-        optional: true
-      '@vitest/coverage-istanbul':
-        optional: true
-      '@vitest/coverage-v8':
-        optional: true
-      '@vitest/ui':
-        optional: true
-      happy-dom:
-        optional: true
-      jsdom:
-        optional: true
-
   vitest@4.1.11:
     resolution: {integrity: sha512-fhACrNXUidIbGSBr5FlbuBkO7VWC1ZyLl0DO4CU2DrQoAPxX84Ysxs+HeGQpii5lZWV1Q4gBZTTu49mF+A6Edw==}
     engines: {node: ^20.0.0 || ^22.0.0 || >=24.0.0}
@@ -4406,16 +4411,6 @@ packages:
     resolution: {integrity: sha512-8bArFkHmlp7qFEKVPyNzDzHzS35gc2fg0PYBcDtaNLF7UCDryCX2BQnpkUkTHYIy824IRrHOTwOEoTj0sUO2Fg==}
     engines: {node: '>=16'}
     hasBin: true
-
-  wrangler@4.123.0:
-    resolution: {integrity: sha512-VXo2I1oa0x9aGAKIFPRSQPqTh0RBY5Ktl44YOhNmsJQFUdJKDA2vVTU6Xj+FC2koll6orJqWZN8jbXVIk9O67Q==}
-    engines: {node: '>=22.0.0'}
-    hasBin: true
-    peerDependencies:
-      '@cloudflare/workers-types': ^5.20260811.1
-    peerDependenciesMeta:
-      '@cloudflare/workers-types':
-        optional: true
 
   wrangler@4.124.0:
     resolution: {integrity: sha512-75euoZKjVTJYFy+Xhctt/5JlZL4M6A4xmovZsUlep+6GHcCm14n9VtdGzNIybOW2t8wuNxRj5iMUwjT5E7Ctog==}
@@ -4917,21 +4912,6 @@ snapshots:
       - bufferutil
       - utf-8-validate
 
-  '@cloudflare/vitest-pool-workers@0.21.3(@cloudflare/workers-types@5.20260821.1)(@vitest/runner@4.1.10)(@vitest/snapshot@4.1.10)(vitest@4.1.10(@types/node@26.2.0)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0)))':
-    dependencies:
-      '@vitest/runner': 4.1.10
-      '@vitest/snapshot': 4.1.10
-      cjs-module-lexer: 1.2.3
-      esbuild: 0.28.1
-      miniflare: 5.20260811.1-alpha
-      vitest: 4.1.10(@types/node@26.2.0)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0))
-      wrangler: 4.123.0(@cloudflare/workers-types@5.20260821.1)
-      zod: 4.4.3
-    transitivePeerDependencies:
-      - '@cloudflare/workers-types'
-      - bufferutil
-      - utf-8-validate
-
   '@cloudflare/vitest-pool-workers@0.22.0(@cloudflare/workers-types@5.20260821.1)(@vitest/runner@4.1.11)(@vitest/snapshot@4.1.11)(vitest@4.1.11(@types/node@26.2.0)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0)))':
     dependencies:
       '@vitest/runner': 4.1.11
@@ -5202,11 +5182,6 @@ snapshots:
   '@hono/node-server@2.1.1(hono@4.13.3)':
     dependencies:
       hono: 4.13.3
-
-  '@hono/zod-validator@0.9.0(hono@4.13.2)(zod@4.4.3)':
-    dependencies:
-      hono: 4.13.2
-      zod: 4.4.3
 
   '@hono/zod-validator@0.9.0(hono@4.13.3)(zod@4.4.3)':
     dependencies:
@@ -5846,15 +5821,6 @@ snapshots:
       '@rolldown/pluginutils': 1.0.1
       vite: 8.2.2(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0)
 
-  '@vitest/expect@4.1.10':
-    dependencies:
-      '@standard-schema/spec': 1.1.0
-      '@types/chai': 5.2.3
-      '@vitest/spy': 4.1.10
-      '@vitest/utils': 4.1.10
-      chai: 6.2.2
-      tinyrainbow: 3.1.1
-
   '@vitest/expect@4.1.11':
     dependencies:
       '@standard-schema/spec': 1.1.0
@@ -5864,14 +5830,6 @@ snapshots:
       chai: 6.2.2
       tinyrainbow: 3.1.1
 
-  '@vitest/mocker@4.1.10(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0))':
-    dependencies:
-      '@vitest/spy': 4.1.10
-      estree-walker: 3.0.3
-      magic-string: 0.30.21
-    optionalDependencies:
-      vite: 8.2.2(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0)
-
   '@vitest/mocker@4.1.11(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0))':
     dependencies:
       '@vitest/spy': 4.1.11
@@ -5880,29 +5838,13 @@ snapshots:
     optionalDependencies:
       vite: 8.2.2(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0)
 
-  '@vitest/pretty-format@4.1.10':
-    dependencies:
-      tinyrainbow: 3.1.1
-
   '@vitest/pretty-format@4.1.11':
     dependencies:
       tinyrainbow: 3.1.1
 
-  '@vitest/runner@4.1.10':
-    dependencies:
-      '@vitest/utils': 4.1.10
-      pathe: 2.0.3
-
   '@vitest/runner@4.1.11':
     dependencies:
       '@vitest/utils': 4.1.11
-      pathe: 2.0.3
-
-  '@vitest/snapshot@4.1.10':
-    dependencies:
-      '@vitest/pretty-format': 4.1.10
-      '@vitest/utils': 4.1.10
-      magic-string: 0.30.21
       pathe: 2.0.3
 
   '@vitest/snapshot@4.1.11':
@@ -5912,15 +5854,7 @@ snapshots:
       magic-string: 0.30.21
       pathe: 2.0.3
 
-  '@vitest/spy@4.1.10': {}
-
   '@vitest/spy@4.1.11': {}
-
-  '@vitest/utils@4.1.10':
-    dependencies:
-      '@vitest/pretty-format': 4.1.10
-      convert-source-map: 2.0.0
-      tinyrainbow: 3.1.1
 
   '@vitest/utils@4.1.11':
     dependencies:
@@ -6222,12 +6156,6 @@ snapshots:
       esbuild: 0.25.12
       get-tsconfig: 4.14.2
       jiti: 2.7.0
-
-  drizzle-orm@1.0.0-rc.4(@cloudflare/workers-types@5.20260821.1)(valibot@1.4.2(typescript@7.0.2))(zod@3.25.76):
-    optionalDependencies:
-      '@cloudflare/workers-types': 5.20260821.1
-      valibot: 1.4.2(typescript@7.0.2)
-      zod: 3.25.76
 
   drizzle-orm@1.0.0-rc.4(@cloudflare/workers-types@5.20260821.1)(valibot@1.4.2(typescript@7.0.2))(zod@4.4.3):
     optionalDependencies:
@@ -6598,8 +6526,6 @@ snapshots:
     dependencies:
       function-bind: 1.1.2
 
-  hono@4.13.2: {}
-
   hono@4.13.3: {}
 
   http-errors@2.0.1:
@@ -6907,18 +6833,6 @@ snapshots:
   mimic-function@5.0.1: {}
 
   miniflare@5.20260811.0-alpha:
-    dependencies:
-      '@cspotcode/source-map-support': 0.8.1
-      sharp: 0.35.2
-      undici: 7.29.0
-      workerd: 1.20260811.1
-      ws: 8.21.0
-      youch: 4.1.0-beta.10
-    transitivePeerDependencies:
-      - bufferutil
-      - utf-8-validate
-
-  miniflare@5.20260811.1-alpha:
     dependencies:
       '@cspotcode/source-map-support': 0.8.1
       sharp: 0.35.2
@@ -7753,33 +7667,6 @@ snapshots:
       jiti: 2.7.0
       yaml: 2.9.0
 
-  vitest@4.1.10(@types/node@26.2.0)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0)):
-    dependencies:
-      '@vitest/expect': 4.1.10
-      '@vitest/mocker': 4.1.10(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0))
-      '@vitest/pretty-format': 4.1.10
-      '@vitest/runner': 4.1.10
-      '@vitest/snapshot': 4.1.10
-      '@vitest/spy': 4.1.10
-      '@vitest/utils': 4.1.10
-      es-module-lexer: 2.3.1
-      expect-type: 1.4.0
-      magic-string: 0.30.21
-      obug: 2.1.4
-      pathe: 2.0.3
-      picomatch: 4.0.5
-      std-env: 4.2.0
-      tinybench: 2.9.0
-      tinyexec: 1.3.0
-      tinyglobby: 0.2.17
-      tinyrainbow: 3.1.1
-      vite: 8.2.2(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0)
-      why-is-node-running: 2.3.0
-    optionalDependencies:
-      '@types/node': 26.2.0
-    transitivePeerDependencies:
-      - msw
-
   vitest@4.1.11(@types/node@26.2.0)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0)):
     dependencies:
       '@vitest/expect': 4.1.11
@@ -7839,23 +7726,6 @@ snapshots:
       '@cloudflare/workerd-linux-64': 1.20260815.1
       '@cloudflare/workerd-linux-arm64': 1.20260815.1
       '@cloudflare/workerd-windows-64': 1.20260815.1
-
-  wrangler@4.123.0(@cloudflare/workers-types@5.20260821.1):
-    dependencies:
-      '@cloudflare/kv-asset-handler': 0.5.0
-      '@cloudflare/unenv-preset': 2.16.1(unenv@2.0.0-rc.24)(workerd@1.20260811.1)
-      blake3-wasm: 2.1.5
-      esbuild: 0.28.1
-      miniflare: 5.20260811.1-alpha
-      path-to-regexp: 6.3.0
-      unenv: 2.0.0-rc.24
-      workerd: 1.20260811.1
-    optionalDependencies:
-      '@cloudflare/workers-types': 5.20260821.1
-      fsevents: 2.3.3
-    transitivePeerDependencies:
-      - bufferutil
-      - utf-8-validate
 
   wrangler@4.124.0(@cloudflare/workers-types@5.20260821.1):
     dependencies:

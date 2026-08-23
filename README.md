@@ -48,6 +48,8 @@ cp apps/pds/.dev.vars.example apps/pds/.dev.vars
 pnpm setup:local
 ```
 
+Shared external dependencies, core toolchain packages, and direct `@atcute/*` dependencies are defined in the pnpm catalog in `pnpm-workspace.yaml`. Workspace manifests reference them with the `catalog:` protocol, and `pnpm add` prefers matching catalog entries.
+
 The example Worker secrets are for local development only. Production secrets are managed with Wrangler and must use different values.
 
 ## Commands

@@ -22,12 +22,12 @@
     "typecheck": "turbo typecheck"
   },
   "devDependencies": {
-    "oxfmt": "^0.63.0",
-    "oxlint": "^1.78.0",
-    "turbo": "^2.10.10",
-    "typescript": "^7.0.2",
-    "ultracite": "^7.10.4",
-    "wrangler": "^4.123.0"
+    "oxfmt": "catalog:",
+    "oxlint": "catalog:",
+    "turbo": "catalog:",
+    "typescript": "catalog:",
+    "ultracite": "catalog:",
+    "wrangler": "catalog:"
   },
   "packageManager": "pnpm@11.21.0"
 }
