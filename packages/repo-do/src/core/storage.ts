@@ -1,3 +1,5 @@
+import { Buffer } from "node:buffer";
+
 import { parseCid } from "@atproto/lex-data";
 import type { Cid } from "@atproto/lex-data";
 import type { BlockMap, CommitData, RepoStorage } from "@atproto/repo";

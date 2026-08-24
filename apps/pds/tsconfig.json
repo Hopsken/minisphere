@@ -3,7 +3,8 @@
   "compilerOptions": {
     "types": [
       "./worker-configuration.d.ts",
-      "../directory/worker-configuration.d.ts"
+      "../directory/worker-configuration.d.ts",
+      "node"
     ]
   },
   "include": ["src/**/*.ts", "worker-configuration.d.ts"]

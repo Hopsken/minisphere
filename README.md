@@ -83,6 +83,10 @@ pnpm --filter @minisphere/pds db:generate add-session-index
 pnpm --filter @minisphere/pds db:migrate:local
 ```
 
+## Continuous integration
+
+GitHub Actions runs `pnpm check` for pull requests, merge queue entries, and pushes to `main`. The `Checks` status must be required in the `main` branch rules before it can block a pull request merge.
+
 ## Documentation
 
 - [Development status and decision log](./DEVELOPMENT.md)
