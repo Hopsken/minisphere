@@ -11,6 +11,8 @@ import { validator } from "hono/validator";
 
 const validate = <Schema extends BaseSchema>(
   schema: Schema,
+  // The supplied schema parses this untrusted value below.
+  // oxlint-disable-next-line anti-slop/no-unknown-parameters
   value: unknown
 ): InferOutput<Schema> => {
   const result = safeParse(schema, value);
@@ -55,6 +57,8 @@ const coerceQueryValue = (schema: BaseSchema, value: string) => {
   return value;
 };
 
+type QueryInputValue = ReturnType<typeof coerceQueryValue>;
+
 export const lexiconJsonValidator = <Schema extends BaseSchema>(
   schema: Schema
 ) => validator("json", (value) => validate(schema, value));
@@ -63,12 +67,15 @@ export const lexiconQueryValidator = <Schema extends ObjectSchema>(
   schema: Schema
 ) =>
   validator("query", (query) => {
-    const input: Record<string, unknown> = {};
+    const input: Record<string, QueryInputValue | QueryInputValue[]> = {};
+    // `shape` is the field-map property in the external lexicon schema API.
+    // oxlint-disable-next-line anti-slop/no-shape-in-symbol-names
+    const fieldSchemas = schema.shape;
 
-    for (const [key, fieldSchema] of Object.entries(schema.shape)) {
+    for (const [key, fieldSchema] of Object.entries(fieldSchemas)) {
       const value = query[key];
       const values = (Array.isArray(value) ? value : [value]).filter(
-        (item): item is string => typeof item === "string" && item !== ""
+        (item): item is string => item !== undefined && item !== ""
       );
       if (values.length === 0) {
         continue;
@@ -77,8 +84,12 @@ export const lexiconQueryValidator = <Schema extends ObjectSchema>(
       const unwrapped = unwrapOptional(fieldSchema);
       const itemSchema = isArraySchema(unwrapped) ? unwrapped.item : unwrapped;
       const coerced = values.map((item) => coerceQueryValue(itemSchema, item));
+      const [firstCoerced] = coerced;
+      if (firstCoerced === undefined) {
+        continue;
+      }
       input[key] =
-        isArraySchema(unwrapped) || coerced.length > 1 ? coerced : coerced[0];
+        isArraySchema(unwrapped) || coerced.length > 1 ? coerced : firstCoerced;
     }
 
     return validate(schema, input);

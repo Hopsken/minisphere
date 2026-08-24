@@ -4,10 +4,15 @@ import { describe, expect, it } from "vitest";
 const ORIGIN = "https://internal.test";
 const JSON_HEADERS = { "Content-Type": "application/json" };
 
+interface JsonBody {
+  [key: string]: JsonValue;
+}
+type JsonValue = boolean | JsonBody | JsonValue[] | null | number | string;
+
 const request = (path: string, init?: RequestInit): Promise<Response> =>
   exports.default.fetch(new Request(`${ORIGIN}${path}`, init));
 
-const post = (body: unknown): RequestInit => ({
+const post = (body: JsonBody): RequestInit => ({
   body: JSON.stringify(body),
   headers: JSON_HEADERS,
   method: "POST",

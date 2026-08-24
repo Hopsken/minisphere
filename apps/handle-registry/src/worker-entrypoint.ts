@@ -4,6 +4,11 @@ import { createDatabase } from "./db";
 import { Registry } from "./registry";
 import type { RegisterHandleInput } from "./registry";
 
+interface HandleRegistryEnv {
+  DB: D1Database;
+  DOMAIN: string;
+}
+
 export type Result<T> =
   | {
       ok: true;
@@ -14,10 +19,10 @@ export type Result<T> =
       reason: string;
     };
 
-export class HandleRegistryEntrypoint extends WorkerEntrypoint<Env> {
+export class HandleRegistryEntrypoint extends WorkerEntrypoint<HandleRegistryEnv> {
   private registry: Registry;
 
-  constructor(ctx: ExecutionContext, env: Env) {
+  constructor(ctx: ExecutionContext, env: HandleRegistryEnv) {
     super(ctx, env);
     this.registry = new Registry(createDatabase(env.DB));
   }

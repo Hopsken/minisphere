@@ -57,12 +57,12 @@ app.get(
   zValidator(
     "query",
     z.object({
-      did: z
-        .string({ error: "Missing required parameter: did" })
-        .refine(isDid, { error: "Invalid DID format" }),
       collection: z
         .string({ error: "Missing required parameter: collection" })
         .refine(isNsid, { error: "Invalid collection format, must be NSID" }),
+      did: z
+        .string({ error: "Missing required parameter: did" })
+        .refine(isDid, { error: "Invalid DID format" }),
       rkey: z
         .string({ error: "Missing required parameter: rkey" })
         .refine(isRecordKey, { error: "Invalid rkey format" }),

@@ -105,7 +105,7 @@ describe("managed account service", () => {
       throw new Error("Expected a PDS createAccount request");
     }
     expect(createRequest).toMatchObject({
-      handle: "atlas.pds.test",
+      handle: "atlas.r2d2.party",
       inviteCode: INVITE_CODE,
       password: expect.stringMatching(/^[A-Za-z0-9_-]{43}$/u),
       recoveryKey: env.CONTROL_PLANE_ACCOUNT_RECOVERY_KEY,

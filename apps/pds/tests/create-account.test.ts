@@ -6,7 +6,7 @@ import z from "zod";
 
 import { InviteCodeRepository } from "../src/repositories/invite-code";
 
-const ORIGIN = "https://internal.test";
+const ORIGIN = "https://pds.test";
 const PASSWORD = "machine-generated-password";
 
 const request = (path: string, init?: RequestInit): Promise<Response> =>

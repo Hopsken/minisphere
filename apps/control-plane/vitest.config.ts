@@ -51,6 +51,31 @@ export default defineConfig(async () => {
             PlcDirectory: () =>
               new Response("Not implemented", { status: 501 }),
           },
+          workers: [
+            {
+              modules: true,
+              name: "minisphere-handle-registry",
+              script: `
+                import { WorkerEntrypoint } from "cloudflare:workers";
+
+                export default {
+                  fetch() {
+                    return new Response("Not implemented", { status: 501 });
+                  }
+                };
+
+                export class HandleRegistryEntrypoint extends WorkerEntrypoint {
+                  async exists() {
+                    return false;
+                  }
+
+                  async register(input) {
+                    return { data: input.handle, ok: true };
+                  }
+                }
+              `,
+            },
+          ],
         },
         wrangler: { configPath: "./wrangler.jsonc" },
       }),
