@@ -32,6 +32,7 @@ export default defineConfig(async () => {
   const rotationKey = await Secp256k1PrivateKeyExportable.createKeypair();
   const rotationKeyMultikey = await rotationKey.exportPrivateKey("multikey");
   const jwtSecret = "test-pds-jwt-secret-with-at-least-32-bytes";
+  const pdsOrigin = "https://pds.test";
   process.env.PDS_JWT_SECRET = jwtSecret;
   process.env.PDS_ROTATION_KEY = rotationKeyMultikey;
 
@@ -41,6 +42,7 @@ export default defineConfig(async () => {
         miniflare: {
           bindings: {
             PDS_JWT_SECRET: jwtSecret,
+            PDS_ORIGIN: pdsOrigin,
             PDS_ROTATION_KEY: rotationKeyMultikey,
             TEST_MIGRATIONS: migrations,
           },

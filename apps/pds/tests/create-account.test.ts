@@ -6,11 +6,11 @@ import z from "zod";
 
 import { InviteCodeRepository } from "../src/repositories/invite-code";
 
-const ORIGIN = "https://pds.test";
+const REQUEST_ORIGIN = "https://service-binding.test";
 const PASSWORD = "machine-generated-password";
 
 const request = (path: string, init?: RequestInit): Promise<Response> =>
-  exports.default.fetch(new Request(`${ORIGIN}${path}`, init));
+  exports.default.fetch(new Request(`${REQUEST_ORIGIN}${path}`, init));
 
 const createAccountResponseSchema = z.object({
   accessJwt: z.string(),
