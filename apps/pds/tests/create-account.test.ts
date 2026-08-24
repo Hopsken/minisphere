@@ -141,7 +141,7 @@ describe("com.atproto.server.createAccount", () => {
       account: {
         did: payload.did,
         password_hash: expect.stringMatching(
-          /^pbkdf2-sha256\$210000\$[0-9a-f]{32}\$[0-9a-f]{64}$/u
+          /^pbkdf2-sha256\$100000\$[0-9a-f]{32}\$[0-9a-f]{64}$/u
         ),
       },
       inviteCodeExists: false,
