@@ -1,6 +1,6 @@
 const PASSWORD_SALT_BYTES = 16;
 const PASSWORD_HASH_BITS = 256;
-const PASSWORD_HASH_ITERATIONS = 210_000;
+const PASSWORD_HASH_ITERATIONS = 100_000;
 const textEncoder = new TextEncoder();
 
 const derivePasswordHash = async (
