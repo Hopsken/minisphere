@@ -10,7 +10,7 @@ The PDS is a Hono Cloudflare Worker that exposes AT Protocol XRPC routes. It own
 - The private `DIRECTORY` service binding receives PLC genesis operations.
 - `PdsControlPlane.generateInviteCode()` is a named RPC entrypoint for the Control Plane.
 
-Account creation accepts a syntactically valid handle and records it as an `alsoKnownAs` claim in the PLC genesis operation. The PDS does not prove or publish the reverse handle-to-DID mapping. The separate Handle Registry owns HTTPS handle resolution and completes bidirectional verification for managed handles.
+Account creation accepts a syntactically valid handle and records it as an `alsoKnownAs` claim in the PLC genesis operation. `PDS_ORIGIN` is the canonical public HTTPS origin used for the DID document service endpoint and session JWT audience; these values do not depend on the incoming request URL. The PDS does not prove or publish the reverse handle-to-DID mapping. The separate Handle Registry owns HTTPS handle resolution and completes bidirectional verification for managed handles.
 
 ## D1 and KV
 

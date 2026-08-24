@@ -73,9 +73,9 @@ app.post(
   async (c) => {
     const { handle, inviteCode, password, recoveryKey } = c.req.valid("json");
 
-    const reqUrl = new URL(c.req.url);
-    const pdsHostname = reqUrl.hostname;
-    const pdsOrigin = reqUrl.origin;
+    const pdsUrl = new URL(c.env.PDS_ORIGIN);
+    const pdsHostname = pdsUrl.hostname;
+    const pdsOrigin = pdsUrl.origin;
 
     const inviteCodes = new InviteCodeRepository(c.env.PDS_KV);
 

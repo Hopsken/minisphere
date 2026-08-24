@@ -21,6 +21,9 @@
       "pattern": "pds.hopsken.dev",
     },
   ],
+  "vars": {
+    "PDS_ORIGIN": "https://pds.hopsken.dev",
+  },
   "secrets": {
     "required": ["PDS_JWT_SECRET", "PDS_ROTATION_KEY"],
   },
