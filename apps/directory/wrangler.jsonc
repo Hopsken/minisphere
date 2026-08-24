@@ -3,6 +3,12 @@
   "name": "minisphere-directory",
   "main": "src/index.ts",
   "compatibility_date": "2026-08-16",
+  "observability": {
+    "logs": {
+      "enabled": true,
+      "invocation_logs": true,
+    },
+  },
   "workers_dev": false,
   "routes": [
     {

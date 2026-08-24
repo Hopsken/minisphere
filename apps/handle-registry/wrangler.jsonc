@@ -7,6 +7,12 @@
     "port": 8789,
     "inspector_port": 0,
   },
+  "observability": {
+    "logs": {
+      "enabled": true,
+      "invocation_logs": true,
+    },
+  },
   "workers_dev": false,
   "routes": [
     {

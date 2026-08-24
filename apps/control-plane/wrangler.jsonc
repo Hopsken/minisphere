@@ -9,6 +9,12 @@
     "run_worker_first": ["/api/*"],
     "directory": "./dist/client",
   },
+  "observability": {
+    "logs": {
+      "enabled": true,
+      "invocation_logs": true,
+    },
+  },
   "routes": [
     {
       "pattern": "ctrl.hopsken.dev",
