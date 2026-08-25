@@ -292,6 +292,9 @@ catalogs:
     better-auth:
       specifier: ^1.7.1
       version: 1.7.1
+    class-variance-authority:
+      specifier: ^0.7.1
+      version: 0.7.1
     clsx:
       specifier: ^2.1.1
       version: 2.1.1
@@ -408,6 +411,9 @@ importers:
       better-auth:
         specifier: 'catalog:'
         version: 1.7.1(@cloudflare/workers-types@5.20260821.1)(drizzle-kit@1.0.0-rc.5-ab785fc)(drizzle-orm@1.0.0-rc.4(@cloudflare/workers-types@5.20260821.1)(valibot@1.4.2(typescript@7.0.2))(zod@4.4.3))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(vitest@4.1.11(@types/node@26.2.0)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0)))
+      class-variance-authority:
+        specifier: 'catalog:'
+        version: 0.7.1
       clsx:
         specifier: 'catalog:'
         version: 2.1.1
