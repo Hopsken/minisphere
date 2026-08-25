@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 
 interface AppShellProps {
   children: ReactNode;
@@ -34,7 +35,11 @@ export const AppShell = ({ children, user }: AppShellProps) => (
               </AvatarFallback>
             </Avatar>
           </div>
-        ) : null}
+        ) : (
+          <Button render={<Link to="/login" />} size="sm">
+            Sign in
+          </Button>
+        )}
       </div>
     </header>
 
