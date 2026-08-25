@@ -26,7 +26,19 @@ Create the production D1 database and copy its ID into `wrangler.jsonc`:
 pnpm --filter @minisphere/accounts exec wrangler d1 create minisphere-accounts
 ```
 
-The Better Auth schema is in `worker/db/schema.ts`. Generate later migrations with a descriptive name:
+### Update the Better Auth schema
+
+`worker/lib/better-auth/options.ts` is the source of truth for Better Auth options. Change these shared options when a Better Auth feature or plugin changes the database schema.
+
+`better-auth.config.ts` exists only for development CLI commands. The Better Auth CLI runs outside the Worker and cannot access a D1 binding. This config reuses the shared runtime options and supplies the database adapter shape that the CLI needs. Do not add a separate copy of the Better Auth options to this file.
+
+After an option change, generate the Drizzle schema from the CLI config:
+
+```sh
+pnpm --filter @minisphere/accounts auth:generate
+```
+
+This command replaces `worker/db/schema/better-auth.ts`. Do not edit the generated schema manually. Review the generated changes, and then create and apply a migration with a descriptive name:
 
 ```sh
 pnpm --filter @minisphere/accounts db:generate add-auth-field

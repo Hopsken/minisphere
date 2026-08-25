@@ -3,13 +3,11 @@ import type { ReactNode } from "react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import type { Session } from "@/lib/auth-client";
 
 interface AppShellProps {
   children: ReactNode;
-  user: {
-    image?: string | null | undefined;
-    name: string;
-  } | null;
+  user: Session["user"] | null;
 }
 
 export const AppShell = ({ children, user }: AppShellProps) => (
