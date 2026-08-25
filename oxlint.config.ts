@@ -5,7 +5,11 @@ import vitest from "ultracite/oxlint/vitest";
 
 export default defineConfig({
   extends: [core, antiSlop, vitest],
-  ignorePatterns: core.ignorePatterns,
+  ignorePatterns: [
+    ...(core.ignorePatterns ?? []),
+    // generated files
+    "**/schema/better-auth.ts",
+  ],
   rules: {
     "sort-keys": ["error", "asc", { allowLineSeparatedGroups: true }],
   },

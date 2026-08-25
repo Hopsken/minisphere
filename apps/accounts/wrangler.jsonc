@@ -16,6 +16,15 @@
     },
   },
   "workers_dev": false,
+  "routes": [
+    {
+      "custom_domain": true,
+      "pattern": "accounts.hopsken.dev",
+    },
+  ],
+  "vars": {
+    "PUBLIC_URL": "accounts.hopsken.dev",
+  },
   "secrets": {
     "required": ["BETTER_AUTH_SECRET"],
   },
@@ -24,7 +33,7 @@
       "binding": "DB",
       "database_name": "minisphere-accounts",
       // Replace this placeholder with the ID returned by `wrangler d1 create` before deploying.
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      "database_id": "0af6d2b9-6931-4dd7-ad33-85af37ee0924",
       "migrations_dir": "migrations",
       "migrations_pattern": "migrations/*/migration.sql",
     },
