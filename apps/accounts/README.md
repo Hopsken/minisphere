@@ -59,6 +59,8 @@ pnpm dev:accounts
 pnpm turbo test typecheck build --filter=@minisphere/accounts
 ```
 
-The Vite development server prints its local URL when it starts. The Better Auth base URL uses the origin of each request until the production route is configured.
+The Vite development server prints its local URL when it starts. `PUBLIC_URL` in `wrangler.jsonc` configures the Better Auth base URL.
+
+For local browser tests, open `/__dev/log-me-in/<email>?returnTo=<path>` on the Accounts development origin. For example, `/__dev/log-me-in/dev@example.com?returnTo=/` creates the user when needed, creates a normal Better Auth session, and redirects to `/`. This route returns 404 outside Vite development. Open it in the browser session used for tests; a `curl` request does not sign that browser in.
 
 For Amp orb previews, set `VITE_ALLOWED_HOSTS` in `.env` to a comma-separated host list. A leading dot permits that domain and its subdomains.

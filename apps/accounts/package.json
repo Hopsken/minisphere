@@ -21,6 +21,7 @@
   "dependencies": {
     "@better-auth/drizzle-adapter": "catalog:",
     "@fontsource-variable/inter": "catalog:",
+    "@minisphere/hono-utils": "workspace:*",
     "@tanstack/react-query": "catalog:",
     "@tanstack/react-router": "catalog:",
     "better-auth": "catalog:",
@@ -34,7 +35,8 @@
     "shadcn": "catalog:",
     "sonner": "catalog:",
     "tailwind-merge": "catalog:",
-    "tw-animate-css": "catalog:"
+    "tw-animate-css": "catalog:",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "catalog:",

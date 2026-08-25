@@ -390,6 +390,9 @@ importers:
       '@fontsource-variable/inter':
         specifier: 'catalog:'
         version: 5.3.0
+      '@minisphere/hono-utils':
+        specifier: workspace:*
+        version: link:../../packages/hono-utils
       '@tanstack/react-query':
         specifier: 'catalog:'
         version: 5.101.4(react@19.2.8)
@@ -432,6 +435,9 @@ importers:
       tw-animate-css:
         specifier: 'catalog:'
         version: 1.4.0
+      zod:
+        specifier: 'catalog:'
+        version: 4.4.3
     devDependencies:
       '@cloudflare/vite-plugin':
         specifier: 'catalog:'

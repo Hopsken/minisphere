@@ -10,8 +10,14 @@ declare global {
   }
 }
 
-const app = new Hono<WorkerEnv>()
-  .use(logger())
+const app = new Hono<WorkerEnv>().use(logger());
+
+if (import.meta.env.DEV) {
+  const { default: dev } = await import("./routes/dev");
+  app.route("/__dev", dev);
+}
+
+app
   .route("/api", api)
   .notFound((c) =>
     c.json({ error: "NotFound", message: "API endpoint not found" }, 404)
