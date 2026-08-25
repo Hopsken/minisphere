@@ -244,6 +244,9 @@ catalogs:
     '@atproto/crypto':
       specifier: ^0.4.5
       version: 0.4.5
+    '@better-auth/drizzle-adapter':
+      specifier: ^1.7.1
+      version: 1.7.1
     '@cloudflare/vite-plugin':
       specifier: 1.52.0
       version: 1.52.0
@@ -283,6 +286,9 @@ catalogs:
     '@vitejs/plugin-react':
       specifier: ^6.1.0
       version: 6.1.0
+    better-auth:
+      specifier: ^1.7.1
+      version: 1.7.1
     clsx:
       specifier: ^2.1.1
       version: 2.1.1
@@ -379,7 +385,7 @@ importers:
   apps/accounts:
     dependencies:
       '@better-auth/drizzle-adapter':
-        specifier: ^1.7.1
+        specifier: 'catalog:'
         version: 1.7.1(@better-auth/core@1.7.1(@better-auth/utils@0.4.2)(@better-fetch/fetch@1.3.1)(@cloudflare/workers-types@5.20260821.1)(better-call@1.4.0(zod@4.4.3))(jose@6.2.9)(kysely@0.29.5)(nanostores@1.5.2))(@better-auth/utils@0.4.2)(drizzle-orm@1.0.0-rc.4(@cloudflare/workers-types@5.20260821.1)(valibot@1.4.2(typescript@7.0.2))(zod@4.4.3))
       '@fontsource-variable/inter':
         specifier: 'catalog:'
@@ -391,7 +397,7 @@ importers:
         specifier: 'catalog:'
         version: 1.170.31(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       better-auth:
-        specifier: ^1.7.1
+        specifier: 'catalog:'
         version: 1.7.1(@cloudflare/workers-types@5.20260821.1)(drizzle-kit@1.0.0-rc.5-ab785fc)(drizzle-orm@1.0.0-rc.4(@cloudflare/workers-types@5.20260821.1)(valibot@1.4.2(typescript@7.0.2))(zod@4.4.3))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(vitest@4.1.11(@types/node@26.2.0)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0)))
       clsx:
         specifier: 'catalog:'
