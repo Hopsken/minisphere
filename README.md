@@ -21,6 +21,7 @@ Clients / runtimes ┴──────────────┘
 
 ### Apps
 
+- [`apps/accounts`](./apps/accounts/README.md) — system authentication server and React SPA on Better Auth, Hono, and D1
 - [`apps/directory`](./apps/directory/README.md) — private PLC Directory on a Hono Worker and D1
 - [`apps/pds`](./apps/pds/README.md) — PDS XRPC, account, authentication, and repository routing Worker
 - [`apps/control-plane`](./apps/control-plane/README.md) — Cloudflare Access-protected account dashboard and API
@@ -42,6 +43,8 @@ A minimal Relay is planned.
 
 ```sh
 pnpm install
+cp apps/accounts/.env.example apps/accounts/.env
+cp apps/accounts/.dev.vars.example apps/accounts/.dev.vars
 cp apps/control-plane/.env.example apps/control-plane/.env
 cp apps/control-plane/.dev.vars.example apps/control-plane/.dev.vars
 cp apps/pds/.dev.vars.example apps/pds/.dev.vars
@@ -55,6 +58,7 @@ The example Worker secrets are for local development only. Production secrets ar
 ## Commands
 
 ```sh
+pnpm dev:accounts     # Run only the Accounts auth server
 pnpm dev:control      # Run the Control Plane and its dependencies
 pnpm dev:pds          # Run the PDS and Directory
 pnpm dev:directory    # Run only the Directory

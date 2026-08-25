@@ -1,0 +1,32 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "minisphere-accounts",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-08-18",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"],
+    "directory": "./dist/client",
+  },
+  "observability": {
+    "logs": {
+      "enabled": true,
+      "invocation_logs": true,
+    },
+  },
+  "workers_dev": false,
+  "secrets": {
+    "required": ["BETTER_AUTH_SECRET"],
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "minisphere-accounts",
+      // Replace this placeholder with the ID returned by `wrangler d1 create` before deploying.
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations",
+      "migrations_pattern": "migrations/*/migration.sql",
+    },
+  ],
+}

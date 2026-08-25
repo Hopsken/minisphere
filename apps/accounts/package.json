@@ -1,11 +1,11 @@
 {
-  "name": "@minisphere/control-plane",
+  "name": "@minisphere/accounts",
   "version": "0.0.0",
   "private": true,
   "type": "module",
   "scripts": {
     "build": "vite build",
-    "typegen": "wrangler types -c ./wrangler.jsonc -c ../pds/wrangler.jsonc -c ../directory/wrangler.jsonc -c ../handle-registry/wrangler.jsonc",
+    "typegen": "wrangler types",
     "db:generate": "drizzle-kit generate --name",
     "db:migrate:local": "wrangler d1 migrations apply DB --local",
     "db:migrate:remote": "wrangler d1 migrations apply DB --remote",
@@ -16,26 +16,14 @@
     "typecheck": "tsc --noEmit && tsc --noEmit -p tests/tsconfig.json"
   },
   "dependencies": {
-    "@atcute/atproto": "catalog:",
-    "@atcute/client": "catalog:",
-    "@atcute/crypto": "catalog:",
-    "@atcute/did-plc": "catalog:",
-    "@atcute/identity-resolver": "catalog:",
-    "@atcute/lexicons": "catalog:",
-    "@atcute/multibase": "catalog:",
-    "@base-ui/react": "^1.7.0",
-    "@blobatar/react": "^2.3.1",
+    "@better-auth/drizzle-adapter": "^1.7.1",
     "@fontsource-variable/inter": "catalog:",
-    "@hono/zod-validator": "catalog:",
-    "@minisphere/hono-utils": "workspace:*",
     "@tanstack/react-query": "catalog:",
     "@tanstack/react-router": "catalog:",
-    "blobatar": "^2.3.1",
-    "class-variance-authority": "^0.7.1",
+    "better-auth": "^1.7.1",
     "clsx": "catalog:",
     "drizzle-orm": "catalog:",
     "hono": "catalog:",
-    "jose": "catalog:",
     "lucide-react": "catalog:",
     "next-themes": "catalog:",
     "react": "catalog:",
@@ -43,8 +31,7 @@
     "shadcn": "catalog:",
     "sonner": "catalog:",
     "tailwind-merge": "catalog:",
-    "tw-animate-css": "catalog:",
-    "zod": "catalog:"
+    "tw-animate-css": "catalog:"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "catalog:",
