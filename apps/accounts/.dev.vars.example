@@ -1,0 +1,2 @@
+# Local development value only. Never reuse it in production.
+BETTER_AUTH_SECRET=local-development-better-auth-secret-change-me

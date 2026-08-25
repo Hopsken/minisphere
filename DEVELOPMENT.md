@@ -2,7 +2,14 @@
 
 This file records the current implementation state and important architecture decisions. Keep entries concise and update them when a decision changes.
 
-## Current state — 2026-08-22
+## Current state — 2026-08-25
+
+### Accounts
+
+- The Accounts app is a standalone React SPA and Better Auth scaffold on a Hono Worker and D1.
+- Its frontend environment matches the Control Plane stack: Vite, TanStack Router, TanStack Query, Tailwind CSS, and Base UI shadcn conventions.
+- It mounts the default Better Auth API and stores only the core Better Auth user, session, linked account, and verification records.
+- No sign-in method, authentication screen, role model, DID mapping, AT Protocol OAuth flow, app-password flow, or integration with another Minisphere service is implemented.
 
 ### PLC Directory
 
