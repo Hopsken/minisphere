@@ -2,7 +2,7 @@
 
 Accounts is the system authentication server. It combines a React SPA and a Hono Cloudflare Worker with Better Auth, D1, and Drizzle.
 
-This project is only a scaffold. It mounts the Better Auth handler at `/api/auth/*` and renders a placeholder frontend, but it does not configure sign-in methods, authentication screens, social providers, roles, administration, DID mappings, AT Protocol OAuth, or app passwords.
+This project is only a scaffold. It mounts the Better Auth handler at `/api/auth/*` and renders a session-aware dashboard shell, but it does not configure sign-in methods, authentication screens, social providers, roles, administration, DID mappings, AT Protocol OAuth, or app passwords.
 
 ## Architecture
 

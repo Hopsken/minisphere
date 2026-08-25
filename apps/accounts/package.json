@@ -19,6 +19,7 @@
     "postinstall": "pnpm typegen"
   },
   "dependencies": {
+    "@base-ui/react": "catalog:",
     "@better-auth/drizzle-adapter": "catalog:",
     "@fontsource-variable/inter": "catalog:",
     "@minisphere/hono-utils": "workspace:*",

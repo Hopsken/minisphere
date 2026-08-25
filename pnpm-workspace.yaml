@@ -18,6 +18,7 @@ catalog:
   "@atcute/multibase": ^1.2.5
   "@atcute/tid": ^1.1.4
   "@atproto/crypto": ^0.4.5
+  "@base-ui/react": ^1.7.0
   "@better-auth/drizzle-adapter": ^1.7.1
   "@cloudflare/vite-plugin": 1.52.0
   "@cloudflare/vitest-pool-workers": ^0.22.0
