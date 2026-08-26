@@ -17,4 +17,21 @@ export class UserRepository {
       })
       .onConflictDoNothing();
   }
+
+  async listManagedAccounts(ownerId: string) {
+    const account = await this.db.query.user.findFirst({
+      where: { id: ownerId },
+      with: {
+        descendants: {
+          columns: {
+            did: true,
+            id: true,
+            username: true,
+          },
+        },
+      },
+    });
+
+    return account?.descendants ?? [];
+  }
 }

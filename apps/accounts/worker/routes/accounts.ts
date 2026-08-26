@@ -7,7 +7,7 @@ import { withBetterAuth } from "../middlewares/with-better-auth";
 import { withDBAccess } from "../middlewares/with-db-access";
 import { withSession } from "../middlewares/with-session";
 import { UserRepository } from "../repositories/user-repository";
-import { DidAccountService } from "../services/accounts";
+import { DidAccountService } from "../services/did-account";
 
 const app = new Hono<WorkerEnv>()
   .use(withDBAccess)
@@ -21,7 +21,7 @@ const app = new Hono<WorkerEnv>()
         username: z.string().min(3).max(30),
       })
     ),
-    async (ctx, next) => {
+    async (ctx) => {
       const { auth, session, database } = ctx.var;
       const { username } = ctx.req.valid("json");
 
@@ -33,8 +33,16 @@ const app = new Hono<WorkerEnv>()
       const newUser = await accountService.createDidAccount(ctx.env, username);
       await userRepo.linkUser(session.user.id, newUser.id);
 
-      return next();
+      return ctx.json(newUser);
     }
-  );
+  )
+  .get("/atproto", withSession({ required: true }), async (ctx) => {
+    const { session, database } = ctx.var;
+
+    const userRepo = new UserRepository(database);
+    const accounts = await userRepo.listManagedAccounts(session.user.id);
+
+    return ctx.json(accounts);
+  });
 
 export default app;

@@ -1,0 +1,15 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "typegen": {
+      "dependsOn": ["@minisphere/directory#typegen", "@minisphere/pds#typegen"]
+    },
+    "deploy": {
+      "dependsOn": ["build", "db:migrate:remote"]
+    },
+    "dev": {
+      "with": ["@minisphere/directory#dev", "@minisphere/pds#dev"]
+    }
+  }
+}
