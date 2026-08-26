@@ -6,7 +6,7 @@ import { username } from "better-auth/plugins/username";
  *
  * Docs: https://www.better-auth.com/docs/reference/options
  */
-export const betterAuthOptions: BetterAuthOptions = {
+export const betterAuthOptions = {
   appName: "Minisphere",
 
   emailAndPassword: {
@@ -32,4 +32,4 @@ export const betterAuthOptions: BetterAuthOptions = {
       },
     },
   },
-};
+} satisfies BetterAuthOptions;

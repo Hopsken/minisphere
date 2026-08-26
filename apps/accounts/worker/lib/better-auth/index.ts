@@ -15,3 +15,6 @@ export const createAuth = (env: Env, database: Database) =>
     }),
     secret: env.BETTER_AUTH_SECRET,
   });
+
+export type Auth = ReturnType<typeof createAuth>;
+export type Session = Auth["$Infer"]["Session"];
