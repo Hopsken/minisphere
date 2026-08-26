@@ -4,6 +4,8 @@ import { z } from "zod";
 
 import { AppShell } from "@/components/app-shell";
 
+import { DevLoginForm } from "./-components/dev-login-form";
+
 const validationOrigin = "https://minisphere.invalid";
 
 const loginSearchSchema = z.object({
@@ -31,6 +33,8 @@ export const Route = createFileRoute("/login")({
 });
 
 function LoginPage() {
+  const { redirect } = Route.useSearch();
+
   return (
     <AppShell user={null}>
       <h1 className="font-heading text-3xl font-semibold tracking-tight sm:text-4xl">
@@ -39,6 +43,7 @@ function LoginPage() {
       <p className="text-muted-foreground mt-3 text-sm">
         You must sign in to view this page.
       </p>
+      {import.meta.env.DEV ? <DevLoginForm returnTo={redirect} /> : null}
     </AppShell>
   );
 }
