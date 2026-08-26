@@ -26,7 +26,14 @@ app
   .onError((error, c) => {
     console.error(error);
     if (error instanceof HTTPException) {
-      return error.getResponse();
+      const response = error.getResponse();
+      return c.json(
+        {
+          message: error.message,
+          status: response.status,
+        },
+        error.status
+      );
     }
 
     return c.json(
