@@ -7,22 +7,30 @@ import {
   uniqueIndex,
 } from "drizzle-orm/sqlite-core";
 
-export const user = sqliteTable("user", {
-  id: text("id").primaryKey(),
-  name: text("name").notNull(),
-  email: text("email").notNull().unique(),
-  emailVerified: integer("email_verified", { mode: "boolean" })
-    .default(false)
-    .notNull(),
-  image: text("image"),
-  createdAt: integer("created_at", { mode: "timestamp_ms" })
-    .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
-    .notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp_ms" })
-    .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
-    .$onUpdate(() => /* @__PURE__ */ new Date())
-    .notNull(),
-});
+export const user = sqliteTable(
+  "user",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    email: text("email").notNull().unique(),
+    emailVerified: integer("email_verified", { mode: "boolean" })
+      .default(false)
+      .notNull(),
+    image: text("image"),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+      .notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+      .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .notNull(),
+    username: text("username").unique(),
+    displayUsername: text("display_username"),
+    did: text("did").unique(),
+    type: text("type").default("user"),
+  },
+  (table) => [uniqueIndex("user_did_uidx").on(table.did)],
+);
 
 export const session = sqliteTable(
   "session",
@@ -42,7 +50,7 @@ export const session = sqliteTable(
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
   },
-  (table) => [index("session_userId_idx").on(table.userId)]
+  (table) => [index("session_userId_idx").on(table.userId)],
 );
 
 export const account = sqliteTable(
@@ -76,10 +84,10 @@ export const account = sqliteTable(
   (table) => [
     uniqueIndex("account_issuer_accountId_uidx").on(
       table.issuer,
-      table.accountId
+      table.accountId,
     ),
     index("account_userId_idx").on(table.userId),
-  ]
+  ],
 );
 
 export const verification = sqliteTable(
@@ -97,7 +105,7 @@ export const verification = sqliteTable(
       .$onUpdate(() => /* @__PURE__ */ new Date())
       .notNull(),
   },
-  (table) => [index("verification_identifier_idx").on(table.identifier)]
+  (table) => [index("verification_identifier_idx").on(table.identifier)],
 );
 
 export const authRelations = defineRelationsPart(
@@ -125,5 +133,5 @@ export const authRelations = defineRelationsPart(
         to: r.user.id,
       }),
     },
-  })
+  }),
 );

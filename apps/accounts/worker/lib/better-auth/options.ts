@@ -1,4 +1,5 @@
 import type { BetterAuthOptions } from "better-auth";
+import { username } from "better-auth/plugins/username";
 
 /**
  * Custom options for Better Auth
@@ -7,4 +8,28 @@ import type { BetterAuthOptions } from "better-auth";
  */
 export const betterAuthOptions: BetterAuthOptions = {
   appName: "Minisphere",
+
+  emailAndPassword: {
+    enabled: true,
+  },
+
+  plugins: [username()],
+
+  user: {
+    additionalFields: {
+      did: {
+        index: true,
+        input: false,
+        required: false,
+        type: "string",
+        unique: true,
+      },
+      type: {
+        defaultValue: "user",
+        input: false,
+        required: false,
+        type: "string",
+      },
+    },
+  },
 };
