@@ -18,6 +18,14 @@ export class UserRepository {
       .onConflictDoNothing();
   }
 
+  async findDidByUsername(username: string): Promise<string | null> {
+    const account = await this.db.query.user.findFirst({
+      columns: { did: true },
+      where: { username },
+    });
+    return account?.did ?? null;
+  }
+
   async listManagedAccounts(ownerId: string) {
     const account = await this.db.query.user.findFirst({
       where: { id: ownerId },

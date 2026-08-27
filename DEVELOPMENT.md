@@ -2,14 +2,15 @@
 
 This file records the current implementation state and important architecture decisions. Keep entries concise and update them when a decision changes.
 
-## Current state — 2026-08-25
+## Current state — 2026-08-27
 
 ### Accounts
 
-- The Accounts app is a standalone React SPA and Better Auth scaffold on a Hono Worker and D1.
+- The Accounts app is the account and primary authentication authority on a Hono Worker, Better Auth, and D1.
 - Its frontend environment matches the Control Plane stack: Vite, TanStack Router, TanStack Query, Tailwind CSS, and Base UI shadcn conventions.
-- It mounts the default Better Auth API and stores only the core Better Auth user, session, linked account, and verification records.
-- No sign-in method, authentication screen, role model, DID mapping, AT Protocol OAuth flow, app-password flow, or integration with another Minisphere service is implemented.
+- It stores Better Auth records, user-to-user ownership relationships, normalized usernames, and DIDs. Managed handles are derived from usernames and `PUBLIC_HANDLE_DOMAIN`.
+- Authenticated users can provision related AT Protocol users through the PDS binding. Accounts stores the returned DID and exposes authoritative handle resolution through `AccountsEntrypoint`.
+- Public Better Auth sign-up is disabled. AT Protocol OAuth and app passwords are not implemented.
 
 ### PLC Directory
 
@@ -19,19 +20,18 @@ This file records the current implementation state and important architecture de
 
 ### Handle Registry
 
-- D1 owns the handle-to-DID mapping and registration timestamp.
-- `HandleRegistryEntrypoint` exposes availability checks and administrative registration through a Worker service binding.
-- Wildcard HTTPS routes resolve registered handles through `/.well-known/atproto-did`; unknown handles return `404`.
-- Registration accepts one label under the configured domain, validates handle and DID syntax, and rejects reserved labels. Administrative override registration uses a D1 upsert.
+- The Handle Registry is stateless and has no D1 database or registration API.
+- Wildcard HTTPS routes send the request hostname to `AccountsEntrypoint` through a trusted service binding.
+- `/.well-known/atproto-did` returns the DID supplied by Accounts; unknown handles return `404`.
 
 ### PDS
 
 - Account creation uses `com.atproto.server.createAccount` and supports new local accounts only.
 - The PDS validates handle syntax, the KV-backed invite code, and the PLC recovery key. It rejects primary account passwords.
-- Account and refresh-token state lives in PDS D1. Handles live in the Handle Registry. The PDS does not store primary account passwords.
+- Account and refresh-token state lives in PDS D1. Managed handles live in Accounts. The PDS does not store primary account passwords.
 - A DID-named `RepoDO` stores each repository, repository signing key, schema, and bundled migrations through `@minisphere/repo-do`.
 - Account creation generates the repository key, creates and submits the PLC genesis operation, initializes the repository, and issues the first access and refresh JWTs.
-- `PdsControlPlane.generateInviteCode()` exposes invite creation through a named Worker RPC entrypoint. Invite generation has no public HTTP route.
+- `PdsControlPlane.generateInviteCode()` exposes invite creation to Accounts through a named Worker RPC entrypoint. Invite generation has no public HTTP route.
 - Successful account creation removes the invite from KV. Cleanup failure is logged without changing the successful account response.
 - `getRepoStatus` and sync `getRecord` read initialized repositories. Session creation, other session methods, record mutations, repository export, and repository subscriptions are not implemented.
 
@@ -40,7 +40,7 @@ This file records the current implementation state and important architecture de
 - The Control Plane dashboard and Hono API run in one Cloudflare Worker deployment.
 - The frontend is a client-rendered React SPA with TanStack Router, TanStack Query, and Base UI shadcn components. It does not use TanStack Start or SSR.
 - TanStack routes use directory-based files. Route-private components live under each route's `-components` directory.
-- `POST /api/accounts` checks handle availability through the typed `HandleRegistry` binding, gets an invite through the typed `PDS` binding, creates the PDS account, and registers its handle through an administrative upsert.
+- `POST /api/accounts` gets an invite through the typed `PDS` binding and creates the PDS account. The obsolete Handle Registry binding and calls are removed so the legacy app still builds.
 - One configured public `CONTROL_PLANE_ACCOUNT_RECOVERY_KEY` is included in every account's PLC genesis operation. Its private key is not stored by the application.
 - Control Plane D1 records only the managed DID and a local creation timestamp. It does not duplicate the handle, PDS endpoint, session tokens, PLC document, or primary account credentials.
 - The account API currently returns managed DIDs. The dashboard derives Blobatars from those DIDs and does not yet resolve handles or profile names.
@@ -50,19 +50,19 @@ This file records the current implementation state and important architecture de
 ## Decisions
 
 - Every AT Protocol identity uses the same account model. The system does not store an account type or classification.
-- The PLC Directory is the source of truth for DID documents. The PDS is the source of truth for its account and session state. Accounts owns primary user authentication.
-- A PLC `alsoKnownAs` value is a handle claim, not proof of the reverse mapping. The Handle Registry is the source of truth for managed handle-to-DID resolution.
+- The PLC Directory is the source of truth for DID documents. The PDS is the source of truth for its account and session state. Accounts owns users, primary authentication, usernames, and managed handle-to-DID mappings.
+- A PLC `alsoKnownAs` value is a handle claim, not proof of the reverse mapping. The stateless Handle Registry completes reverse verification with the DID supplied by Accounts.
 - The Control Plane database defines which DIDs it manages. Derived identity fields and primary account credentials do not belong in this database.
 - Access and refresh JWTs are session artifacts and are not persisted by the Control Plane.
 - Primary account authentication does not use a PDS password. Future app-password compatibility is a separate capability.
 - One Durable Object hosts one DID repository and uses the DID as its object name.
 - `packages/repo-do` owns `RepoDO`, repository storage, its Drizzle schema, and bundled migrations. The PDS owns global account and refresh-token D1 state.
-- Account creation favors a simple flow over durable handle reservations, retries, or reconciliation. Partial failure can leave an abandoned DID, repository, or unverified handle claim. Rare concurrent handle claims use the final administrative registry upsert.
+- Account creation favors a simple flow over idempotency or reconciliation. Partial failure can leave an abandoned PDS DID or repository, or an incomplete Accounts user.
 - Migration generation commands require an explicit, readable migration name.
 
 ## Next
 
-1. Run an end-to-end account creation test through the Control Plane, PDS, and PLC Directory.
+1. Run an end-to-end account creation and handle verification test through Accounts, PDS, PLC Directory, and Handle Registry.
 2. Implement OAuth authorization and the remaining PDS session methods.
 3. Add authenticated record mutations, repository export, and repository event subscriptions.
 4. Configure Cloudflare Access before deploying the Control Plane.

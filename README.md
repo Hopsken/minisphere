@@ -7,14 +7,10 @@ Every AT Protocol identity uses the same account model. Clients and runtimes def
 ## Architecture
 
 ```text
-Operators ──▶ Control Plane ──▶ PDS ─────────▶ Relay ──▶ consumers / AppViews
-                 │               ▲
-                 ▼               │
-          Handle Registry        │
-                 ▲               │
-Clients / runtimes ┴──────────────┘
-                                 │
-                        private PLC Directory
+Operators / clients ──▶ Accounts ──▶ PDS ──▶ Relay ──▶ consumers / AppViews
+                           ▲          │
+                           │          ▼
+Handle requests ──▶ Handle Registry  private PLC Directory
 ```
 
 ## Workspace
@@ -25,7 +21,7 @@ Clients / runtimes ┴──────────────┘
 - [`apps/directory`](./apps/directory/README.md) — private PLC Directory on a Hono Worker and D1
 - [`apps/pds`](./apps/pds/README.md) — PDS XRPC, account, authentication, and repository routing Worker
 - [`apps/control-plane`](./apps/control-plane/README.md) — Cloudflare Access-protected account dashboard and API
-- [`apps/handle-registry`](./apps/handle-registry/README.md) — AT Protocol handle registry on a Hono Worker and D1
+- [`apps/handle-registry`](./apps/handle-registry/README.md) — stateless AT Protocol HTTPS handle verification wrapper
 
 ### Packages
 
@@ -58,11 +54,11 @@ The example Worker secrets are for local development only. Production secrets ar
 ## Commands
 
 ```sh
-pnpm dev:accounts     # Run only the Accounts auth server
+pnpm dev:accounts     # Run Accounts and its PDS dependency
 pnpm dev:control      # Run the Control Plane and its dependencies
 pnpm dev:pds          # Run the PDS and Directory
 pnpm dev:directory    # Run only the Directory
-pnpm dev:handle-registry # Run only the Handle Registry
+pnpm dev:handle-registry # Run the Handle Registry and its dependencies
 pnpm check            # Run all repository checks through Turbo
 pnpm test             # Test all workspace projects
 pnpm typecheck        # Type-check all workspace projects

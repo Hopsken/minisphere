@@ -30,7 +30,7 @@
     "required": [
       "BETTER_AUTH_SECRET",
       "PDS_ORIGIN",
-      "CONTROL_PLANE_ACCOUNT_RECOVERY_KEY",
+      "ACCOUNTS_ACCOUNT_RECOVERY_KEY",
     ],
   },
   "services": [
@@ -38,10 +38,6 @@
       "binding": "PDS",
       "service": "minisphere-pds",
       "entrypoint": "PdsControlPlane",
-    },
-    {
-      "binding": "PlcDirectory",
-      "service": "minisphere-directory",
     },
   ],
   "d1_databases": [

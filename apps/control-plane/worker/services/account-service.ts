@@ -28,12 +28,6 @@ export class AccountService {
     const handleDomain = env.HANDLE_DOMAIN.toLowerCase();
     const handle: `${string}.${string}` = `${input.name}.${handleDomain}`;
 
-    const handleTaken = await env.HandleRegistry.exists(handle);
-
-    if (handleTaken) {
-      throw new HTTPException(409, { message: "Handle is taken" });
-    }
-
     const response = await pdsClient.call(ComAtprotoServerCreateAccount, {
       input: {
         handle,
@@ -51,17 +45,6 @@ export class AccountService {
 
     const { did } = response.data;
     await accountRepository.create({ did });
-
-    // Register handle
-    const registration = await env.HandleRegistry.register({
-      did,
-      handle,
-      // override should rarely happens since a previous check already confirms handle is not taken
-      override: true,
-    });
-    if (!registration.ok) {
-      throw new HTTPException(400, { message: registration.reason });
-    }
 
     return response.data;
   }

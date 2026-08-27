@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "vite build",
-    "typegen": "wrangler types -c ./wrangler.jsonc -c ../pds/wrangler.jsonc -c ../directory/wrangler.jsonc",
+    "typegen": "wrangler types -c ./wrangler.jsonc -c ../pds/wrangler.jsonc",
     "db:generate": "drizzle-kit generate --name",
     "db:migrate:local": "wrangler d1 migrations apply DB --local",
     "db:migrate:remote": "wrangler d1 migrations apply DB --remote",
@@ -21,7 +21,6 @@
   "dependencies": {
     "@atcute/atproto": "catalog:",
     "@atcute/client": "catalog:",
-    "@atcute/did-plc": "catalog:",
     "@base-ui/react": "catalog:",
     "@better-auth/drizzle-adapter": "catalog:",
     "@fontsource-variable/inter": "catalog:",

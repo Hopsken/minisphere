@@ -37,6 +37,23 @@ export default defineConfig(async () => {
               "local-test-better-auth-secret-at-least-32-characters",
             TEST_MIGRATIONS: migrations,
           },
+          workers: [
+            {
+              modules: true,
+              name: "minisphere-pds",
+              script: `
+                import { WorkerEntrypoint } from "cloudflare:workers";
+
+                export default {
+                  fetch() {
+                    return new Response("Not implemented", { status: 501 });
+                  }
+                };
+
+                export class PdsControlPlane extends WorkerEntrypoint {}
+              `,
+            },
+          ],
         },
         wrangler: { configPath: "./wrangler.jsonc" },
       }),

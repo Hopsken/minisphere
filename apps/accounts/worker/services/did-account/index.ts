@@ -83,7 +83,7 @@ export class DidAccountService {
       input: {
         handle,
         inviteCode,
-        recoveryKey: env.CONTROL_PLANE_ACCOUNT_RECOVERY_KEY,
+        recoveryKey: env.ACCOUNTS_ACCOUNT_RECOVERY_KEY,
       },
     });
 

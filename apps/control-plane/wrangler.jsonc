@@ -37,11 +37,6 @@
       "binding": "PlcDirectory",
       "service": "minisphere-directory",
     },
-    {
-      "binding": "HandleRegistry",
-      "service": "minisphere-handle-registry",
-      "entrypoint": "HandleRegistryEntrypoint",
-    },
   ],
   "d1_databases": [
     {

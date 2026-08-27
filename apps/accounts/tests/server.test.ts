@@ -24,4 +24,25 @@ describe("accounts server", () => {
       { name: "verification" },
     ]);
   });
+
+  it("resolves handles from authoritative account records", async () => {
+    const did = "did:plc:alice0000000000000000000";
+    await env.DB.prepare(
+      `INSERT INTO user (id, name, email, email_verified, username, did)
+       VALUES (?, ?, ?, ?, ?, ?)`
+    )
+      .bind("alice-id", "alice", "alice@r2d2.party", true, "alice", did)
+      .run();
+
+    await expect(
+      exports.AccountsEntrypoint.resolveHandle("alice.r2d2.party")
+    ).resolves.toBe(did);
+    await expect(
+      Promise.all([
+        exports.AccountsEntrypoint.resolveHandle("unknown.r2d2.party"),
+        exports.AccountsEntrypoint.resolveHandle("alice.example.com"),
+        exports.AccountsEntrypoint.resolveHandle("nested.alice.r2d2.party"),
+      ])
+    ).resolves.toStrictEqual([null, null, null]);
+  });
 });

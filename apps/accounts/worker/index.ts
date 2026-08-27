@@ -1,7 +1,10 @@
+import { WorkerEntrypoint } from "cloudflare:workers";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { logger } from "hono/logger";
 
+import { createDatabase } from "./db";
+import { UserRepository } from "./repositories/user-repository";
 import api from "./routes";
 
 declare global {
@@ -44,3 +47,23 @@ app
 
 export default app;
 export type { ApiType } from "./routes";
+
+export class AccountsEntrypoint extends WorkerEntrypoint<Env> {
+  async resolveHandle(handle: string): Promise<string | null> {
+    const normalizedHandle = handle.toLowerCase();
+    const handleSuffix = `.${this.env.PUBLIC_HANDLE_DOMAIN.toLowerCase()}`;
+
+    if (!normalizedHandle.endsWith(handleSuffix)) {
+      return null;
+    }
+
+    const username = normalizedHandle.slice(0, -handleSuffix.length);
+    if (!username || username.includes(".")) {
+      return null;
+    }
+
+    const users = new UserRepository(createDatabase(this.env.DB));
+    const did = await users.findDidByUsername(username);
+    return did;
+  }
+}
