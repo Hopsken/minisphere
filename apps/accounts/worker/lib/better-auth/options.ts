@@ -10,6 +10,7 @@ export const betterAuthOptions = {
   appName: "Minisphere",
 
   emailAndPassword: {
+    disableSignUp: true,
     enabled: true,
   },
 
