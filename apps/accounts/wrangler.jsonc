@@ -27,7 +27,11 @@
     "PUBLIC_HANDLE_DOMAIN": "r2d2.party",
   },
   "secrets": {
-    "required": ["BETTER_AUTH_SECRET", "PDS_ORIGIN"],
+    "required": [
+      "BETTER_AUTH_SECRET",
+      "PDS_ORIGIN",
+      "CONTROL_PLANE_ACCOUNT_RECOVERY_KEY",
+    ],
   },
   "services": [
     {

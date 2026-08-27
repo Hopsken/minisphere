@@ -27,9 +27,6 @@ import { zValidator } from "../../utils/z-validator";
 
 const app = new Hono<{ Bindings: Env }>();
 
-const PASSWORD_MIN_LENGTH = 16;
-const PASSWORD_MAX_LENGTH = 256;
-
 const recoveryKeySchema = z
   .string()
   .refine(
@@ -62,8 +59,7 @@ const handleSchema = z
 const createAccountSchema = z.strictObject({
   handle: handleSchema,
   inviteCode: z.string().min(1),
-  password: z.string().min(PASSWORD_MIN_LENGTH).max(PASSWORD_MAX_LENGTH),
-  recoveryKey: recoveryKeySchema,
+  recoveryKey: recoveryKeySchema.optional(),
 });
 
 app.post(
@@ -71,7 +67,7 @@ app.post(
   lexiconJsonValidator(CreateAccount.mainSchema.input.schema),
   zValidator("json", createAccountSchema),
   async (c) => {
-    const { handle, inviteCode, password, recoveryKey } = c.req.valid("json");
+    const { handle, inviteCode, recoveryKey } = c.req.valid("json");
 
     const pdsUrl = new URL(c.env.PDS_ORIGIN);
     const pdsHostname = pdsUrl.hostname;
@@ -93,10 +89,11 @@ app.post(
       parsedRotationKey.privateKeyBytes
     );
     const pdsRotationKey = await rotationKey.exportPublicKey("did");
-    const rotationKeys =
-      recoveryKey === pdsRotationKey
-        ? [pdsRotationKey]
-        : [recoveryKey, pdsRotationKey];
+    const rotationKeys = [pdsRotationKey];
+
+    if (recoveryKey && recoveryKey !== pdsRotationKey) {
+      rotationKeys.unshift(recoveryKey);
+    }
 
     const repoKey = await Secp256k1PrivateKeyExportable.createKeypair();
     const repoSigningKey = await repoKey.exportPublicKey("did");
@@ -117,7 +114,7 @@ app.post(
     const did = await deriveDidFromGenesisOp(operation);
 
     const [passwordHash, session, repoSigningKeyMultikey] = await Promise.all([
-      hashPassword(password),
+      hashPassword("PLACE"),
       createSessionTokens(did, `did:web:${pdsHostname}`, c.env.PDS_JWT_SECRET),
       repoKey.exportPrivateKey("multikey"),
     ]);
@@ -128,7 +125,7 @@ app.post(
     const directory = new PlcClient({
       fetch: (request, init) =>
         c.env.DIRECTORY.fetch(new Request(request, init)),
-      serviceUrl: "https://minisphere-directory",
+      serviceUrl: "https://minisphere-directory.service",
     });
     await directory.submitOperation(did, operation);
 

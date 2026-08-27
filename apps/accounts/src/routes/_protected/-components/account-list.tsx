@@ -1,11 +1,50 @@
 import { useQuery } from "@tanstack/react-query";
+import { PlusIcon } from "lucide-react";
 
+import { Loading } from "@/components/loading";
+import { Button } from "@/components/ui/button";
+import {
+  Item,
+  ItemActions,
+  ItemContent,
+  ItemDescription,
+  ItemGroup,
+  ItemTitle,
+} from "@/components/ui/item";
 import { didAccountsQuery } from "@/features/did-accounts/queries";
 
+import { NewAccountDialog } from "./new-account-dialog";
+
 export const AccountList = () => {
-  const { data } = useQuery(didAccountsQuery);
+  const { data, isLoading } = useQuery(didAccountsQuery);
 
-  console.log({ data });
+  if (isLoading) {
+    return <Loading />;
+  }
 
-  return null;
+  if (!data) {
+    return null;
+  }
+
+  return (
+    <ItemGroup className="w-full">
+      {data.map((account) => (
+        <Item variant={"outline"} key={account.id} size={"xs"}>
+          <ItemContent>
+            <ItemTitle>{account.username}</ItemTitle>
+            <ItemDescription>{account.did}</ItemDescription>
+          </ItemContent>
+        </Item>
+      ))}
+
+      <Item variant={"outline"} size={"xs"}>
+        <ItemContent>
+          <ItemTitle>Create account</ItemTitle>
+        </ItemContent>
+        <ItemActions>
+          <NewAccountDialog />
+        </ItemActions>
+      </Item>
+    </ItemGroup>
+  );
 };

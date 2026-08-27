@@ -8,14 +8,8 @@ export const Route = createFileRoute("/_protected/dashboard")({
 });
 
 function DashboardPage() {
-  const { user } = Route.useRouteContext();
-
   return (
-    <div>
-      <h1 className="font-heading text-3xl font-semibold tracking-tight sm:text-4xl">
-        Hi {user.name}
-      </h1>
-
+    <div className="w-full">
       <AccountList />
     </div>
   );

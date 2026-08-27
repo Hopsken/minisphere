@@ -50,12 +50,23 @@ export class DidAccountService {
       { method: "email-password" }
     );
 
-    const didAccount = await this.registerDidAccount(env, newUser.id, handle);
+    try {
+      const didAccount = await this.registerDidAccount(env, newUser.id, handle);
+      return {
+        username,
+        ...newUser,
+        ...didAccount,
+      };
+    } catch (error) {
+      console.error(error);
 
-    return {
-      ...newUser,
-      ...didAccount,
-    };
+      // clean up
+      await authContext.internalAdapter
+        .deleteUser(newUser.id)
+        .catch(console.error);
+
+      throw error;
+    }
   }
 
   private async registerDidAccount(
@@ -72,6 +83,7 @@ export class DidAccountService {
       input: {
         handle,
         inviteCode,
+        recoveryKey: env.CONTROL_PLANE_ACCOUNT_RECOVERY_KEY,
       },
     });
 
