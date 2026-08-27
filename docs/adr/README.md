@@ -29,5 +29,5 @@ The current decision log contains these ADR candidates:
 - one DID repository per SQLite Durable Object;
 - the split between PDS D1 and `@minisphere/repo-do`;
 - Cloudflare Access as the Control Plane authorization boundary;
-- password-only Control Plane credential storage with JWE;
+- Accounts ownership of primary authentication without PDS primary passwords;
 - simple account creation without durable reservation or reconciliation.

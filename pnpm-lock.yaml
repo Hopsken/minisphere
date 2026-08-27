@@ -235,9 +235,6 @@ catalogs:
     '@atcute/mst':
       specifier: ^1.0.3
       version: 1.0.3
-    '@atcute/multibase':
-      specifier: ^1.2.5
-      version: 1.2.5
     '@atcute/tid':
       specifier: ^1.1.4
       version: 1.1.4
@@ -517,9 +514,6 @@ importers:
       '@atcute/lexicons':
         specifier: 'catalog:'
         version: 2.1.0
-      '@atcute/multibase':
-        specifier: 'catalog:'
-        version: 1.2.5
       '@base-ui/react':
         specifier: ^1.7.0
         version: 1.7.0(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -556,9 +550,6 @@ importers:
       hono:
         specifier: 'catalog:'
         version: 4.13.3
-      jose:
-        specifier: 'catalog:'
-        version: 6.2.9
       lucide-react:
         specifier: 'catalog:'
         version: 1.33.0(react@19.2.8)

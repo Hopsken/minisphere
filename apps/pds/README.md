@@ -1,10 +1,10 @@
 # PDS
 
-The PDS is a Hono Cloudflare Worker that exposes AT Protocol XRPC routes. It owns account and authentication state and routes each DID to its repository Durable Object.
+The PDS is a Hono Cloudflare Worker that exposes AT Protocol XRPC routes. It owns PDS account and session state and routes each DID to its repository Durable Object.
 
 ## Data ownership and bindings
 
-- PDS D1 stores account DIDs, password hashes, and refresh-token records. It does not store handles.
+- PDS D1 stores account DIDs and refresh-token records. It does not store handles or primary account passwords.
 - PDS KV stores short-lived account invite codes.
 - [`@minisphere/repo-do`](../../packages/repo-do/README.md) owns repository data and repository signing keys.
 - The private `DIRECTORY` service binding receives PLC genesis operations.
@@ -31,7 +31,7 @@ pnpm --filter @minisphere/pds db:migrate:remote
 
 ## Secrets
 
-- `PDS_JWT_SECRET` — at least 32 random bytes used for password-session JWTs
+- `PDS_JWT_SECRET` — at least 32 random bytes used for account-session JWTs
 - `PDS_ROTATION_KEY` — secp256k1 private multikey used to sign PLC operations
 
 ```sh

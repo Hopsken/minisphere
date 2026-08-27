@@ -17,7 +17,6 @@ import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import z from "zod";
 
-import { hashPassword } from "../../auth/password";
 import { createSessionTokens } from "../../auth/session";
 import { createPdsDatabase } from "../../db";
 import { accountsTable, refreshTokensTable } from "../../db/schema";
@@ -113,8 +112,7 @@ app.post(
     const operation = await signOperation(unsignedOperation, rotationKey);
     const did = await deriveDidFromGenesisOp(operation);
 
-    const [passwordHash, session, repoSigningKeyMultikey] = await Promise.all([
-      hashPassword("PLACE"),
+    const [session, repoSigningKeyMultikey] = await Promise.all([
       createSessionTokens(did, `did:web:${pdsHostname}`, c.env.PDS_JWT_SECRET),
       repoKey.exportPrivateKey("multikey"),
     ]);
@@ -132,7 +130,6 @@ app.post(
     await pdsDb.batch([
       pdsDb.insert(accountsTable).values({
         did,
-        password_hash: passwordHash,
       }),
       pdsDb.insert(refreshTokensTable).values({
         did,

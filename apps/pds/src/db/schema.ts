@@ -2,7 +2,6 @@ import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 export const accountsTable = sqliteTable("accounts", {
   did: text().primaryKey(),
-  password_hash: text().notNull(),
 });
 
 export const refreshTokensTable = sqliteTable(
