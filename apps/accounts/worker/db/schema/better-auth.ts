@@ -29,7 +29,7 @@ export const user = sqliteTable(
     did: text("did").unique(),
     type: text("type").default("user"),
   },
-  (table) => [uniqueIndex("user_did_uidx").on(table.did)],
+  (table) => [uniqueIndex("user_did_uidx").on(table.did)]
 );
 
 export const session = sqliteTable(
@@ -50,7 +50,7 @@ export const session = sqliteTable(
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
   },
-  (table) => [index("session_userId_idx").on(table.userId)],
+  (table) => [index("session_userId_idx").on(table.userId)]
 );
 
 export const account = sqliteTable(
@@ -84,10 +84,10 @@ export const account = sqliteTable(
   (table) => [
     uniqueIndex("account_issuer_accountId_uidx").on(
       table.issuer,
-      table.accountId,
+      table.accountId
     ),
     index("account_userId_idx").on(table.userId),
-  ],
+  ]
 );
 
 export const verification = sqliteTable(
@@ -105,7 +105,7 @@ export const verification = sqliteTable(
       .$onUpdate(() => /* @__PURE__ */ new Date())
       .notNull(),
   },
-  (table) => [index("verification_identifier_idx").on(table.identifier)],
+  (table) => [index("verification_identifier_idx").on(table.identifier)]
 );
 
 export const authRelations = defineRelationsPart(
@@ -133,5 +133,5 @@ export const authRelations = defineRelationsPart(
         to: r.user.id,
       }),
     },
-  }),
+  })
 );

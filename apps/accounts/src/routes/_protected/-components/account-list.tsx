@@ -1,8 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import { PlusIcon } from "lucide-react";
 
 import { Loading } from "@/components/loading";
-import { Button } from "@/components/ui/button";
 import {
   Item,
   ItemActions,
