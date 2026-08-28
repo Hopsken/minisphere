@@ -5,17 +5,15 @@ import { describe, expect, it } from "vitest";
 import z from "zod";
 
 import { createDatabase } from "../worker/db";
-import { decryptCredential } from "../worker/lib/credential";
 import { AccountService } from "../worker/services/account-service";
 
 const ORIGIN = "https://control-plane.test";
 const PDS_ORIGIN = "https://pds.test";
 const INVITE_CODE = "test-invite";
 
-const createAccountRequestSchema = z.object({
+const createAccountRequestSchema = z.strictObject({
   handle: z.string(),
   inviteCode: z.string(),
-  password: z.string(),
   recoveryKey: z.string(),
 });
 type CreateAccountRequest = z.infer<typeof createAccountRequestSchema>;
@@ -23,7 +21,6 @@ type CreateAccountRequest = z.infer<typeof createAccountRequestSchema>;
 interface StoredAccount {
   created_at: number;
   did: string;
-  encrypted_credentials: string;
 }
 
 const fetchApi = (path: string, init?: RequestInit): Promise<Response> =>
@@ -68,7 +65,7 @@ const rejectingPds: typeof globalThis.fetch = () =>
 
 const readStoredAccount = async (did: string): Promise<StoredAccount> => {
   const account = await env.DB.prepare(
-    `SELECT did, encrypted_credentials, created_at
+    `SELECT did, created_at
      FROM accounts WHERE did = ?`
   )
     .bind(did)
@@ -80,7 +77,7 @@ const readStoredAccount = async (did: string): Promise<StoredAccount> => {
 };
 
 describe("managed account service", () => {
-  it("stores only the DID and encrypted generated password", async () => {
+  it("stores only the managed DID", async () => {
     const received: CreateAccountRequest[] = [];
     const did = "did:plc:account00000000000000000";
     const service = new AccountService(
@@ -104,28 +101,24 @@ describe("managed account service", () => {
     if (!createRequest) {
       throw new Error("Expected a PDS createAccount request");
     }
-    expect(createRequest).toMatchObject({
+    expect(createRequest).toStrictEqual({
       handle: "atlas.r2d2.party",
       inviteCode: INVITE_CODE,
-      password: expect.stringMatching(/^[A-Za-z0-9_-]{43}$/u),
       recoveryKey: env.CONTROL_PLANE_ACCOUNT_RECOVERY_KEY,
     });
 
-    const stored = await readStoredAccount(did);
+    const [stored, accountColumns] = await Promise.all([
+      readStoredAccount(did),
+      env.DB.prepare("PRAGMA table_info(accounts)").all<{ name: string }>(),
+    ]);
     expect(stored).toMatchObject({
       created_at: expect.anything(),
       did,
-      encrypted_credentials: expect.not.stringContaining(
-        createRequest.password
-      ),
     });
-    await expect(
-      decryptCredential(
-        stored.encrypted_credentials,
-        env.CONTROL_PLANE_ENCRYPTION_KEY,
-        did
-      )
-    ).resolves.toBe(createRequest.password);
+    expect(accountColumns.results.map(({ name }) => name)).toStrictEqual([
+      "did",
+      "created_at",
+    ]);
     await expect(service.listManagedAccounts()).resolves.toContainEqual({
       did,
     });
@@ -156,10 +149,8 @@ describe("managed account service", () => {
 describe("accounts API", () => {
   it("lists managed DIDs", async () => {
     const did = "did:plc:api000000000000000000000";
-    await env.DB.prepare(
-      "INSERT INTO accounts (did, encrypted_credentials) VALUES (?, ?)"
-    )
-      .bind(did, "encrypted-password")
+    await env.DB.prepare("INSERT INTO accounts (did) VALUES (?)")
+      .bind(did)
       .run();
 
     const response = await fetchApi("/api/accounts");

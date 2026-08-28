@@ -24,10 +24,22 @@
   ],
   "vars": {
     "PUBLIC_URL": "https://accounts.hopsken.dev",
+    "PUBLIC_HANDLE_DOMAIN": "r2d2.party",
   },
   "secrets": {
-    "required": ["BETTER_AUTH_SECRET"],
+    "required": [
+      "BETTER_AUTH_SECRET",
+      "PDS_ORIGIN",
+      "ACCOUNTS_ACCOUNT_RECOVERY_KEY",
+    ],
   },
+  "services": [
+    {
+      "binding": "PDS",
+      "service": "minisphere-pds",
+      "entrypoint": "PdsControlPlane",
+    },
+  ],
   "d1_databases": [
     {
       "binding": "DB",

@@ -5,25 +5,19 @@
   "type": "module",
   "scripts": {
     "build": "wrangler deploy --dry-run --outdir dist",
-    "typegen": "wrangler types",
-    "db:generate": "drizzle-kit generate --name",
-    "db:migrate:local": "wrangler d1 migrations apply DB --local",
-    "db:migrate:remote": "wrangler d1 migrations apply DB --remote",
+    "typegen": "wrangler types -c ./wrangler.jsonc -c ../accounts/wrangler.jsonc",
     "deploy": "wrangler deploy",
     "dev": "wrangler dev",
     "test": "vitest run",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tests/tsconfig.json"
   },
   "dependencies": {
-    "@atcute/lexicons": "catalog:",
-    "drizzle-orm": "catalog:",
-    "hono": "catalog:",
-    "zod": "catalog:"
+    "hono": "catalog:"
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "catalog:",
     "@types/node": "catalog:",
-    "drizzle-kit": "catalog:",
+    "vite": "catalog:",
     "vitest": "catalog:"
   }
 }

@@ -1,16 +1,16 @@
 # PDS
 
-The PDS is a Hono Cloudflare Worker that exposes AT Protocol XRPC routes. It owns account and authentication state and routes each DID to its repository Durable Object.
+The PDS is a Hono Cloudflare Worker that exposes AT Protocol XRPC routes. It owns PDS account and session state and routes each DID to its repository Durable Object.
 
 ## Data ownership and bindings
 
-- PDS D1 stores account DIDs, password hashes, and refresh-token records. It does not store handles.
+- PDS D1 stores account DIDs and refresh-token records. It does not store handles or primary account passwords.
 - PDS KV stores short-lived account invite codes.
 - [`@minisphere/repo-do`](../../packages/repo-do/README.md) owns repository data and repository signing keys.
 - The private `DIRECTORY` service binding receives PLC genesis operations.
-- `PdsControlPlane.generateInviteCode()` is a named RPC entrypoint for the Control Plane.
+- `PdsControlPlane.generateInviteCode()` is a named RPC entrypoint for Accounts.
 
-Account creation accepts a syntactically valid handle and records it as an `alsoKnownAs` claim in the PLC genesis operation. `PDS_ORIGIN` is the canonical public HTTPS origin used for the DID document service endpoint and session JWT audience; these values do not depend on the incoming request URL. The PDS does not prove or publish the reverse handle-to-DID mapping. The separate Handle Registry owns HTTPS handle resolution and completes bidirectional verification for managed handles.
+Account creation accepts a syntactically valid handle and records it as an `alsoKnownAs` claim in the PLC genesis operation. `PDS_ORIGIN` is the canonical public HTTPS origin used for the DID document service endpoint and session JWT audience; these values do not depend on the incoming request URL. The PDS does not prove or publish the reverse handle-to-DID mapping. Accounts owns managed handle mappings, and the stateless Handle Registry publishes the DID supplied by Accounts.
 
 ## D1 and KV
 
@@ -31,7 +31,7 @@ pnpm --filter @minisphere/pds db:migrate:remote
 
 ## Secrets
 
-- `PDS_JWT_SECRET` — at least 32 random bytes used for password-session JWTs
+- `PDS_JWT_SECRET` — at least 32 random bytes used for account-session JWTs
 - `PDS_ROTATION_KEY` — secp256k1 private multikey used to sign PLC operations
 
 ```sh

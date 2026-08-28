@@ -20,10 +20,9 @@ TanStack Router uses directory-based routes. Components used by only one route l
 Control Plane D1 records:
 
 - the DID managed by this Control Plane;
-- the generated password as a compact JWE;
 - a local creation timestamp.
 
-It does not copy the handle, PDS endpoint, PLC operation, access JWT, or refresh JWT. The Handle Registry owns handle-to-DID mappings, the PLC Directory owns DID documents, and the PDS owns account and authentication state.
+It does not copy the handle, PDS endpoint, PLC operation, access JWT, or refresh JWT. The Handle Registry owns handle-to-DID mappings, the PLC Directory owns DID documents, Accounts owns primary user authentication, and the PDS owns its account and session state.
 
 The dashboard currently lists managed DIDs and derives each Blobatar from the full DID. It does not yet resolve handles or profile names.
 
@@ -34,11 +33,9 @@ The dashboard currently lists managed DIDs and derives each Blobatar from the fu
 1. validates the requested account name with the shared Zod schema;
 2. forms a handle under `HANDLE_DOMAIN` and checks its current availability through `HandleRegistryEntrypoint`;
 3. gets an invite from `PdsControlPlane.generateInviteCode()`;
-4. generates a random 32-byte password;
-5. calls `com.atproto.server.createAccount` through the PDS service binding;
-6. encrypts the password as a compact JWE bound to the returned DID;
-7. stores the DID and encrypted password in D1;
-8. registers the handle through the Handle Registry administrative RPC.
+4. calls `com.atproto.server.createAccount` through the PDS service binding with the configured recovery key;
+5. stores the DID in D1;
+6. registers the handle through the Handle Registry administrative RPC.
 
 The PDS writes the handle claim to the PLC genesis operation. The later registry write makes the handle resolve to that DID and completes bidirectional handle verification. This small deployment does not use durable handle reservations or reconciliation. A failure between account creation and registration can leave an account whose claimed handle does not resolve, and a rare concurrent claim can be replaced by the final administrative upsert.
 
@@ -75,17 +72,14 @@ Variable bindings:
 Secret bindings:
 
 - `PDS_ORIGIN` — canonical HTTPS PDS origin used by the PDS client
-- `CONTROL_PLANE_ENCRYPTION_KEY` — 32 random bytes encoded as unpadded Base64URL for direct A256GCM
 - `CONTROL_PLANE_ACCOUNT_RECOVERY_KEY` — shared public PLC recovery `did:key`
 
-Generate the encryption key and a recovery keypair locally. Keep the recovery private key outside the application:
+Generate a recovery keypair locally. Keep the recovery private key outside the application:
 
 ```sh
-node -e 'console.log(Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString("base64url"))'
 pnpm --filter @minisphere/control-plane exec node --input-type=module -e 'import { Secp256k1PrivateKeyExportable } from "@atcute/crypto"; const key = await Secp256k1PrivateKeyExportable.createKeypair(); console.log("public:", await key.exportPublicKey("did")); console.log("private:", await key.exportPrivateKey("multikey"))'
 
 pnpm --filter @minisphere/control-plane exec wrangler secret put PDS_ORIGIN
-pnpm --filter @minisphere/control-plane exec wrangler secret put CONTROL_PLANE_ENCRYPTION_KEY
 pnpm --filter @minisphere/control-plane exec wrangler secret put CONTROL_PLANE_ACCOUNT_RECOVERY_KEY
 ```
 

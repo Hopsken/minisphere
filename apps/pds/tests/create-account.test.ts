@@ -7,7 +7,6 @@ import z from "zod";
 import { InviteCodeRepository } from "../src/repositories/invite-code";
 
 const REQUEST_ORIGIN = "https://service-binding.test";
-const PASSWORD = "machine-generated-password";
 
 const request = (path: string, init?: RequestInit): Promise<Response> =>
   exports.default.fetch(new Request(`${REQUEST_ORIGIN}${path}`, init));
@@ -52,7 +51,6 @@ const postAccount = async (
     body: JSON.stringify({
       handle: "agent.pds.test",
       inviteCode,
-      password: PASSWORD,
       recoveryKey: recoveryKeyDid,
       ...overrides,
     }),
@@ -66,7 +64,7 @@ describe("com.atproto.server.createAccount", () => {
     vi.restoreAllMocks();
   });
 
-  it("uses a control-plane invite and creates an account session", async () => {
+  it("uses a control-plane invite and creates a passwordless account", async () => {
     const inviteCode = await createInviteCode();
     const response = await postAccount({ inviteCode });
     expect(response.status).toBe(200);
@@ -117,33 +115,36 @@ describe("com.atproto.server.createAccount", () => {
 
     const repoObject = env.REPO.getByName(payload.did);
     const inviteCodes = new InviteCodeRepository(env.PDS_KV);
-    const [account, storedRefreshToken, inviteCodeExists, repo] =
-      await Promise.all([
-        env.PDS_DB.prepare(
-          "SELECT did, password_hash FROM accounts WHERE did = ?"
-        )
-          .bind(payload.did)
-          .first(),
-        env.PDS_DB.prepare(
-          "SELECT did, jti, expires_at FROM refresh_tokens WHERE did = ?"
-        )
-          .bind(payload.did)
-          .first(),
-        inviteCodes.exists(inviteCode),
-        repoObject.rpcGetRepoStatus(),
-      ]);
+    const [
+      account,
+      accountColumns,
+      storedRefreshToken,
+      inviteCodeExists,
+      repo,
+    ] = await Promise.all([
+      env.PDS_DB.prepare("SELECT did FROM accounts WHERE did = ?")
+        .bind(payload.did)
+        .first(),
+      env.PDS_DB.prepare("PRAGMA table_info(accounts)").all<{ name: string }>(),
+      env.PDS_DB.prepare(
+        "SELECT did, jti, expires_at FROM refresh_tokens WHERE did = ?"
+      )
+        .bind(payload.did)
+        .first(),
+      inviteCodes.exists(inviteCode),
+      repoObject.rpcGetRepoStatus(),
+    ]);
     expect({
       account,
+      accountColumns: accountColumns.results.map(({ name }) => name),
       inviteCodeExists,
       repo,
       storedRefreshToken,
     }).toMatchObject({
       account: {
         did: payload.did,
-        password_hash: expect.stringMatching(
-          /^pbkdf2-sha256\$100000\$[0-9a-f]{32}\$[0-9a-f]{64}$/u
-        ),
       },
+      accountColumns: ["did"],
       inviteCodeExists: false,
       repo: {
         did: payload.did,
@@ -236,15 +237,15 @@ describe("com.atproto.server.createAccount", () => {
     );
   });
 
-  it("rejects account imports and requires local credentials", async () => {
+  it("rejects account imports and primary passwords", async () => {
     const importedAccount = await postAccount({ did: "did:plc:alice" });
     expect(importedAccount.status).toBe(400);
 
-    const invalidPassword = await postAccount({
+    const primaryPassword = await postAccount({
       handle: "password.pds.test",
-      password: String(),
+      password: "primary-password-is-not-supported",
     });
-    expect(invalidPassword.status).toBe(400);
+    expect(primaryPassword.status).toBe(400);
 
     const invalidRecoveryKey = await postAccount({
       handle: "recovery.pds.test",

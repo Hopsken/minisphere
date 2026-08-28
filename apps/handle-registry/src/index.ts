@@ -1,32 +1,14 @@
-import { sql } from "drizzle-orm";
 import { Hono } from "hono";
-import { HTTPException } from "hono/http-exception";
 import { logger } from "hono/logger";
 
-import { createDatabase } from "./db";
-import type { Database } from "./db";
-import { Registry } from "./registry";
-
-const app = new Hono<{
-  Bindings: Env;
-  Variables: { db: Database };
-}>();
+const app = new Hono<{ Bindings: Env }>();
 
 app
   .use(logger())
-  .use((ctx, next) => {
-    const db = createDatabase(ctx.env.DB);
-    ctx.set("db", db);
-    return next();
-  })
   .get("/", (ctx) => ctx.json({ name: "minisphere-handle-registry" }))
   .get("/.well-known/atproto-did", async (ctx) => {
     const handle = new URL(ctx.req.url).hostname.toLowerCase();
-
-    const db = ctx.get("db");
-    const registry = new Registry(db);
-
-    const did = await registry.getDidByHandle(handle);
+    const did = await ctx.env.Accounts.resolveHandle(handle);
 
     if (!did) {
       return ctx.notFound();
@@ -34,21 +16,9 @@ app
 
     return ctx.text(did);
   })
-  .get("/_health", async (ctx) => {
-    try {
-      await ctx.var.db.run(sql`SELECT 1`);
-      return ctx.json({ status: "ok" });
-    } catch (error) {
-      console.error("failed health check", error);
-      throw new HTTPException(503, { message: "service unavailable" });
-    }
-  })
+  .get("/_health", (ctx) => ctx.json({ status: "ok" }))
   // oxlint-disable-next-line promise/prefer-await-to-callbacks
   .onError((error, ctx) => {
-    if (error instanceof HTTPException) {
-      return error.getResponse();
-    }
-
     console.error(error);
     return ctx.text("Internal Server Error", 500);
   });
@@ -56,5 +26,3 @@ app
 export default {
   fetch: app.fetch,
 };
-
-export { HandleRegistryEntrypoint } from "./worker-entrypoint";

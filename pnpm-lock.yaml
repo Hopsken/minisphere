@@ -235,9 +235,6 @@ catalogs:
     '@atcute/mst':
       specifier: ^1.0.3
       version: 1.0.3
-    '@atcute/multibase':
-      specifier: ^1.2.5
-      version: 1.2.5
     '@atcute/tid':
       specifier: ^1.1.4
       version: 1.1.4
@@ -390,6 +387,12 @@ importers:
 
   apps/accounts:
     dependencies:
+      '@atcute/atproto':
+        specifier: 'catalog:'
+        version: 4.0.4(@atcute/lexicons@2.1.0)
+      '@atcute/client':
+        specifier: 'catalog:'
+        version: 5.1.1(@atcute/lexicons@2.1.0)(typescript@7.0.2)
       '@base-ui/react':
         specifier: 'catalog:'
         version: 1.7.0(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -508,9 +511,6 @@ importers:
       '@atcute/lexicons':
         specifier: 'catalog:'
         version: 2.1.0
-      '@atcute/multibase':
-        specifier: 'catalog:'
-        version: 1.2.5
       '@base-ui/react':
         specifier: ^1.7.0
         version: 1.7.0(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -547,9 +547,6 @@ importers:
       hono:
         specifier: 'catalog:'
         version: 4.13.3
-      jose:
-        specifier: 'catalog:'
-        version: 6.2.9
       lucide-react:
         specifier: 'catalog:'
         version: 1.33.0(react@19.2.8)
@@ -657,18 +654,9 @@ importers:
 
   apps/handle-registry:
     dependencies:
-      '@atcute/lexicons':
-        specifier: 'catalog:'
-        version: 2.1.0
-      drizzle-orm:
-        specifier: 'catalog:'
-        version: 1.0.0-rc.4(@cloudflare/workers-types@5.20260821.1)(valibot@1.4.2(typescript@7.0.2))(zod@4.4.3)
       hono:
         specifier: 'catalog:'
         version: 4.13.3
-      zod:
-        specifier: 'catalog:'
-        version: 4.4.3
     devDependencies:
       '@cloudflare/vitest-pool-workers':
         specifier: 'catalog:'
@@ -676,9 +664,9 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 26.2.0
-      drizzle-kit:
+      vite:
         specifier: 'catalog:'
-        version: 1.0.0-rc.5-ab785fc
+        version: 8.2.2(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0)
       vitest:
         specifier: 'catalog:'
         version: 4.1.11(@types/node@26.2.0)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0))

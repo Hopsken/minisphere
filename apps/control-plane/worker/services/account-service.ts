@@ -4,11 +4,7 @@ import { HTTPException } from "hono/http-exception";
 
 import type { ManagedAccount } from "../../schema";
 import type { Database } from "../db";
-import { encryptCredential } from "../lib/credential";
-import { randomBytes } from "../lib/random-bytes";
 import { AccountRepository } from "../repositories/account";
-
-const MACHINE_PASSWORD_BYTES = 32;
 
 export class AccountService {
   private accountRepository: AccountRepository;
@@ -32,19 +28,10 @@ export class AccountService {
     const handleDomain = env.HANDLE_DOMAIN.toLowerCase();
     const handle: `${string}.${string}` = `${input.name}.${handleDomain}`;
 
-    const handleTaken = await env.HandleRegistry.exists(handle);
-
-    if (handleTaken) {
-      throw new HTTPException(409, { message: "Handle is taken" });
-    }
-
-    const password = randomBytes(MACHINE_PASSWORD_BYTES);
-
     const response = await pdsClient.call(ComAtprotoServerCreateAccount, {
       input: {
         handle,
         inviteCode: input.inviteCode,
-        password,
         recoveryKey: env.CONTROL_PLANE_ACCOUNT_RECOVERY_KEY,
       },
     });
@@ -57,23 +44,7 @@ export class AccountService {
     }
 
     const { did } = response.data;
-    const encryptedCredentials = await encryptCredential(
-      password,
-      env.CONTROL_PLANE_ENCRYPTION_KEY,
-      did
-    );
-    await accountRepository.create({ did, encryptedCredentials });
-
-    // Register handle
-    const registration = await env.HandleRegistry.register({
-      did,
-      handle,
-      // override should rarely happens since a previous check already confirms handle is not taken
-      override: true,
-    });
-    if (!registration.ok) {
-      throw new HTTPException(400, { message: registration.reason });
-    }
+    await accountRepository.create({ did });
 
     return response.data;
   }

@@ -1,12 +1,12 @@
-import { env, exports } from "cloudflare:workers";
+import { exports } from "cloudflare:workers";
 import { describe, expect, it } from "vitest";
 
-const request = (path: string): Promise<Response> =>
-  exports.default.fetch(new Request(`https://handle-registry.test${path}`));
+const request = (hostname: string, path: string): Promise<Response> =>
+  exports.default.fetch(new Request(`https://${hostname}${path}`));
 
 describe("handle registry server", () => {
   it("identifies the service", async () => {
-    const response = await request("/");
+    const response = await request("handle-registry.test", "/");
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toStrictEqual({
@@ -14,18 +14,31 @@ describe("handle registry server", () => {
     });
   });
 
-  it("reports database health", async () => {
-    const response = await request("/_health");
+  it("reports stateless service health", async () => {
+    const response = await request("handle-registry.test", "/_health");
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toStrictEqual({ status: "ok" });
   });
 
-  it("applies the handle schema migration", async () => {
-    const result = await env.DB.prepare(
-      "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'handles'"
-    ).first<{ name: string }>();
+  it("serves the DID provided by Accounts", async () => {
+    const response = await request(
+      "alice.r2d2.party",
+      "/.well-known/atproto-did"
+    );
 
-    expect(result).toStrictEqual({ name: "handles" });
+    expect(response.status).toBe(200);
+    await expect(response.text()).resolves.toBe(
+      "did:plc:alice0000000000000000000"
+    );
+  });
+
+  it("returns 404 when Accounts does not resolve the handle", async () => {
+    const response = await request(
+      "unknown.r2d2.party",
+      "/.well-known/atproto-did"
+    );
+
+    expect(response.status).toBe(404);
   });
 });

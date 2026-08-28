@@ -25,11 +25,7 @@
     "HANDLE_DOMAIN": "r2d2.party",
   },
   "secrets": {
-    "required": [
-      "CONTROL_PLANE_ENCRYPTION_KEY",
-      "CONTROL_PLANE_ACCOUNT_RECOVERY_KEY",
-      "PDS_ORIGIN",
-    ],
+    "required": ["CONTROL_PLANE_ACCOUNT_RECOVERY_KEY", "PDS_ORIGIN"],
   },
   "services": [
     {
@@ -40,11 +36,6 @@
     {
       "binding": "PlcDirectory",
       "service": "minisphere-directory",
-    },
-    {
-      "binding": "HandleRegistry",
-      "service": "minisphere-handle-registry",
-      "entrypoint": "HandleRegistryEntrypoint",
     },
   ],
   "d1_databases": [

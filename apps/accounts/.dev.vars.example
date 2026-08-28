@@ -1,2 +1,4 @@
 # Local development value only. Never reuse it in production.
 BETTER_AUTH_SECRET=local-development-better-auth-secret-change-me
+PDS_ORIGIN=https://pds.test
+ACCOUNTS_ACCOUNT_RECOVERY_KEY=did:key:zQ3shu7MitzDmMa4jP59hSmKvezXm6hvANxGe163LzpULGRMs
