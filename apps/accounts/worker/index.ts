@@ -4,6 +4,8 @@ import { HTTPException } from "hono/http-exception";
 import { logger } from "hono/logger";
 
 import { createDatabase } from "./db";
+import { withBetterAuth } from "./middlewares/with-better-auth";
+import { withDBAccess } from "./middlewares/with-db-access";
 import { UserRepository } from "./repositories/user-repository";
 import api from "./routes";
 
@@ -19,6 +21,14 @@ if (import.meta.env.DEV) {
   const { default: dev } = await import("./routes/dev");
   app.route("/__dev", dev);
 }
+
+app
+  .use("/.well-known/oauth-authorization-server", withDBAccess, withBetterAuth)
+  .all("/.well-known/oauth-authorization-server", (ctx) =>
+    ctx.var.auth.handler(ctx.req.raw)
+  )
+  .use("/oauth/*", withDBAccess, withBetterAuth)
+  .all("/oauth/*", (ctx) => ctx.var.auth.handler(ctx.req.raw));
 
 app
   .route("/api", api)

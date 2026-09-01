@@ -22,6 +22,7 @@
     },
   ],
   "vars": {
+    "ACCOUNTS_ORIGIN": "https://accounts.hopsken.dev",
     "PDS_ORIGIN": "https://pds.hopsken.dev",
   },
   "secrets": {

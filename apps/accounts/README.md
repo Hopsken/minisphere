@@ -2,7 +2,7 @@
 
 Accounts is the system authentication server. It combines a React SPA and a Hono Cloudflare Worker with Better Auth, D1, and Drizzle.
 
-It mounts the Better Auth handler at `/api/auth/*`, manages AT Protocol identities as related users, and is the authority for managed usernames, handles, and DIDs. AT Protocol OAuth and app passwords are not implemented.
+It mounts the Better Auth handler at `/api/auth/*`, manages AT Protocol identities as related users, and is the authority for managed usernames, handles, and DIDs. It also runs the first public-client AT Protocol OAuth authorization-server milestone. App passwords are not implemented.
 
 ## Architecture
 
@@ -33,6 +33,24 @@ An authenticated user can create a related AT Protocol account through `POST /ap
 5. Accounts stores the returned DID and links the new user to its owner.
 
 `AccountsEntrypoint.resolveHandle(handle)` is available only through a trusted Worker service binding. It accepts one managed handle under `PUBLIC_HANDLE_DOMAIN` and returns the DID from the matching Accounts user record. It returns `null` for unknown or external handles.
+
+## AT Protocol OAuth
+
+[`@minisphere/atproto-oauth-provider`](../../packages/atproto-oauth-provider/README.md) handles the protocol at these root routes:
+
+- `/.well-known/oauth-authorization-server`
+- `/oauth/par`
+- `/oauth/authorize`
+- `/oauth/token`
+- `/oauth/revoke`
+
+Better Auth authenticates the owner. The authorization page lists only that owner's related users with DIDs. Selecting one DID stores it in the OAuth session; it does not replace the owner's browser session with the related Better Auth user. The Accounts callback checks ownership again when the owner submits the selection.
+
+OAuth request, replay, code, session, and refresh state uses the database-backed Better Auth `verification` table. No separate OAuth migration is required. Accounts asks `PdsControlPlane.issueOAuthAccessToken()` to create each DPoP-bound access JWT, so the PDS remains the signing and audience-validation boundary.
+
+The Worker enables Cloudflare's `global_fetch_strictly_public` compatibility flag for Client ID Metadata Document fetches. Keep this flag enabled to prevent same-zone and private-network routing during client discovery.
+
+This milestone accepts URL-based public clients only. Confidential `private_key_jwt` clients and client signing-key continuity are deferred and are not advertised. Dynamic registration, client secrets, OIDC, client credentials, and implicit grants are not supported.
 
 ## Database
 
