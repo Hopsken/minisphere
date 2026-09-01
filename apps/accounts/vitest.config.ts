@@ -35,6 +35,8 @@ export default defineConfig(async () => {
           bindings: {
             BETTER_AUTH_SECRET:
               "local-test-better-auth-secret-at-least-32-characters",
+            PDS_ORIGIN: "https://pds.test",
+            PUBLIC_URL: "https://accounts.test",
             TEST_MIGRATIONS: migrations,
           },
           workers: [
@@ -50,7 +52,16 @@ export default defineConfig(async () => {
                   }
                 };
 
-                export class PdsControlPlane extends WorkerEntrypoint {}
+                export class PdsControlPlane extends WorkerEntrypoint {
+                  generateInviteCode() {
+                    return crypto.randomUUID();
+                  }
+
+                  issueOAuthAccessToken(input) {
+                    const claims = btoa(JSON.stringify(input));
+                    return \`test.\${claims}.\${crypto.randomUUID()}\`;
+                  }
+                }
               `,
             },
           ],

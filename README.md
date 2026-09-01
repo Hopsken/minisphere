@@ -25,6 +25,7 @@ Handle requests ──▶ Handle Registry  private PLC Directory
 
 ### Packages
 
+- [`packages/atproto-oauth-provider`](./packages/atproto-oauth-provider/README.md) — Worker-compatible AT Protocol OAuth authorization-server plugin for Better Auth
 - [`packages/hono-utils`](./packages/hono-utils/README.md) — shared Hono request-validation helpers
 - [`packages/repo-do`](./packages/repo-do/README.md) — DID-scoped repository Durable Object, schema, and migrations
 

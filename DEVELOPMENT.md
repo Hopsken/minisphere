@@ -2,7 +2,7 @@
 
 This file records the current implementation state and important architecture decisions. Keep entries concise and update them when a decision changes.
 
-## Current state — 2026-08-27
+## Current state — 2026-08-29
 
 ### Accounts
 
@@ -10,7 +10,9 @@ This file records the current implementation state and important architecture de
 - Its frontend environment matches the Control Plane stack: Vite, TanStack Router, TanStack Query, Tailwind CSS, and Base UI shadcn conventions.
 - It stores Better Auth records, user-to-user ownership relationships, normalized usernames, and DIDs. Managed handles are derived from usernames and `PUBLIC_HANDLE_DOMAIN`.
 - Authenticated users can provision related AT Protocol users through the PDS binding. Accounts stores the returned DID and exposes authoritative handle resolution through `AccountsEntrypoint`.
-- Public Better Auth sign-up is disabled. AT Protocol OAuth and app passwords are not implemented.
+- Public Better Auth sign-up is disabled. Accounts provides the public-client AT Protocol OAuth authorization-code flow through a dedicated Better Auth plugin. App passwords are not implemented.
+- OAuth protocol and replay state uses database-backed Better Auth verification records. The Better Auth owner selects one related managed DID without changing the browser session to the related user.
+- Confidential `private_key_jwt` clients and client signing-key continuity are deferred and are not advertised.
 
 ### PLC Directory
 
@@ -32,8 +34,10 @@ This file records the current implementation state and important architecture de
 - A DID-named `RepoDO` stores each repository, repository signing key, schema, and bundled migrations through `@minisphere/repo-do`.
 - Account creation generates the repository key, creates and submits the PLC genesis operation, initializes the repository, and issues the first access and refresh JWTs.
 - `PdsControlPlane.generateInviteCode()` exposes invite creation to Accounts through a named Worker RPC entrypoint. Invite generation has no public HTTP route.
+- `PdsControlPlane.issueOAuthAccessToken()` creates access JWTs with the selected DID, PDS audience, OAuth scope and client ID, and DPoP key thumbprint. Protected-resource metadata names Accounts as the authorization server.
 - Successful account creation removes the invite from KV. Cleanup failure is logged without changing the successful account response.
 - `getRepoStatus` and sync `getRecord` read initialized repositories. Session creation, other session methods, record mutations, repository export, and repository subscriptions are not implemented.
+- PDS XRPC routes do not yet validate OAuth access JWTs, DPoP `ath`, or AT Protocol repository scopes. Future enforcement will use `@atproto/oauth-scopes`.
 
 ### Control Plane
 
@@ -54,6 +58,7 @@ This file records the current implementation state and important architecture de
 - A PLC `alsoKnownAs` value is a handle claim, not proof of the reverse mapping. The stateless Handle Registry completes reverse verification with the DID supplied by Accounts.
 - The Control Plane database defines which DIDs it manages. Derived identity fields and primary account credentials do not belong in this database.
 - Access and refresh JWTs are session artifacts and are not persisted by the Control Plane.
+- The PDS signs OAuth access JWTs. Accounts owns authorization and refresh state but cannot mint a token for a different issuer or resource audience.
 - Primary account authentication does not use a PDS password. Future app-password compatibility is a separate capability.
 - One Durable Object hosts one DID repository and uses the DID as its object name.
 - `packages/repo-do` owns `RepoDO`, repository storage, its Drizzle schema, and bundled migrations. The PDS owns global account and refresh-token D1 state.
@@ -63,8 +68,8 @@ This file records the current implementation state and important architecture de
 ## Next
 
 1. Run an end-to-end account creation and handle verification test through Accounts, PDS, PLC Directory, and Handle Registry.
-2. Implement OAuth authorization and the remaining PDS session methods.
-3. Add authenticated record mutations, repository export, and repository event subscriptions.
+2. Add PDS OAuth resource-request DPoP and scope enforcement, then implement confidential `private_key_jwt` clients with signing-key continuity.
+3. Implement the remaining PDS session methods, authenticated record mutations, repository export, and repository event subscriptions.
 4. Configure Cloudflare Access before deploying the Control Plane.
 5. Convert durable decisions in this file into ADRs.
 6. Build the minimal Relay.

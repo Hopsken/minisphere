@@ -24,6 +24,7 @@
     "@base-ui/react": "catalog:",
     "@better-auth/drizzle-adapter": "catalog:",
     "@fontsource-variable/inter": "catalog:",
+    "@minisphere/atproto-oauth-provider": "workspace:*",
     "@minisphere/hono-utils": "workspace:*",
     "@tanstack/react-query": "catalog:",
     "@tanstack/react-router": "catalog:",
@@ -52,6 +53,7 @@
     "@types/react-dom": "catalog:",
     "@vitejs/plugin-react": "catalog:",
     "drizzle-kit": "catalog:",
+    "jose": "catalog:",
     "tailwindcss": "catalog:",
     "vite": "catalog:",
     "vitest": "catalog:"
