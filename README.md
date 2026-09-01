@@ -89,6 +89,7 @@ GitHub Actions runs `pnpm check` for pull requests, merge queue entries, and pus
 
 ## Documentation
 
+- [Accounts Entryway product requirements](./docs/product/accounts-entryway.md)
 - [Development status and decision log](./DEVELOPMENT.md)
 - [Coding style](./docs/CODING_STYLE.md)
 - [Architecture Decision Records](./docs/adr/README.md)
