@@ -38,9 +38,12 @@ export default defineConfig(async () => {
     rotationKey.exportPrivateKey("multikey"),
   ]);
   const jwtSecret = "test-pds-jwt-secret-with-at-least-32-bytes";
+  const signingKeyEncryptionKey =
+    "test-signing-key-encryption-secret-at-least-32-bytes";
   const pdsOrigin = "https://pds.test";
   process.env.PDS_JWT_SECRET = jwtSecret;
   process.env.PDS_ROTATION_KEY = rotationKeyMultikey;
+  process.env.PDS_SIGNING_KEY_ENCRYPTION_KEY = signingKeyEncryptionKey;
 
   return {
     plugins: [
@@ -51,6 +54,7 @@ export default defineConfig(async () => {
             PDS_JWT_SECRET: jwtSecret,
             PDS_ORIGIN: pdsOrigin,
             PDS_ROTATION_KEY: rotationKeyMultikey,
+            PDS_SIGNING_KEY_ENCRYPTION_KEY: signingKeyEncryptionKey,
             TEST_ACCOUNTS_OAUTH_SIGNING_KEY: oauthSigningKeyMultikey,
             TEST_MIGRATIONS: migrations,
           },

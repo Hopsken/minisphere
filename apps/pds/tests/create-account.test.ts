@@ -205,17 +205,31 @@ describe("com.atproto.server.createAccount", () => {
   it("accepts an Entryway-derived DID and PLC operation", async () => {
     const input = await prepareEntrywayAccount("entryway.pds.test");
     const inviteCode = await createInviteCode();
+    const signingKey = input.plcOp.verificationMethods.atproto;
+    const reservationBefore = await env.PDS_DB.prepare(
+      `SELECT did, encrypted_private_key
+       FROM signing_key_reservations
+       WHERE signing_key = ?`
+    )
+      .bind(signingKey)
+      .first<{ did: string | null; encrypted_private_key: string }>();
+
     const response = await request("/xrpc/com.atproto.server.createAccount", {
       body: JSON.stringify({ ...input, inviteCode }),
       headers: { "Content-Type": "application/json" },
       method: "POST",
     });
 
-    expect(response.status).toBe(200);
     const account = createAccountResponseSchema.parse(await response.json());
-    expect(account).toMatchObject({ did: input.did, handle: input.handle });
 
-    const [repoStatus, plcState] = await Promise.all([
+    const [
+      repoStatus,
+      plcState,
+      storedAccount,
+      storedRefreshToken,
+      reservation,
+      inviteCodeExists,
+    ] = await Promise.all([
       request(
         `/xrpc/com.atproto.sync.getRepoStatus?did=${encodeURIComponent(input.did)}`
       ),
@@ -224,20 +238,53 @@ describe("com.atproto.server.createAccount", () => {
           `https://minisphere-directory.service/${encodeURIComponent(input.did)}/data`
         )
       ),
+      env.PDS_DB.prepare("SELECT did FROM accounts WHERE did = ?")
+        .bind(input.did)
+        .first(),
+      env.PDS_DB.prepare("SELECT did FROM refresh_tokens WHERE did = ? LIMIT 1")
+        .bind(input.did)
+        .first(),
+      env.PDS_DB.prepare(
+        "SELECT signing_key FROM signing_key_reservations WHERE signing_key = ?"
+      )
+        .bind(signingKey)
+        .first(),
+      new InviteCodeRepository(env.PDS_KV).exists(inviteCode),
     ]);
-    await expect(repoStatus.json()).resolves.toStrictEqual({
-      active: true,
-      did: input.did,
-      rev: expect.any(String),
-    });
-    await expect(plcState.json()).resolves.toMatchObject({
-      alsoKnownAs: [`at://${input.handle}`],
-      did: input.did,
-      verificationMethods: input.plcOp.verificationMethods,
-    });
     await expect(
-      new InviteCodeRepository(env.PDS_KV).exists(inviteCode)
-    ).resolves.toBeFalsy();
+      Promise.all([repoStatus.json(), plcState.json()])
+    ).resolves.toStrictEqual([
+      {
+        active: true,
+        did: input.did,
+        rev: expect.any(String),
+      },
+      expect.objectContaining({
+        alsoKnownAs: [`at://${input.handle}`],
+        did: input.did,
+        verificationMethods: input.plcOp.verificationMethods,
+      }),
+    ]);
+    expect({
+      account,
+      inviteCodeExists,
+      reservation,
+      reservationBefore,
+      responseStatus: response.status,
+      storedAccount,
+      storedRefreshToken,
+    }).toMatchObject({
+      account: { did: input.did, handle: input.handle },
+      inviteCodeExists: false,
+      reservation: null,
+      reservationBefore: {
+        did: null,
+        encrypted_private_key: expect.any(String),
+      },
+      responseStatus: 200,
+      storedAccount: { did: input.did },
+      storedRefreshToken: { did: input.did },
+    });
   });
 
   it("requires an invite for a valid externally signed PLC operation", async () => {

@@ -10,6 +10,8 @@ The package owns:
 - the repository Drizzle schema;
 - bundled migrations applied before repository requests are accepted.
 
+Initial repository creation writes the private signing key, initial blocks, and final root metadata in one synchronous Durable Object SQLite transaction. Later commits use the same atomic blocks-and-root boundary. A retry with the same DID and signing key verifies and returns the readable repository; an incomplete repository from the former initialization sequence is rebuilt in one transaction.
+
 The PDS owns global account and refresh-token state. That data does not belong in `RepoDO`.
 
 ## Migrations

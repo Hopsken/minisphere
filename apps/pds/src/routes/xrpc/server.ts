@@ -21,13 +21,18 @@ import type {
   UnsignedOperation,
 } from "@atcute/did-plc";
 import { isHandle } from "@atcute/lexicons/syntax";
+import { and, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import z from "zod";
 
 import { createSessionTokens } from "../../auth/session";
 import { createPdsDatabase } from "../../db";
-import { accountsTable, refreshTokensTable } from "../../db/schema";
+import {
+  accountsTable,
+  refreshTokensTable,
+  signingKeyReservationsTable,
+} from "../../db/schema";
 import { InviteCodeRepository } from "../../repositories/invite-code";
 import { SigningKeyReservationRepository } from "../../repositories/signing-key-reservation";
 import { lexiconJsonValidator } from "../../utils/lexicon-validator";
@@ -104,6 +109,12 @@ const directoryClient = (env: Env) =>
     fetch: (request, init) => env.DIRECTORY.fetch(new Request(request, init)),
     serviceUrl: "https://minisphere-directory.service",
   });
+
+const signingKeyReservations = (env: Env) =>
+  new SigningKeyReservationRepository(
+    createPdsDatabase(env.PDS_DB),
+    env.PDS_SIGNING_KEY_ENCRYPTION_KEY
+  );
 
 const ensureDirectoryOperation = async (
   env: Env,
@@ -217,7 +228,7 @@ const validateEntrywayAccountMaterial = async (
     });
   }
 
-  const reservations = new SigningKeyReservationRepository(env.PDS_KV);
+  const reservations = signingKeyReservations(env);
   const repoSigningKey = await reservations.get(did, signingKey);
   if (!repoSigningKey) {
     throw new HTTPException(400, {
@@ -232,8 +243,9 @@ app.post(
   lexiconJsonValidator(ReserveSigningKey.mainSchema.input.schema),
   async (c) => {
     const { did } = c.req.valid("json");
-    const reservations = new SigningKeyReservationRepository(c.env.PDS_KV);
-    return c.json({ signingKey: await reservations.reserve(did) });
+    return c.json({
+      signingKey: await signingKeyReservations(c.env).reserve(did),
+    });
   }
 );
 
@@ -272,6 +284,19 @@ app.post(
       material = await createLocalAccountMaterial(c.env, handle, recoveryKey);
     }
 
+    if (material.reservedSigningKey) {
+      const claimedKey = await signingKeyReservations(c.env).claim(
+        material.did,
+        material.reservedSigningKey
+      );
+      if (!claimedKey) {
+        throw new HTTPException(400, {
+          message: "Reserved repository signing key is no longer available",
+        });
+      }
+      material.repoSigningKey = claimedKey;
+    }
+
     const session = await createSessionTokens(
       material.did,
       `did:web:${pdsHostname}`,
@@ -283,7 +308,7 @@ app.post(
     await ensureDirectoryOperation(c.env, material.did, material.operation);
 
     const pdsDb = createPdsDatabase(c.env.PDS_DB);
-    await pdsDb.batch([
+    const accountWrites = [
       pdsDb
         .insert(accountsTable)
         .values({ did: material.did })
@@ -293,18 +318,23 @@ app.post(
         expires_at: session.refreshToken.expiresAt,
         jti: session.refreshToken.jti,
       }),
-    ]);
-
-    if (material.reservedSigningKey) {
-      try {
-        await new SigningKeyReservationRepository(c.env.PDS_KV).delete(
-          material.did,
-          material.reservedSigningKey
-        );
-      } catch (error) {
-        console.error("failed to clear reserved signing key", error);
-      }
-    }
+    ] as const;
+    await (material.reservedSigningKey
+      ? pdsDb.batch([
+          ...accountWrites,
+          pdsDb
+            .delete(signingKeyReservationsTable)
+            .where(
+              and(
+                eq(signingKeyReservationsTable.did, material.did),
+                eq(
+                  signingKeyReservationsTable.signingKey,
+                  material.reservedSigningKey
+                )
+              )
+            ),
+        ])
+      : pdsDb.batch(accountWrites));
     try {
       await inviteCodes.delete(inviteCode);
     } catch (error) {
