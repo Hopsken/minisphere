@@ -2,16 +2,18 @@
 
 This file records the current implementation state and important architecture decisions. Keep entries concise and update them when a decision changes.
 
-## Current state — 2026-08-29
+## Current state — 2026-09-01
 
 ### Accounts
 
 - The Accounts app is the account and primary authentication authority on a Hono Worker, Better Auth, and D1.
 - Its frontend environment matches the Control Plane stack: Vite, TanStack Router, TanStack Query, Tailwind CSS, and Base UI shadcn conventions.
-- It stores Better Auth records, user-to-user ownership relationships, normalized usernames, and DIDs. Managed handles are derived from usernames and `PUBLIC_HANDLE_DOMAIN`.
-- Authenticated users can provision related AT Protocol users through the PDS binding. Accounts stores the returned DID and exposes authoritative handle resolution through `AccountsEntrypoint`.
-- Public Better Auth sign-up is disabled. Accounts provides the public-client AT Protocol OAuth authorization-code flow through a dedicated Better Auth plugin. App passwords are not implemented.
-- OAuth protocol and replay state uses database-backed Better Auth verification records. The Better Auth owner selects one related managed DID without changing the browser session to the related user.
+- It authenticates users through one deployment-configured generic OIDC provider. Local registration and primary passwords are disabled.
+- Each Better Auth user has zero or one `atproto_account`. That record reserves one permanent normalized username and becomes active with one immutable DID. Hosted handles are derived from usernames and `PUBLIC_HANDLE_DOMAIN`.
+- Account completion uses `needs_username`, `provisioning`, and `active` states. Unknown PDS outcomes keep the same operation ID for safe retry. Confirmed failure releases the provisional username claim.
+- Accounts calls the private, idempotent `PdsControlPlane.createAccount()` operation and exposes active-only handle resolution through `AccountsEntrypoint`.
+- Accounts provides the public-client AT Protocol OAuth authorization-code flow through a dedicated Better Auth plugin. App passwords are not implemented.
+- OAuth protocol and replay state uses database-backed Better Auth verification records. Consent binds one server-resolved active DID to the current user. The browser does not select or submit a DID.
 - Confidential `private_key_jwt` clients and client signing-key continuity are deferred and are not advertised.
 
 ### PLC Directory
@@ -28,13 +30,14 @@ This file records the current implementation state and important architecture de
 
 ### PDS
 
-- Account creation uses `com.atproto.server.createAccount` and supports new local accounts only.
+- Entryway account creation uses the private `PdsControlPlane.createAccount()` operation and supports new local accounts only.
 - The PDS validates handle syntax, the KV-backed invite code, and the PLC recovery key. It rejects primary account passwords.
-- Account and refresh-token state lives in PDS D1. Managed handles live in Accounts. The PDS does not store primary account passwords.
+- Account and refresh-token state lives in PDS D1. Hosted handles live in Accounts. The PDS does not store primary account passwords.
+- The PDS stores one durable operation row before repository or PLC work. The operation ID deterministically derives one repository key, PLC genesis operation, and DID, so unknown outcomes can be retried without creating a second identity.
 - A DID-named `RepoDO` stores each repository, repository signing key, schema, and bundled migrations through `@minisphere/repo-do`.
 - Account creation generates the repository key, creates and submits the PLC genesis operation, initializes the repository, and issues the first access and refresh JWTs.
 - `PdsControlPlane.generateInviteCode()` exposes invite creation to Accounts through a named Worker RPC entrypoint. Invite generation has no public HTTP route.
-- `PdsControlPlane.issueOAuthAccessToken()` creates access JWTs with the selected DID, PDS audience, OAuth scope and client ID, and DPoP key thumbprint. Protected-resource metadata names Accounts as the authorization server.
+- `PdsControlPlane.issueOAuthAccessToken()` requires an active local subject and creates access JWTs with that DID, PDS audience, OAuth scope and client ID, and DPoP key thumbprint. Protected-resource metadata names Accounts as the authorization server.
 - Successful account creation removes the invite from KV. Cleanup failure is logged without changing the successful account response.
 - `getRepoStatus` and sync `getRecord` read initialized repositories. Session creation, other session methods, record mutations, repository export, and repository subscriptions are not implemented.
 - PDS XRPC routes do not yet validate OAuth access JWTs, DPoP `ath`, or AT Protocol repository scopes. Future enforcement will use `@atproto/oauth-scopes`.
@@ -54,7 +57,7 @@ This file records the current implementation state and important architecture de
 ## Decisions
 
 - Every AT Protocol identity uses the same account model. The system does not store an account type or classification.
-- The PLC Directory is the source of truth for DID documents. The PDS is the source of truth for its account and session state. Accounts owns users, primary authentication, usernames, and managed handle-to-DID mappings.
+- The PLC Directory is the source of truth for DID documents. The PDS is the source of truth for its account and session state. Accounts owns users, primary authentication, usernames, and hosted handle-to-DID mappings.
 - A PLC `alsoKnownAs` value is a handle claim, not proof of the reverse mapping. The stateless Handle Registry completes reverse verification with the DID supplied by Accounts.
 - The Control Plane database defines which DIDs it manages. Derived identity fields and primary account credentials do not belong in this database.
 - Access and refresh JWTs are session artifacts and are not persisted by the Control Plane.
@@ -62,7 +65,8 @@ This file records the current implementation state and important architecture de
 - Primary account authentication does not use a PDS password. Future app-password compatibility is a separate capability.
 - One Durable Object hosts one DID repository and uses the DID as its object name.
 - `packages/repo-do` owns `RepoDO`, repository storage, its Drizzle schema, and bundled migrations. The PDS owns global account and refresh-token D1 state.
-- Account creation favors a simple flow over idempotency or reconciliation. Partial failure can leave an abandoned PDS DID or repository, or an incomplete Accounts user.
+- Entryway account creation is idempotent by operation ID. Unknown outcomes stay reserved and retry the same operation. Confirmed failure releases the provisional Accounts username claim.
+- `PDS_ROTATION_KEY` is also the stable key-derivation secret for pending Entryway operations. It must not change while an operation is incomplete. A changed derived DID is rejected rather than duplicated.
 - Migration generation commands require an explicit, readable migration name.
 
 ## Next

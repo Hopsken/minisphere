@@ -38,9 +38,14 @@ export class RepoDO extends DurableObject<Record<string, never>> {
   }
 
   async reserveRepo(did: string, signingKey: string): Promise<void> {
-    const root = await this.core.getRoot();
-    if (root) {
-      throw new Error(`DID(${did}) already has a repo`);
+    const metadata = await this.core.getMetadata();
+    if (metadata) {
+      if (metadata.did !== did) {
+        throw new Error(
+          `Repository is reserved for ${metadata.did}, not ${did}`
+        );
+      }
+      return;
     }
 
     const keypair = await importSigningKey(signingKey);

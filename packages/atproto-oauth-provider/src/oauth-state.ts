@@ -22,7 +22,7 @@ export interface AuthorizationRequest {
 export interface ConsentRecord {
   jwkThumbprint: string;
   request: AuthorizationRequest;
-  subjectDids: string[];
+  subjectDid: string;
   userId: string;
 }
 

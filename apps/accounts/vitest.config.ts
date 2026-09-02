@@ -35,10 +35,16 @@ export default defineConfig(async () => {
           bindings: {
             BETTER_AUTH_SECRET:
               "local-test-better-auth-secret-at-least-32-characters",
+            OIDC_CLIENT_ID: "accounts-test-client",
+            OIDC_CLIENT_SECRET: "accounts-test-client-secret",
+            OIDC_DISCOVERY_URL:
+              "https://oidc.test/.well-known/openid-configuration",
+            OIDC_PROVIDER_NAME: "Test Identity",
             PDS_ORIGIN: "https://pds.test",
             PUBLIC_URL: "https://accounts.test",
             TEST_MIGRATIONS: migrations,
           },
+          outboundService: "minisphere-test-oidc",
           workers: [
             {
               modules: true,
@@ -53,6 +59,21 @@ export default defineConfig(async () => {
                 };
 
                 export class PdsControlPlane extends WorkerEntrypoint {
+                  createAccount(input) {
+                    if (input.handle.startsWith("waiting.")) {
+                      throw new Error("Simulated unknown outcome");
+                    }
+                    if (input.handle.startsWith("unavailable.")) {
+                      return { reason: "handle_unavailable", status: "failed" };
+                    }
+                    const label = input.handle.split(".")[0].padEnd(24, "0").slice(0, 24);
+                    return {
+                      did: \`did:plc:\${label}\`,
+                      handle: input.handle,
+                      status: "active"
+                    };
+                  }
+
                   generateInviteCode() {
                     return crypto.randomUUID();
                   }
@@ -63,6 +84,30 @@ export default defineConfig(async () => {
                   }
                 }
               `,
+            },
+            {
+              modules: true,
+              name: "minisphere-test-oidc",
+              routes: ["https://oidc.test/*"],
+              script: `export default {
+                fetch(request) {
+                  const url = new URL(request.url);
+                  if (url.pathname === "/.well-known/openid-configuration") {
+                    return Response.json({
+                      authorization_endpoint: "https://oidc.test/authorize",
+                      id_token_signing_alg_values_supported: ["RS256"],
+                      issuer: "https://oidc.test",
+                      jwks_uri: "https://oidc.test/jwks",
+                      token_endpoint: "https://oidc.test/token",
+                      userinfo_endpoint: "https://oidc.test/userinfo"
+                    });
+                  }
+                  if (url.pathname === "/jwks") {
+                    return Response.json({ keys: [] });
+                  }
+                  return new Response("Not Found", { status: 404 });
+                }
+              }`,
             },
           ],
         },

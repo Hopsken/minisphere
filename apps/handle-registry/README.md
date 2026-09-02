@@ -1,6 +1,6 @@
 # Handle Registry
 
-The Handle Registry is a stateless Hono Cloudflare Worker that serves AT Protocol HTTPS handle verification. Accounts owns managed handles and their DID mappings.
+The Handle Registry is a stateless Hono Cloudflare Worker that serves AT Protocol HTTPS handle verification. Accounts owns hosted handles and their DID mappings.
 
 ## Protocol role
 
@@ -10,11 +10,11 @@ A PLC DID document can claim a handle in `alsoKnownAs`, but that claim does not 
 https://<handle>/.well-known/atproto-did
 ```
 
-The Worker routes wildcard subdomains under the managed handle domain. For `/.well-known/atproto-did`, it sends the request hostname to `AccountsEntrypoint.resolveHandle()` through a trusted service binding. It returns the DID supplied by Accounts as plain text. Unknown handles return `404`.
+The Worker routes wildcard subdomains under the hosted handle domain. For `/.well-known/atproto-did`, it sends the request hostname to `AccountsEntrypoint.resolveHandle()` through a trusted service binding. It returns the DID supplied by Accounts as plain text. Unknown handles return `404`.
 
 ## Data ownership
 
-The Handle Registry has no database and no registration API. It trusts Accounts as the authority for managed account, username, handle, and DID records. The PLC Directory remains the source of truth for DID documents and their `alsoKnownAs` claims.
+The Handle Registry has no database and no registration API. It trusts Accounts as the authority for active username, hosted handle, and DID records. The PLC Directory remains the source of truth for DID documents and their `alsoKnownAs` claims.
 
 ## Configuration
 

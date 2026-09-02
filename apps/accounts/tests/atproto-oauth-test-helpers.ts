@@ -7,7 +7,7 @@ import { z } from "zod";
 export const origin = "https://accounts.test";
 export const redirectUri = "http://127.0.0.1:3000/callback";
 export const clientId = `http://localhost?redirect_uri=${encodeURIComponent("http://127.0.0.1/callback")}&scope=atproto`;
-export const managedDid = "did:plc:aaaaaaaaaaaaaaaaaaaaaaaa";
+export const accountDid = "did:plc:aaaaaaaaaaaaaaaaaaaaaaaa";
 
 const parResponseSchema = z.object({
   expires_in: z.number(),
@@ -148,51 +148,36 @@ export const createPar = async (
   };
 };
 
-export const loginOwner = async () => {
+export const loginActiveUser = async () => {
   const login = await request(
-    "/__dev/log-me-in/oauth-owner%40example.com?returnTo=%2F"
+    "/__dev/log-me-in/oauth-user%40example.com?returnTo=%2F"
   );
   const cookie = login.headers.get("set-cookie")?.split(";", 1)[0] ?? "";
-  const owner = await env.DB.prepare("SELECT id FROM user WHERE email = ?")
-    .bind("oauth-owner@example.com")
+  const user = await env.DB.prepare("SELECT id FROM user WHERE email = ?")
+    .bind("oauth-user@example.com")
     .first<{ id: string }>();
-  if (!cookie || !owner) {
-    throw new Error("Development owner login failed");
+  if (!cookie || !user) {
+    throw new Error("Development user login failed");
   }
 
   await env.DB.prepare(
-    `INSERT OR IGNORE INTO user (id, name, email, email_verified, username, did)
-     VALUES (?, ?, ?, ?, ?, ?)`
+    `INSERT OR IGNORE INTO atproto_account
+      (user_id, username, did, operation_id, status)
+     VALUES (?, ?, ?, ?, 'active')`
   )
-    .bind(
-      "managed-user-id",
-      "managed",
-      "managed@r2d2.party",
-      true,
-      "managed",
-      managedDid
-    )
-    .run();
-  await env.DB.prepare(
-    `INSERT OR IGNORE INTO "user-relationships" (source_user_id, target_user_id)
-     VALUES (?, ?)`
-  )
-    .bind(owner.id, "managed-user-id")
+    .bind(user.id, "account", accountDid, "oauth-test-operation")
     .run();
   return cookie;
 };
 
-export const authorizePar = async (
-  requestUri: string,
-  cookie: string,
-  did = managedDid
-) => {
+export const authorizePar = async (requestUri: string, cookie: string) => {
   const page = await request(
     `/oauth/authorize?client_id=${encodeURIComponent(clientId)}&request_uri=${encodeURIComponent(requestUri)}`,
     { headers: { cookie } }
   );
   expect(page.status).toBe(200);
   const html = await page.text();
+  expect(html).not.toContain('name="did"');
   const consentToken = /name="consent_token"[^>]*value="(?<token>[^"]+)"/u.exec(
     html
   )?.groups?.token;
@@ -202,7 +187,6 @@ export const authorizePar = async (
     body: new URLSearchParams({
       consent_token: consentToken ?? "",
       decision: "allow",
-      did,
     }).toString(),
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",

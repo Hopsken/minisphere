@@ -37,6 +37,9 @@ describe("PDS OAuth resource contract", () => {
   });
 
   it("issues a short-lived access token with DID, audience, and DPoP claims", async () => {
+    await env.PDS_DB.prepare("INSERT OR IGNORE INTO accounts (did) VALUES (?)")
+      .bind(subject)
+      .run();
     const token =
       await exports.PdsControlPlane.issueOAuthAccessToken(tokenInput);
     const claims = await verifyOAuthAccessToken(
@@ -59,6 +62,9 @@ describe("PDS OAuth resource contract", () => {
   });
 
   it("rejects the wrong audience during token verification", async () => {
+    await env.PDS_DB.prepare("INSERT OR IGNORE INTO accounts (did) VALUES (?)")
+      .bind(subject)
+      .run();
     const token =
       await exports.PdsControlPlane.issueOAuthAccessToken(tokenInput);
     await expect(
@@ -78,5 +84,20 @@ describe("PDS OAuth resource contract", () => {
         env.PDS_JWT_SECRET
       )
     ).toThrow(/300/u);
+  });
+
+  it("does not issue a token for a non-local or incomplete account", async () => {
+    let rejection: Error | undefined;
+    try {
+      await exports.PdsControlPlane.issueOAuthAccessToken({
+        ...tokenInput,
+        subject: "did:plc:bbbbbbbbbbbbbbbbbbbbbbbb",
+      });
+    } catch (error) {
+      if (error instanceof Error) {
+        rejection = error;
+      }
+    }
+    expect(rejection?.message).toMatch(/active local/u);
   });
 });

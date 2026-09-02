@@ -4,18 +4,27 @@ The PDS is a Hono Cloudflare Worker that exposes AT Protocol XRPC routes. It own
 
 ## Data ownership and bindings
 
-- PDS D1 stores account DIDs and refresh-token records. It does not store handles or primary account passwords.
+- PDS D1 stores active account DIDs, idempotent account-creation operations, and refresh-token records. It does not store OIDC identities or primary account passwords.
 - PDS KV stores short-lived account invite codes.
 - [`@minisphere/repo-do`](../../packages/repo-do/README.md) owns repository data and repository signing keys.
 - The private `DIRECTORY` service binding receives PLC genesis operations.
 - `PdsControlPlane.generateInviteCode()` is a named RPC entrypoint for Accounts.
+- `PdsControlPlane.createAccount()` is the private Entryway provisioning operation.
 - `PdsControlPlane.issueOAuthAccessToken()` issues short-lived, DPoP-bound OAuth access JWTs for Accounts.
 
-Account creation accepts a syntactically valid handle and records it as an `alsoKnownAs` claim in the PLC genesis operation. `PDS_ORIGIN` is the canonical public HTTPS origin used for the DID document service endpoint and session JWT audience; these values do not depend on the incoming request URL. The PDS does not prove or publish the reverse handle-to-DID mapping. Accounts owns managed handle mappings, and the stateless Handle Registry publishes the DID supplied by Accounts.
+Account creation accepts a syntactically valid handle and records it as an `alsoKnownAs` claim in the PLC genesis operation. `PDS_ORIGIN` is the canonical public HTTPS origin used for the DID document service endpoint and session JWT audience; these values do not depend on the incoming request URL. The PDS does not prove or publish the reverse handle-to-DID mapping. Accounts owns hosted handle mappings, and the stateless Handle Registry publishes the DID supplied by Accounts.
+
+### Entryway provisioning
+
+`PdsControlPlane.createAccount()` accepts a trusted operation ID, hosted handle, and PLC recovery key. It reserves the operation and handle before it changes repository or PLC state. The repository key, genesis PLC operation, and DID are deterministic for the operation ID. A retry with the same input returns the same DID. Another operation cannot take the same handle.
+
+The PDS marks the operation and local account active only after it initializes the repository and confirms that the same PLC operation exists in the Directory. A known handle conflict returns a confirmed failure. Other errors stay unknown to Accounts and are safe to retry with the same operation ID.
+
+Repository-key derivation uses the secret bytes in `PDS_ROTATION_KEY`. Do not change this key while a provisioning operation is incomplete. A key change causes that operation to derive a different DID, and the PDS refuses to resume it rather than create a duplicate identity.
 
 ## OAuth resource contract
 
-`/.well-known/oauth-protected-resource` identifies `PDS_ORIGIN` as the resource and `ACCOUNTS_ORIGIN` as its authorization server. The private token RPC accepts only those configured issuer and audience values and creates an HS256 access JWT with a maximum five-minute lifetime. Its claims include:
+`/.well-known/oauth-protected-resource` identifies `PDS_ORIGIN` as the resource and `ACCOUNTS_ORIGIN` as its authorization server. The private token RPC accepts only those configured issuer and audience values. It also requires the subject DID to exist in the local active account table. It creates an HS256 access JWT with a maximum five-minute lifetime. Its claims include:
 
 - selected DID in `sub`;
 - PDS origin in `aud`;
@@ -48,7 +57,7 @@ pnpm --filter @minisphere/pds db:migrate:remote
 ## Secrets
 
 - `PDS_JWT_SECRET` — at least 32 random bytes used for account-session JWTs
-- `PDS_ROTATION_KEY` — secp256k1 private multikey used to sign PLC operations
+- `PDS_ROTATION_KEY` — stable secp256k1 private multikey used to sign PLC operations and derive Entryway repository keys
 
 Variables:
 

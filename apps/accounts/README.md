@@ -1,15 +1,18 @@
 # Accounts
 
-Accounts is the system authentication server. It combines a React SPA and a Hono Cloudflare Worker with Better Auth, D1, and Drizzle.
+Accounts is the Entryway authentication and account server. It combines a React SPA and a Hono Cloudflare Worker with Better Auth, D1, and Drizzle.
 
-It mounts the Better Auth handler at `/api/auth/*`, manages AT Protocol identities as related users, and is the authority for managed usernames, handles, and DIDs. It also runs the first public-client AT Protocol OAuth authorization-server milestone. App passwords are not implemented.
+It mounts the Better Auth handler at `/api/auth/*`, authenticates users through one configured OIDC provider, and provisions one local AT Protocol identity per user. Accounts is the authority for permanent usernames, hosted handle claims, and the user-to-DID reference. It also runs the public-client AT Protocol OAuth authorization server. Local passwords, multiple identity providers, external DID import, and app passwords are not implemented.
 
 ## Architecture
 
 ```text
-React SPA ────────▶ Hono routes ──▶ Better Auth / repositories ──▶ D1
+OIDC provider ──▶ Better Auth ──▶ React onboarding
+                                      │
+                                      ▼
+React SPA ────────▶ Hono routes ──▶ Accounts D1
                          │
-                         └───────▶ PDS RPC and XRPC
+                         └───────▶ PdsControlPlane.createAccount()
 
 Handle Registry ──▶ AccountsEntrypoint.resolveHandle() ─────────▶ D1
 ```
@@ -18,21 +21,36 @@ The frontend uses Vite, React, TanStack Router, TanStack Query, Tailwind CSS, an
 
 ## Data ownership
 
-Accounts D1 contains the Better Auth tables, user-to-user ownership relationships, normalized usernames, and DIDs. A managed handle is derived as `<username>.<PUBLIC_HANDLE_DOMAIN>`. Accounts is the source of truth for that handle-to-DID mapping.
+Accounts D1 contains the ordinary Better Auth tables and one optional `atproto_account` row per Better Auth user. That row owns the normalized username, provisioning operation ID, status, and immutable DID. A hosted handle is derived as `<username>.<PUBLIC_HANDLE_DOMAIN>`. Accounts is the source of truth for the active handle-to-DID mapping.
 
 The PDS owns its account, session, and repository state. The PLC Directory owns DID documents. Accounts does not bind to the PLC Directory because the PDS submits PLC operations.
 
 ## AT Protocol accounts
 
-An authenticated user can create a related AT Protocol account through `POST /api/accounts/atproto`:
+An authenticated user completes one account through `POST /api/account`:
 
-1. Accounts derives the managed handle and email from the username.
-2. Accounts creates the related Better Auth user.
-3. Accounts gets a PDS invite through `PdsControlPlane`.
-4. Accounts calls `com.atproto.server.createAccount` with `ACCOUNTS_ACCOUNT_RECOVERY_KEY`.
-5. Accounts stores the returned DID and links the new user to its owner.
+1. Accounts normalizes and atomically reserves the username with a new operation ID.
+2. Accounts derives the hosted handle and calls the private, idempotent `PdsControlPlane.createAccount()` operation.
+3. A confirmed PDS failure removes the provisional claim. The username is available again.
+4. An unknown outcome remains `provisioning`. A retry uses the same operation ID.
+5. Success stores the PDS-created DID and activates the username, handle, and DID together.
 
-`AccountsEntrypoint.resolveHandle(handle)` is available only through a trusted Worker service binding. It accepts one managed handle under `PUBLIC_HANDLE_DOMAIN` and returns the DID from the matching Accounts user record. It returns `null` for unknown or external handles.
+The account states are `needs_username`, `provisioning`, and `active`. Product access, hosted handle resolution, and AT Protocol OAuth require `active`.
+
+Account routes are:
+
+- `GET /api/account` — current account state;
+- `POST /api/account` — reserve a username or safely retry its existing operation;
+- `GET /api/account/usernames/:username` — normalized username availability;
+- `GET /api/configuration` — public UI configuration, including the OIDC provider label.
+
+`AccountsEntrypoint.resolveHandle(handle)` is available only through a trusted Worker service binding. It accepts one hosted handle under `PUBLIC_HANDLE_DOMAIN` and returns the DID from a matching active account. It returns `null` for incomplete, unknown, or external handles.
+
+## Upstream OIDC login
+
+Better Auth uses one generic provider with OIDC discovery and required ID-token verification. The discovered issuer and `sub` identify the upstream account. Accounts uses a stable internal synthetic email only to satisfy Better Auth storage; an OIDC email, profile name, username, hosted handle, and DID remain separate concepts.
+
+The login page has one `Continue with <OIDC_PROVIDER_NAME>` action. An authenticated user without an active account goes to `/onboarding/username`. The development login route remains available only in local Vite development.
 
 ## AT Protocol OAuth
 
@@ -44,13 +62,13 @@ An authenticated user can create a related AT Protocol account through `POST /ap
 - `/oauth/token`
 - `/oauth/revoke`
 
-Better Auth authenticates the owner. The authorization page lists only that owner's related users with DIDs. Selecting one DID stores it in the OAuth session; it does not replace the owner's browser session with the related Better Auth user. The Accounts callback checks ownership again when the owner submits the selection.
+Better Auth authenticates the user. Accounts resolves no more than one active DID for that user. An incomplete user goes to username onboarding and must restart client authorization after setup. The consent page shows the server-resolved DID and hosted handle but has no DID chooser or DID form input. Consent submission resolves the subject again and requires it to match the server-side transaction.
 
 OAuth request, replay, code, session, and refresh state uses the database-backed Better Auth `verification` table. No separate OAuth migration is required. Accounts asks `PdsControlPlane.issueOAuthAccessToken()` to create each DPoP-bound access JWT, so the PDS remains the signing and audience-validation boundary.
 
 The Worker enables Cloudflare's `global_fetch_strictly_public` compatibility flag for Client ID Metadata Document fetches. Keep this flag enabled to prevent same-zone and private-network routing during client discovery.
 
-This milestone accepts URL-based public clients only. Confidential `private_key_jwt` clients and client signing-key continuity are deferred and are not advertised. Dynamic registration, client secrets, OIDC, client credentials, and implicit grants are not supported.
+The AT Protocol authorization server accepts URL-based public clients only. Confidential `private_key_jwt` clients and client signing-key continuity are deferred and are not advertised. Dynamic registration, OAuth client secrets, client credentials, and implicit grants are not supported. This restriction is separate from Accounts using OIDC for upstream login.
 
 ## Database
 
@@ -90,16 +108,23 @@ Bindings:
 Variables:
 
 - `PUBLIC_URL` — public Accounts origin used by Better Auth
-- `PUBLIC_HANDLE_DOMAIN` — suffix for managed handles
+- `PUBLIC_HANDLE_DOMAIN` — suffix for hosted handles
+- `OIDC_PROVIDER_NAME` — user-facing name on the login button
 
 Secrets:
 
 - `BETTER_AUTH_SECRET` — signs and encrypts Better Auth data; it must contain at least 32 high-entropy characters
-- `PDS_ORIGIN` — canonical PDS origin used by the XRPC client
+- `OIDC_CLIENT_ID` — client ID registered with the configured OIDC provider
+- `OIDC_CLIENT_SECRET` — client secret registered with the configured OIDC provider
+- `OIDC_DISCOVERY_URL` — configured provider's OpenID discovery document URL
+- `PDS_ORIGIN` — canonical PDS OAuth resource origin
 - `ACCOUNTS_ACCOUNT_RECOVERY_KEY` — public PLC recovery `did:key` included in new accounts
 
 ```sh
 pnpm --filter @minisphere/accounts exec wrangler secret put BETTER_AUTH_SECRET
+pnpm --filter @minisphere/accounts exec wrangler secret put OIDC_CLIENT_ID
+pnpm --filter @minisphere/accounts exec wrangler secret put OIDC_CLIENT_SECRET
+pnpm --filter @minisphere/accounts exec wrangler secret put OIDC_DISCOVERY_URL
 pnpm --filter @minisphere/accounts exec wrangler secret put PDS_ORIGIN
 pnpm --filter @minisphere/accounts exec wrangler secret put ACCOUNTS_ACCOUNT_RECOVERY_KEY
 ```

@@ -6,8 +6,14 @@ import { logger } from "hono/logger";
 
 import { createOAuthAccessToken } from "./auth/session";
 import type { OAuthAccessTokenInput } from "./auth/session";
+import { createPdsDatabase } from "./db";
 import { InviteCodeRepository } from "./repositories/invite-code";
 import xrpcRoutes from "./routes/xrpc";
+import { AccountProvisioningService } from "./services/account-provisioning";
+import type {
+  AccountProvisioningInput,
+  AccountProvisioningResult,
+} from "./services/account-provisioning";
 
 const app = new Hono<{
   Bindings: Env;
@@ -53,7 +59,13 @@ export class PdsControlPlane extends WorkerEntrypoint<Env> {
     return new InviteCodeRepository(this.env.PDS_KV).create();
   }
 
-  issueOAuthAccessToken(input: OAuthAccessTokenInput): Promise<string> {
+  createAccount(
+    input: AccountProvisioningInput
+  ): Promise<AccountProvisioningResult> {
+    return new AccountProvisioningService(this.env).createAccount(input);
+  }
+
+  async issueOAuthAccessToken(input: OAuthAccessTokenInput): Promise<string> {
     if (
       input.audience !== this.env.PDS_ORIGIN ||
       input.issuer !== this.env.ACCOUNTS_ORIGIN
@@ -61,6 +73,14 @@ export class PdsControlPlane extends WorkerEntrypoint<Env> {
       throw new Error(
         "OAuth token issuer or audience does not match PDS configuration"
       );
+    }
+    const database = createPdsDatabase(this.env.PDS_DB);
+    const account = await database.query.accountsTable.findFirst({
+      columns: { did: true },
+      where: { did: input.subject },
+    });
+    if (!account) {
+      throw new Error("OAuth subject is not an active local PDS account");
     }
     return createOAuthAccessToken(input, this.env.PDS_JWT_SECRET);
   }

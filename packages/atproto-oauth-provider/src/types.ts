@@ -8,7 +8,7 @@ export interface AtprotoAuthorizationPageInput {
   clientId: string;
   consentToken: string;
   scope: string;
-  subjects: AtprotoAuthorizationSubject[];
+  subject: AtprotoAuthorizationSubject;
 }
 
 export interface AtprotoAccessTokenInput {
@@ -23,14 +23,14 @@ export interface AtprotoAccessTokenInput {
 
 export interface AtprotoOAuthProviderOptions {
   clientMetadataFetch?: typeof fetch;
-  getAuthorizationSubjects: (
+  getAccountCompletionUrl: () => Promise<string> | string;
+  getAuthorizationSubject: (
     userId: string
-  ) => AtprotoAuthorizationSubject[] | Promise<AtprotoAuthorizationSubject[]>;
+  ) =>
+    | AtprotoAuthorizationSubject
+    | null
+    | Promise<AtprotoAuthorizationSubject | null>;
   getLoginUrl: (returnTo: string) => Promise<string> | string;
-  isAuthorizedSubject: (
-    userId: string,
-    did: string
-  ) => Promise<boolean> | boolean;
   issuer: string;
   issueAccessToken: (
     input: AtprotoAccessTokenInput

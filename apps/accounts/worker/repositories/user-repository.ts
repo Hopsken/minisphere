@@ -1,45 +1,84 @@
+import { and, eq } from "drizzle-orm";
+
 import type { Database } from "../db";
-import { usersToUsers } from "../db/schema/user-relationships";
+import { atprotoAccount } from "../db/schema/atproto-account";
 
 export class UserRepository {
-  private db: Database;
+  private readonly db: Database;
 
   constructor(db: Database) {
     this.db = db;
   }
 
-  async linkUser(ownerId: string, descendantId: string) {
+  async reserveAccount(userId: string, username: string, operationId: string) {
     await this.db
-      .insert(usersToUsers)
+      .insert(atprotoAccount)
       .values({
-        sourceUserId: ownerId,
-        targetUserId: descendantId,
+        operationId,
+        userId,
+        username,
       })
       .onConflictDoNothing();
+
+    return this.findAccountByUserId(userId);
+  }
+
+  findAccountByUserId(userId: string) {
+    return this.db
+      .select()
+      .from(atprotoAccount)
+      .where(eq(atprotoAccount.userId, userId))
+      .limit(1)
+      .then(([account]) => account);
+  }
+
+  async isUsernameAvailable(username: string): Promise<boolean> {
+    const [account] = await this.db
+      .select({ username: atprotoAccount.username })
+      .from(atprotoAccount)
+      .where(eq(atprotoAccount.username, username))
+      .limit(1);
+    return !account;
+  }
+
+  async activateAccount(userId: string, operationId: string, did: string) {
+    await this.db
+      .update(atprotoAccount)
+      .set({ did, status: "active" })
+      .where(
+        and(
+          eq(atprotoAccount.userId, userId),
+          eq(atprotoAccount.operationId, operationId),
+          eq(atprotoAccount.status, "provisioning")
+        )
+      );
+
+    return this.findAccountByUserId(userId);
+  }
+
+  async releaseProvisioningAccount(userId: string, operationId: string) {
+    await this.db
+      .delete(atprotoAccount)
+      .where(
+        and(
+          eq(atprotoAccount.userId, userId),
+          eq(atprotoAccount.operationId, operationId),
+          eq(atprotoAccount.status, "provisioning")
+        )
+      );
   }
 
   async findDidByUsername(username: string): Promise<string | null> {
-    const account = await this.db.query.user.findFirst({
-      columns: { did: true },
-      where: { username },
-    });
+    const [account] = await this.db
+      .select({ did: atprotoAccount.did })
+      .from(atprotoAccount)
+      .where(
+        and(
+          eq(atprotoAccount.status, "active"),
+          eq(atprotoAccount.username, username)
+        )
+      )
+      .limit(1);
     return account?.did ?? null;
-  }
-
-  async listManagedAccounts(ownerId: string) {
-    const account = await this.db.query.user.findFirst({
-      where: { id: ownerId },
-      with: {
-        descendants: {
-          columns: {
-            did: true,
-            id: true,
-            username: true,
-          },
-        },
-      },
-    });
-
-    return account?.descendants ?? [];
   }
 }

@@ -120,6 +120,24 @@ const createLoginRedirect = async (
   });
 };
 
+const localRedirect = async (
+  destination: string | Promise<string>,
+  issuer: string
+) => {
+  const url = new URL(await destination, issuer);
+  if (url.origin !== issuer) {
+    throw new Error("Redirect callback must return an issuer-local URL");
+  }
+  return new Response(null, {
+    headers: {
+      "Cache-Control": "no-store",
+      Location: `${url.pathname}${url.search}${url.hash}`,
+      Pragma: "no-cache",
+    },
+    status: 302,
+  });
+};
+
 const renderConsent = async (
   browserRequest: HonoRequest,
   request: AuthorizationRequest,
@@ -132,23 +150,29 @@ const renderConsent = async (
     return createLoginRedirect(request, jwkThumbprint, context, options);
   }
 
-  const authorizationSubjects = await options.getAuthorizationSubjects(
+  const authorizationSubject = await options.getAuthorizationSubject(
     userSession.user.id
   );
-  const subjects = request.loginHint
-    ? authorizationSubjects.filter(
-        (subject) =>
-          subject.did === request.loginHint ||
-          subject.handle === request.loginHint
-      )
-    : authorizationSubjects;
+  if (!authorizationSubject) {
+    return localRedirect(options.getAccountCompletionUrl(), options.issuer);
+  }
+  if (
+    request.loginHint &&
+    request.loginHint !== authorizationSubject.did &&
+    request.loginHint !== authorizationSubject.handle
+  ) {
+    throw new OAuthError(
+      "access_denied",
+      "Authenticated account does not match login_hint"
+    );
+  }
   const consentToken = await createUniqueRecord<ConsentRecord>(
     context.internalAdapter,
     "consent",
     {
       jwkThumbprint,
       request,
-      subjectDids: subjects.map((subject) => subject.did),
+      subjectDid: authorizationSubject.did,
       userId: userSession.user.id,
     },
     expiresAt(AUTHORIZATION_INTERACTION_LIFETIME_MS)
@@ -157,7 +181,7 @@ const renderConsent = async (
     clientId: request.clientId,
     consentToken,
     scope: request.scope.join(" "),
-    subjects,
+    subject: authorizationSubject,
   });
   const headers = new Headers(page.headers);
   headers.set("Cache-Control", "no-store");
@@ -275,7 +299,7 @@ export const handleAuthorizePost = async (
     }
     const form = await readForm(
       request,
-      new Set(["consent_token", "decision", "did"])
+      new Set(["consent_token", "decision"])
     );
     const consentToken = requireParameter(form, "consent_token");
     const consent = await consumeRecord<ConsentRecord>(
@@ -309,14 +333,11 @@ export const handleAuthorizePost = async (
       throw new OAuthError("invalid_request", "decision must be allow or deny");
     }
 
-    const did = requireParameter(form, "did");
-    if (
-      !consent.subjectDids.includes(did) ||
-      !(await options.isAuthorizedSubject(consent.userId, did))
-    ) {
+    const subject = await options.getAuthorizationSubject(consent.userId);
+    if (!subject || subject.did !== consent.subjectDid) {
       throw new OAuthError(
         "access_denied",
-        "Selected DID cannot be authorized by this user"
+        "Authorization subject is no longer active for this user"
       );
     }
 
@@ -324,7 +345,7 @@ export const handleAuthorizePost = async (
       context.internalAdapter,
       "authorization-code",
       {
-        did,
+        did: subject.did,
         jwkThumbprint: consent.jwkThumbprint,
         request: consent.request,
       },

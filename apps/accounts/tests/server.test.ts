@@ -14,11 +14,12 @@ describe("accounts server", () => {
 
   it("applies the Better Auth schema migration", async () => {
     const tableNames = await env.DB.prepare(
-      "SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('user', 'session', 'account', 'verification') ORDER BY name"
+      "SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('user', 'session', 'account', 'verification', 'atproto_account', 'user-relationships') ORDER BY name"
     ).all<{ name: string }>();
 
     expect(tableNames.results).toStrictEqual([
       { name: "account" },
+      { name: "atproto_account" },
       { name: "session" },
       { name: "user" },
       { name: "verification" },
@@ -27,12 +28,17 @@ describe("accounts server", () => {
 
   it("resolves handles from authoritative account records", async () => {
     const did = "did:plc:alice0000000000000000000";
-    await env.DB.prepare(
-      `INSERT INTO user (id, name, email, email_verified, username, did)
-       VALUES (?, ?, ?, ?, ?, ?)`
-    )
-      .bind("alice-id", "alice", "alice@r2d2.party", true, "alice", did)
-      .run();
+    await env.DB.batch([
+      env.DB.prepare(
+        `INSERT INTO user (id, name, email, email_verified)
+         VALUES (?, ?, ?, ?)`
+      ).bind("alice-id", "alice", "alice@example.com", true),
+      env.DB.prepare(
+        `INSERT INTO atproto_account
+          (user_id, username, did, operation_id, status)
+         VALUES (?, ?, ?, ?, 'active')`
+      ).bind("alice-id", "alice", did, "alice-operation"),
+    ]);
 
     await expect(
       exports.AccountsEntrypoint.resolveHandle("alice.r2d2.party")
@@ -44,5 +50,23 @@ describe("accounts server", () => {
         exports.AccountsEntrypoint.resolveHandle("nested.alice.r2d2.party"),
       ])
     ).resolves.toStrictEqual([null, null, null]);
+  });
+
+  it("does not resolve a handle while provisioning is incomplete", async () => {
+    await env.DB.batch([
+      env.DB.prepare(
+        `INSERT INTO user (id, name, email, email_verified)
+         VALUES (?, ?, ?, ?)`
+      ).bind("waiting-id", "waiting", "waiting@example.com", true),
+      env.DB.prepare(
+        `INSERT INTO atproto_account
+          (user_id, username, operation_id, status)
+         VALUES (?, ?, ?, 'provisioning')`
+      ).bind("waiting-id", "waiting", "waiting-operation"),
+    ]);
+
+    await expect(
+      exports.AccountsEntrypoint.resolveHandle("waiting.r2d2.party")
+    ).resolves.toBeNull();
   });
 });

@@ -3,13 +3,13 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import {
   authorizePar,
+  accountDid,
   clientId,
   createDpopKey,
   createDpopProof,
   createPar,
   errorResponseSchema,
-  loginOwner,
-  managedDid,
+  loginActiveUser,
   origin,
   parBody,
   pkceChallenge,
@@ -200,31 +200,81 @@ describe("AT Protocol OAuth authorization server", () => {
     expect(expired.status).toBe(400);
   });
 
-  it("binds the managed DID through code and refresh rotation", async () => {
-    const cookie = await loginOwner();
+  it("sends an incomplete user to username onboarding", async () => {
+    const login = await request(
+      "/__dev/log-me-in/incomplete-oauth-user%40example.com?returnTo=%2F"
+    );
+    const cookie = login.headers.get("set-cookie")?.split(";", 1)[0] ?? "";
     const key = await createDpopKey();
-
-    const rejectedPar = await createPar(
+    const pushed = await createPar(
       key,
-      await pkceChallenge("d".repeat(64)),
-      "unmanaged-did-state"
+      await pkceChallenge("g".repeat(64)),
+      "incomplete-account-state"
     );
-    const rejected = await authorizePar(
-      rejectedPar.par.request_uri,
-      cookie,
-      "did:plc:bbbbbbbbbbbbbbbbbbbbbbbb"
+
+    const response = await request(
+      `/oauth/authorize?client_id=${encodeURIComponent(clientId)}&request_uri=${encodeURIComponent(pushed.par.request_uri)}`,
+      { headers: { cookie } }
     );
+
     expect({
-      error: errorResponseSchema.parse(await rejected.json()).error,
-      status: rejected.status,
+      location: response.headers.get("location"),
+      status: response.status,
+    }).toStrictEqual({
+      location: "/onboarding/username?oauth=true",
+      status: 302,
+    });
+  });
+
+  it("rechecks the active subject when consent is submitted", async () => {
+    const cookie = await loginActiveUser();
+    const key = await createDpopKey();
+    const pushed = await createPar(
+      key,
+      await pkceChallenge("h".repeat(64)),
+      "subject-recheck-state"
+    );
+    const page = await request(
+      `/oauth/authorize?client_id=${encodeURIComponent(clientId)}&request_uri=${encodeURIComponent(pushed.par.request_uri)}`,
+      { headers: { cookie } }
+    );
+    const html = await page.text();
+    expect(html).toContain('<p class="client">Local application</p>');
+    const consentToken =
+      /name="consent_token"[^>]*value="(?<token>[^"]+)"/u.exec(html)?.groups
+        ?.token ?? "";
+    await env.DB.prepare("DELETE FROM atproto_account WHERE did = ?")
+      .bind(accountDid)
+      .run();
+
+    const response = await request("/oauth/authorize", {
+      body: new URLSearchParams({
+        consent_token: consentToken,
+        decision: "allow",
+      }).toString(),
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Origin: origin,
+        cookie,
+      },
+      method: "POST",
+    });
+
+    expect({
+      error: errorResponseSchema.parse(await response.json()).error,
+      status: response.status,
     }).toStrictEqual({ error: "access_denied", status: 400 });
+  });
+
+  it("binds the active account DID through code and refresh rotation", async () => {
+    const cookie = await loginActiveUser();
+    const key = await createDpopKey();
 
     const verifier = "e".repeat(64);
     const acceptedPar = await createPar(
       key,
       await pkceChallenge(verifier),
-      "complete-flow-state",
-      rejectedPar.nonce
+      "complete-flow-state"
     );
     const authorization = await authorizePar(
       acceptedPar.par.request_uri,
@@ -268,7 +318,7 @@ describe("AT Protocol OAuth authorization server", () => {
       tokens: {
         expires_in: 300,
         scope: "atproto",
-        sub: managedDid,
+        sub: accountDid,
         token_type: "DPoP",
       },
     });
@@ -305,7 +355,7 @@ describe("AT Protocol OAuth authorization server", () => {
       refreshRotated: true,
       reusedCode: { error: "invalid_grant", status: 400 },
       status: 200,
-      sub: managedDid,
+      sub: accountDid,
     });
 
     const replay = await postOAuth(
@@ -339,7 +389,7 @@ describe("AT Protocol OAuth authorization server", () => {
   });
 
   it("requires the session DPoP key for revocation", async () => {
-    const cookie = await loginOwner();
+    const cookie = await loginActiveUser();
     const key = await createDpopKey();
     const verifier = "f".repeat(64);
     const pushed = await createPar(
