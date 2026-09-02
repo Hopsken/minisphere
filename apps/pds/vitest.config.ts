@@ -87,6 +87,9 @@ export default defineConfig(async () => {
                     return new Response("Method Not Allowed", { status: 405 });
                   }
                   const operation = await request.json();
+                  if (operation.alsoKnownAs?.[0] === "at://directory-failure.pds.test") {
+                    return Response.json({ message: "Test failure" }, { status: 500 });
+                  }
                   if (
                     !did.startsWith("did:plc:") ||
                     operation.type !== "plc_operation" ||

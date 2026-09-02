@@ -34,15 +34,16 @@ This file records the current implementation state and important architecture de
 ### PDS
 
 - Entryway account creation uses standard signing-key reservation and account-creation XRPC methods and supports new local accounts only.
-- The PDS requires a KV-backed invite for every account creation and validates handle syntax, the DID and PLC operation, its canonical endpoint, and the reserved repository signing key. The standalone path also validates the PLC recovery key. Both paths reject primary account passwords.
-- Account, refresh-token, and encrypted repository signing-key reservation state lives in PDS D1. Hosted handles live in Accounts. The PDS does not store primary account passwords.
+- The PDS requires a D1-backed invite for every account creation and validates handle syntax, the DID and PLC operation, its canonical endpoint, and the reserved repository signing key. The standalone path also validates the PLC recovery key. Both paths reject primary account passwords.
+- Account, refresh-token, invitation, and encrypted repository signing-key reservation state lives in PDS D1. Hosted handles live in Accounts. The PDS does not store primary account passwords.
 - Signing-key reservations do not have an independent TTL. Account creation atomically binds a reservation to the derived DID, so the same DID can retry after a downstream failure and another DID cannot claim the key. Accounts stores the public signing key and pre-derived DID for status checks and retry.
 - A DID-named `RepoDO` stores each repository, repository signing key, schema, and bundled migrations through `@minisphere/repo-do`. Initial signing-key, block, and final-root writes are one Durable Object SQLite transaction, and incomplete repositories from the former initialization sequence are rebuilt atomically.
 - Entryway account creation validates the Accounts-created genesis PLC operation, initializes the repository with the reserved private signing key, submits the PLC operation, records the account, and issues the first PDS session JWTs.
 - The PDS does not own hosted-handle uniqueness. Accounts owns username allocation and the active handle mapping.
 - `PdsControlPlane.generateInviteCode()` exposes invite creation to Accounts through a named Worker RPC entrypoint. Invite generation has no public HTTP route.
 - The PDS discovers Accounts OAuth verification keys from the `jwks_uri` in authorization-server metadata. Protected-resource metadata names Accounts as the authorization server.
-- Successful account creation removes its invite from KV and deletes its signing-key reservation in the same PDS D1 batch that writes the account and first refresh token.
+- After full request and account-material validation, the PDS atomically claims one unexpired invitation immediately before account side effects. Invitations are bearer credentials that are not bound to DIDs and remain spent after later failures. Invite generation opportunistically removes expired rows.
+- Successful account creation deletes its signing-key reservation in the same PDS D1 batch that writes the account and first refresh token.
 - `getRepoStatus` requires both a PDS account record and a readable initialized repository. Sync `getRecord` reads initialized repositories. Session creation, other session methods, record mutations, repository export, and repository subscriptions are not implemented.
 - PDS XRPC routes do not yet validate OAuth access JWTs, DPoP `ath`, or AT Protocol repository scopes. Future enforcement will use `@atproto/oauth-scopes`.
 
@@ -68,7 +69,7 @@ This file records the current implementation state and important architecture de
 - Accounts owns OAuth authorization, refresh state, and access-token signing. The PDS is the resource server and verifies the Accounts signature, configured issuer and audience, DPoP binding, scope, and local active subject before granting access.
 - Primary account authentication does not use a PDS password. Future app-password compatibility is a separate capability.
 - One Durable Object hosts one DID repository and uses the DID as its object name.
-- `packages/repo-do` owns `RepoDO`, repository storage, its Drizzle schema, and bundled migrations. The PDS owns global account and refresh-token D1 state.
+- `packages/repo-do` owns `RepoDO`, repository storage, its Drizzle schema, and bundled migrations. The PDS owns global account, refresh-token, invitation, and signing-key reservation D1 state.
 - Repository initialization and commit application atomically update blocks and root metadata. Initial repository creation includes its signing key in that Durable Object transaction.
 - PDS D1 stores repository signing-key reservations encrypted under `PDS_SIGNING_KEY_ENCRYPTION_KEY`. A reservation is identified by its public key and atomically bound to one DID during account creation; it remains available to that DID until the local account is recorded.
 - Entryway account creation follows the AT Protocol reference flow: PDS reserves the repository signing key, Accounts signs the genesis PLC operation and derives the DID, and PDS validates and registers it through standard XRPC.

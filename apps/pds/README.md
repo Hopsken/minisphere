@@ -4,8 +4,7 @@ The PDS is a Hono Cloudflare Worker that exposes AT Protocol XRPC routes. It own
 
 ## Data ownership and bindings
 
-- PDS D1 stores active account DIDs, refresh-token records, and encrypted repository signing-key reservations. It does not store OIDC identities, usernames, or primary account passwords.
-- PDS KV stores short-lived account invite codes.
+- PDS D1 stores active account DIDs, refresh-token records, short-lived account invitation codes and expiry times, and encrypted repository signing-key reservations. It does not store OIDC identities, usernames, or primary account passwords.
 - [`@minisphere/repo-do`](../../packages/repo-do/README.md) owns repository data and repository signing keys.
 - The private `DIRECTORY` service binding receives PLC genesis operations.
 - `PdsControlPlane.generateInviteCode()` is a named RPC entrypoint for Accounts.
@@ -19,8 +18,10 @@ Entryway provisioning uses the standard AT Protocol methods:
 
 1. `com.atproto.server.reserveSigningKey` generates a repository signing key. The PDS stores the private multikey encrypted in D1 and returns only its public `did:key`. The reservation has no independent time-to-live.
 2. Accounts creates and signs the genesis PLC operation with its own rotation key and derives the expected `did:plc` before account creation.
-3. Accounts gets a one-time invite through `PdsControlPlane.generateInviteCode()`. `com.atproto.server.createAccount` receives that invite, DID, handle, and PLC operation. The PDS verifies the invite, DID derivation, operation signature, PDS endpoint, handle claim, and reserved repository key, then atomically binds the signing-key reservation to the derived DID.
+3. Accounts gets a one-time invite through `PdsControlPlane.generateInviteCode()`. `com.atproto.server.createAccount` receives that invite, DID, handle, and PLC operation. The PDS verifies the DID derivation, operation signature, PDS endpoint, handle claim, and reserved repository key, then atomically claims the unexpired invite in D1 and binds the signing-key reservation to the derived DID.
 4. The PDS atomically initializes the DID-named repository, submits the PLC operation, and records the local account. The signing-key reservation remains available to the same DID after a downstream failure. After success, its deletion is in the same D1 batch as the account and refresh token. Accounts independently verifies PDS repository and PLC state before activation.
+
+An invitation is a bearer credential that proves authorization through the trusted control-plane binding. It is not bound to a DID. Its D1 row contains the code and expiry time. A claimed invitation remains spent if a later account-creation side effect fails; Accounts requests a new invitation for a retry. New invitation generation opportunistically removes expired rows.
 
 The PDS does not allocate or enforce hosted-handle uniqueness. Accounts owns that policy. A retry after an unknown response uses the same pre-derived DID and signed PLC operation. Repository reservation and PLC submission tolerate already-completed side effects, while Accounts checks `com.atproto.sync.getRepoStatus` and resolved PLC state before sending another create request.
 
@@ -39,16 +40,15 @@ Accounts revocation stops refresh and new token issuance. An already issued acce
 
 PDS XRPC routes do not yet accept these OAuth tokens or enforce repository permissions. Resource-request DPoP verification, including `ath`, and scope enforcement are the next PDS milestone. That work must use `@atproto/oauth-scopes` for AT Protocol permission checks; OAuth client scope builders do not enforce permissions.
 
-## D1 and KV
+## D1
 
-Create the production D1 database and KV namespace, then copy their IDs into `wrangler.jsonc`:
+Create the production D1 database, then copy its ID into `wrangler.jsonc`:
 
 ```sh
 pnpm --filter @minisphere/pds exec wrangler d1 create minisphere-pds
-pnpm --filter @minisphere/pds exec wrangler kv namespace create minisphere-pds-kv
 ```
 
-The account schema is in `src/db/schema.ts`:
+The PDS D1 schema is in `src/db/schema.ts`:
 
 ```sh
 pnpm --filter @minisphere/pds db:generate add-account-column

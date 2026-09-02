@@ -4,6 +4,7 @@ import { cors } from "hono/cors";
 import { HTTPException } from "hono/http-exception";
 import { logger } from "hono/logger";
 
+import { createPdsDatabase } from "./db";
 import { InviteCodeRepository } from "./repositories/invite-code";
 import xrpcRoutes from "./routes/xrpc";
 
@@ -48,7 +49,9 @@ export class PdsControlPlane extends WorkerEntrypoint<Env> {
   }
 
   generateInviteCode(): Promise<string> {
-    return new InviteCodeRepository(this.env.PDS_KV).create();
+    return new InviteCodeRepository(
+      createPdsDatabase(this.env.PDS_DB)
+    ).create();
   }
 }
 

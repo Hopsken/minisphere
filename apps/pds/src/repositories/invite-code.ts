@@ -1,33 +1,64 @@
-import { KvKeyspace, pdsKvKeyspaces } from "../storage/kv-keyspace";
+import { and, eq, gt, lte } from "drizzle-orm";
+
+import type { PdsDatabase } from "../db";
+import { accountInvitationsTable } from "../db/schema";
 
 const INVITE_CODE_BYTES = 32;
 const INVITE_CODE_TTL_SECONDS = 2 * 60 * 60;
 
-export class InviteCodeRepository {
-  private readonly codes: KvKeyspace;
+const toBase64Url = (bytes: Uint8Array) =>
+  btoa(String.fromCodePoint(...bytes))
+    .replaceAll("+", "-")
+    .replaceAll("/", "_")
+    .replaceAll("=", "");
 
-  constructor(kv: KVNamespace) {
-    this.codes = new KvKeyspace(kv, pdsKvKeyspaces.inviteCodes);
+export class InviteCodeRepository {
+  private readonly db: PdsDatabase;
+
+  constructor(db: PdsDatabase) {
+    this.db = db;
   }
 
   async create(): Promise<string> {
     const bytes = crypto.getRandomValues(new Uint8Array(INVITE_CODE_BYTES));
-    const inviteCode = btoa(String.fromCodePoint(...bytes))
-      .replaceAll("+", "-")
-      .replaceAll("/", "_")
-      .replaceAll("=", "");
+    const inviteCode = toBase64Url(bytes);
+    const now = Math.floor(Date.now() / 1000);
 
-    await this.codes.put(inviteCode, "1", {
-      expirationTtl: INVITE_CODE_TTL_SECONDS,
-    });
+    await this.db.batch([
+      this.db
+        .delete(accountInvitationsTable)
+        .where(lte(accountInvitationsTable.expires_at, now)),
+      this.db.insert(accountInvitationsTable).values({
+        code: inviteCode,
+        expires_at: now + INVITE_CODE_TTL_SECONDS,
+      }),
+    ]);
     return inviteCode;
   }
 
-  exists(inviteCode: string): Promise<boolean> {
-    return this.codes.has(inviteCode);
-  }
+  async claim(inviteCode: string): Promise<boolean> {
+    const now = Math.floor(Date.now() / 1000);
+    const [claimed] = await this.db
+      .delete(accountInvitationsTable)
+      .where(
+        and(
+          eq(accountInvitationsTable.code, inviteCode),
+          gt(accountInvitationsTable.expires_at, now)
+        )
+      )
+      .returning({ code: accountInvitationsTable.code });
+    if (claimed) {
+      return true;
+    }
 
-  delete(inviteCode: string): Promise<void> {
-    return this.codes.delete(inviteCode);
+    await this.db
+      .delete(accountInvitationsTable)
+      .where(
+        and(
+          eq(accountInvitationsTable.code, inviteCode),
+          lte(accountInvitationsTable.expires_at, now)
+        )
+      );
+    return false;
   }
 }
