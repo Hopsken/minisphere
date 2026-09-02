@@ -27,8 +27,10 @@ describe("AT Protocol OAuth authorization server", () => {
 
   it("publishes truthful public-client metadata and protocol CORS", async () => {
     const response = await request("/.well-known/oauth-authorization-server");
-    expect(response.status).toBe(200);
-    expect(response.headers.get("access-control-allow-origin")).toBe("*");
+    expect({
+      allowOrigin: response.headers.get("access-control-allow-origin"),
+      status: response.status,
+    }).toStrictEqual({ allowOrigin: "*", status: 200 });
     await expect(response.json()).resolves.toStrictEqual({
       authorization_endpoint: `${origin}/oauth/authorize`,
       authorization_response_iss_parameter_supported: true,
@@ -51,11 +53,15 @@ describe("AT Protocol OAuth authorization server", () => {
     });
 
     const jwksResponse = await request("/oauth/jwks");
-    expect(jwksResponse.status).toBe(200);
-    expect(jwksResponse.headers.get("access-control-allow-origin")).toBe("*");
-    expect(jwksResponse.headers.get("cache-control")).toBe(
-      "public, max-age=300"
-    );
+    expect({
+      allowOrigin: jwksResponse.headers.get("access-control-allow-origin"),
+      cacheControl: jwksResponse.headers.get("cache-control"),
+      status: jwksResponse.status,
+    }).toStrictEqual({
+      allowOrigin: "*",
+      cacheControl: "public, max-age=300",
+      status: 200,
+    });
     await expect(jwksResponse.json()).resolves.toStrictEqual({
       keys: [
         {

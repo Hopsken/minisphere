@@ -32,7 +32,7 @@ const encodeBase64Url = (value: Uint8Array) => {
     .replace(/=+$/u, "");
 };
 
-const getSigningKey = async () => {
+const getSigningKey = () => {
   const parsedKey = parsePrivateMultikey(env.TEST_ACCOUNTS_OAUTH_SIGNING_KEY);
   if (parsedKey.type !== "secp256k1") {
     throw new Error("Test OAuth signing key must use secp256k1");
@@ -41,13 +41,7 @@ const getSigningKey = async () => {
 };
 
 const oauthMetadataFetch: typeof fetch = async (input) => {
-  const url = new URL(
-    typeof input === "string"
-      ? input
-      : input instanceof URL
-        ? input.href
-        : input.url
-  );
+  const url = new URL(new Request(input).url);
   if (url.href === `${accountsOrigin}/.well-known/oauth-authorization-server`) {
     return Response.json({
       issuer: accountsOrigin,

@@ -20,7 +20,7 @@ const accessTokenInputSchema = z.strictObject({
 
 const encoder = new TextEncoder();
 
-const importSigningKey = async (signingKeyMultikey: string) => {
+const importSigningKey = (signingKeyMultikey: string) => {
   const parsedSigningKey = parsePrivateMultikey(signingKeyMultikey);
   if (parsedSigningKey.type !== "secp256k1") {
     throw new Error(

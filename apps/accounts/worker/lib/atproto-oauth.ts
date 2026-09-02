@@ -12,7 +12,6 @@ export const createAtprotoOAuthProvider = (env: Env, database: Database) => {
     getAccountCompletionUrl: () => "/onboarding/username?oauth=true",
     getAuthorizationPageUrl: (consentToken) =>
       `/authorize?${new URLSearchParams({ consent_token: consentToken }).toString()}`,
-    getJwks: () => createOAuthJwks(env.ACCOUNTS_OAUTH_SIGNING_KEY),
     getAuthorizationSubject: async (userId) => {
       const account = await users.findAccountByUserId(userId);
       if (account?.status !== "active" || !account.did) {
@@ -24,6 +23,7 @@ export const createAtprotoOAuthProvider = (env: Env, database: Database) => {
         handle: createHostedHandle(account.username, env.PUBLIC_HANDLE_DOMAIN),
       };
     },
+    getJwks: () => createOAuthJwks(env.ACCOUNTS_OAUTH_SIGNING_KEY),
     getLoginUrl: (returnTo) =>
       `/login?${new URLSearchParams({ redirect: returnTo }).toString()}`,
     issueAccessToken: (input) =>
