@@ -9,6 +9,8 @@ const oidcProfileSchema = z.looseObject({
 
 type OidcProfile = z.infer<typeof oidcProfileSchema>;
 
+// Better Auth requires a unique email, but OIDC identity is issuer + subject.
+// Do not bind local users to an optional, mutable email claim from the provider.
 const syntheticEmail = async (issuer: string, subject: string) => {
   const input = new TextEncoder().encode(`${issuer}\0${subject}`);
   const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", input));

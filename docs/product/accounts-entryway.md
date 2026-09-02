@@ -2,8 +2,8 @@
 
 - **Status:** Draft for product discovery
 - **Scope:** OIDC login, username onboarding, local DID account provisioning, hosted handle registration, and OAuth subject selection
-- **Baseline:** `feat/accounts-pds-oauth-integration`
-- **Last updated:** 2026-09-01
+- **Baseline:** `feat/accounts-entryway-account-model`
+- **Last updated:** 2026-09-02
 
 This is a living product document. It records the target, settled product decisions, unresolved risks, and release criteria. It does not replace product discovery, interaction prototypes, or technical design.
 
@@ -35,7 +35,7 @@ Objectives are listed in priority order.
 1. **One understandable account:** every AT-active Accounts user represents exactly one DID account, with no owner-to-managed-user concept.
 2. **Simple OIDC onboarding:** the configured OIDC provider returns a new member to one required username and DID creation flow.
 3. **Stable identity:** a DID never changes and a committed username is never reused.
-4. **Atomic product outcome:** a successful operation commits one username and one DID; a failed operation does not take the username; retries cannot create a second DID.
+4. **Atomic product outcome:** a successful attempt commits one username and one active DID; a confirmed failure does not retain the username; an unknown outcome is checked and retried against the same pre-derived DID.
 5. **Protocol-safe authorization:** a user without an active DID cannot authorize an AT Protocol OAuth client.
 6. **Portable product boundary:** the local Accounts and PDS pair does not depend on the Control Plane during onboarding, login, consent, or token issuance.
 
@@ -89,17 +89,17 @@ Accounts may suggest a username from upstream profile data, but it must not clai
 
 1. The member submits an available username.
 2. A downstream operation times out or fails.
-3. A confirmed failure does not commit the username, handle, or DID account.
-4. A timeout has an unknown outcome and is retried with the same operation identity until Accounts can determine success or failure.
-5. A retry cannot create a second DID for the same operation.
+3. A confirmed PDS response failure does not commit the username, handle, or DID account in Accounts. Downstream dangling artifacts are acceptable and remain inactive in Accounts.
+4. A transport failure has an unknown outcome. Accounts retains the expected DID, checks PDS repository and PLC state, and only then retries the same standard account-creation request if needed.
+5. An unknown-outcome retry uses the same DID and signed genesis PLC operation.
 
 ## Product principles
 
 1. **Authenticate first, onboard once.** The configured OIDC provider leads to one post-authentication account-completion flow.
 2. **One principal, one identity.** A user may have no DID while onboarding and exactly one DID after activation. Accounts has no user-to-user ownership model.
 3. **Username and DID are permanent.** A committed username and DID are never reassigned. The username produces the initial hosted handle.
-4. **The user chooses names, not identifiers.** The member chooses a username. The PDS creates the DID; the browser never supplies or selects one.
-5. **Fail closed and retry unknown outcomes.** Incomplete accounts cannot authorize clients. A timeout is not reported as failure until the same idempotent operation resolves.
+4. **The user chooses names, not identifiers.** The member chooses a username. Accounts derives the DID from a server-signed genesis PLC operation; the browser never supplies or selects one.
+5. **Fail closed and verify unknown outcomes.** Incomplete accounts cannot authorize clients. After a transport failure, Accounts checks the known DID in the PDS and PLC Directory before it retries creation.
 6. **One source of truth per responsibility.** Accounts owns authentication and hosted handle claims. The PDS owns local account state and repository hosting. The PLC Directory owns DID documents.
 7. **The Control Plane stays off the critical path.** Operator tooling can request or observe actions, but user-facing identity and authorization do not depend on it.
 8. **Protocol security is a release property.** A friendly onboarding experience cannot compensate for incomplete OAuth resource enforcement.
@@ -139,13 +139,17 @@ This is one account aggregate. The internal user ID and DID do not represent an 
 - A missing or inactive subject blocks authorization.
 - Consent records the internal user and resolved DID server-side.
 - Consent submission verifies the same browser session, resolves the subject again, and requires the DID to match the stored transaction.
-- The PDS independently confirms that the DID is local and active before signing an access token.
+- Accounts signs the access token as the authorization server. The PDS verifies that signature and independently confirms that the DID is local and active when serving a protected request.
 
 ### Provisioning ownership
 
-Accounts owns the member-facing provisioning journey because it owns the Better Auth session, OIDC identity link, and onboarding state. It coordinates a private, idempotent PDS operation. The PDS creates the DID, PLC operation, repository, and local hosting state.
+Accounts owns the member-facing provisioning journey because it owns the Better Auth session, OIDC identity link, username, onboarding state, and PLC rotation key. The PDS owns account invitations, the repository private signing key, and local account and repository state. The PDS submits the genesis operation to the PLC Directory.
 
-The operation has two final outcomes: all identity fields become active, or none is committed in Accounts. A timeout is an unknown outcome, not a final failure; Accounts retries the same operation identity before making the username available. The PDS and Control Plane must not receive OIDC credentials or Better Auth session material, or write Better Auth storage directly.
+Provisioning follows the AT Protocol reference Entryway flow. Accounts first calls `com.atproto.server.reserveSigningKey`; the PDS stores the private repository key and returns the public `did:key`. Accounts then constructs and signs the genesis PLC operation, derives the DID, obtains a one-time PDS invitation through its trusted service binding, and calls standard `com.atproto.server.createAccount` with the invite, DID, and operation. The invitation authorizes account creation; the PDS validates the operation and reserved key without requiring a specific Entryway rotation public key, creates the repository and local account, and registers the operation with PLC.
+
+Accounts activates only after the PDS reports that both the local account and repository exist and PLC resolves the expected DID, handle claim, PDS endpoint, and repository signing key. Handle Registry publication is controlled by the resulting active Accounts mapping, so querying that derived publication is not an activation prerequisite.
+
+A confirmed PDS response failure releases the provisional Accounts username. A transport failure remains unknown and retains the expected DID and signed operation for status checks and retry. This guarantees one active identity result for the attempt without a custom PDS provisioning service or operation ID. The PDS and Control Plane must not receive OIDC credentials or Better Auth session material, or write Better Auth storage directly.
 
 ### Target flow
 
@@ -155,11 +159,18 @@ OIDC provider ──> Better Auth session ──> username onboarding
   from environment                          | confirmed username
                                             v
                                      Accounts Entryway
-                                            |
-                                            | one private, idempotent
-                                            | account creation operation
-                                            v
-                       PLC Directory <── paired local PDS ──> repository
+                               |            |             |
+                               | reserve    | derive DID  | verify PLC state
+                               | repo key   | + genesis   |
+                               v            v             v
+                         paired local PDS ───────────▶ PLC Directory
+                               |      |
+                               |      └────────────────▶ repository
+                               |
+                               | standard createAccount
+                               | plus PDS/repo verification
+                               v
+                     verified active identity result
                                             |
                                             | success commits username,
                                             | hosted handle, and DID
@@ -172,7 +183,10 @@ OIDC provider ──> Better Auth session ──> username onboarding
           Handle Registry                              AT OAuth consent
                                                              |
                                                              v
-                                                    private PDS signer
+                                                   Accounts OAuth signer
+                                                             |
+                                                             v
+                                                    PDS resource verifier
 
 Control Plane ──> asynchronous operator actions only; never a dependency
                   of login, onboarding, consent, or token issuance
@@ -182,8 +196,8 @@ Control Plane ──> asynchronous operator actions only; never a dependency
 
 | Service | Owns | Does not own |
 | --- | --- | --- |
-| Accounts | OIDC identity links, Better Auth sessions, permanent usernames, hosted handle claims, immutable DID reference, OAuth grant and replay state, authentication availability | Repositories, PDS hosting state, PLC documents, resource permissions |
-| PDS | Local DID existence, provisioning and hosting state, repositories and keys, PDS sessions or app passwords, access-token signing, resource authorization | OIDC identity links, Better Auth sessions, hosted username allocation, OAuth consent |
+| Accounts | OIDC identity links, Better Auth sessions, permanent usernames, hosted handle claims, PLC rotation key, immutable DID reference, OAuth grant and replay state, OAuth access-token signing, authentication availability | Repository private keys, PDS hosting state, PLC documents, resource permissions |
+| PDS | Local DID existence, provisioning and hosting state, repositories and private signing keys, PLC submission, PDS sessions or app passwords, OAuth access-token verification, resource authorization | OIDC identity links, Better Auth sessions, hosted username allocation or uniqueness, OAuth consent or access-token signing |
 | PLC Directory | DID operation log and resolved DID document | Login, username availability, handle reverse mapping |
 | Handle Registry | Stateless HTTPS publication of the active hosted handle mapping supplied by Accounts | Username allocation, account creation, DID documents |
 | Control Plane | Operator inventory, labels, desired lifecycle actions, and audit | OIDC identity data, Better Auth sessions, canonical identity data, OAuth consent, synchronous authorization decisions |
@@ -205,8 +219,8 @@ PROVISIONING
         | confirmed failure
         +--------------------------> NEEDS_USERNAME
         |
-        | local PDS account, PLC identity, repository,
-        | and hosted handle verification are ready
+        | local PDS account and repository exist,
+        | and PLC resolves the expected account state
         v
 ACTIVE
   username is permanently committed
@@ -227,10 +241,10 @@ Requirements are ranked in release priority order.
 1. **Common onboarding gate.** The configured OIDC provider must send a non-active user through account completion before product or AT Protocol OAuth access.
 2. **One confirmed username.** The member must be able to understand, choose, and confirm an available normalized username and its derived hosted handle.
 3. **Atomic activation.** Success commits the username, hosted handle, and DID together. Confirmed failure commits none of them and leaves the username available.
-4. **Exactly-once identity outcome.** Repeated submissions, callback retries, timeouts, and service retries for one operation must produce no more than one DID and one permanent username claim.
-5. **Safe retry.** A member must be able to retry an unknown or failed operation without creating a second DID.
+4. **Single active identity outcome.** Repeated submissions and unknown-outcome retries for one attempt must activate no more than one DID and one permanent username claim. Dangling downstream artifacts from a confirmed failure are not active Accounts identities.
+5. **Safe unknown-outcome retry.** A member must be able to retry a transport failure against the same pre-derived DID and signed PLC operation.
 6. **Single-subject OAuth.** An active member authorizes only their DID. A non-active member cannot receive a code or token, and consent submission must revalidate the current session and subject.
-7. **Handle verification.** An active hosted handle must resolve to the same DID that claims it. A failed, incomplete, or unknown hosted handle must not resolve.
+7. **Handle publication.** An active hosted handle must resolve to the same DID that claims it. A failed, incomplete, or unknown hosted handle must not resolve. Because Accounts owns both activation and the hosted mapping, Handle Registry is derived output rather than an activation gate.
 8. **Paired local deployment.** OIDC login, onboarding, consent, and token issuance must work with a configured local Accounts and PDS pair without a synchronous Control Plane dependency.
 9. **No managed-account surface.** The user experience and service contracts must not expose owner, child, descendant, managed-DID CRUD, multi-DID selection, or external DID attachment concepts.
 
@@ -271,7 +285,7 @@ These requirements are important but do not justify delaying the first safe loca
 - Better Auth accepts login identity only from the OIDC issuer discovered through deployment configuration. A valid browser session alone does not prove that AT Protocol onboarding is complete.
 - Only a successful Accounts provisioning operation may commit the user-to-DID reference and permanent username claim.
 - Accounts decides which scopes the user consents to. The PDS constrains those scopes to capabilities it supports and is willing to enforce.
-- The private PDS token operation must confirm the subject is a local, active DID and must stamp its configured issuer, audience, and lifetime.
+- Accounts must stamp the configured issuer, PDS audience, and maximum lifetime, sign with its dedicated OAuth key, and publish the corresponding public JWKS. The PDS must discover that key from the configured Accounts issuer and confirm that the subject is a local, active DID on protected requests.
 - The Control Plane's operator authorization does not grant authority to impersonate an end user in OAuth.
 
 ## Migration
@@ -288,14 +302,14 @@ SVPG recommends addressing value, usability, feasibility, and viability risks be
 - The first release can use one fixed Accounts and PDS pair and can reject external DID onboarding.
 - One OIDC provider supplies a stable issuer and subject through metadata discovered from a deployment-configured URL.
 - Members will accept a required onboarding page after OIDC login.
-- The paired PDS supports an idempotent account creation operation whose unknown outcome can be retried.
+- The paired PDS supports standard signing-key reservation, externally supplied DID and PLC operation account creation, and repository status checks.
 - Existing data is disposable development data.
 
 | Risk | Current assumption | Evidence needed before release |
 | --- | --- | --- |
 | Value | Members accept one required username step in exchange for a hosted AT identity | Observe completion and abandonment after OIDC login; establish a conversion baseline and target |
 | Usability | Members understand the difference between OIDC login, username, hosted handle, and DID when shown only the necessary concepts | Test the OIDC callback, username, conflict, retry, and returning-login prototypes with representative members |
-| Feasibility | One provisioning operation can safely span Accounts, PDS, PLC, repository creation, and handle publication | Demonstrate duplicate submissions, timeouts at each boundary, restart, and forward recovery without duplicate DIDs |
+| Feasibility | One provisioning attempt can safely span Accounts, PDS, PLC, repository creation, and handle publication | Demonstrate duplicate submissions, transport failures at each boundary, restart, and forward recovery with one active Accounts identity result |
 | Viability | A deployment-configured OIDC provider and permanent username policy are sufficient for the initial network | Verify OIDC discovery interoperability and basic username abuse controls |
 
 ### Discovery activities
@@ -319,13 +333,13 @@ SVPG recommends addressing value, usability, feasibility, and viability risks be
 
 - Duplicate username submissions and retries produce at most one successful username and DID pair.
 - A confirmed account creation failure leaves the username available.
-- A timeout retries the same operation identity and cannot produce a second DID.
+- A transport failure retains the same expected DID, verifies PDS and PLC state, and retries the same signed operation only when needed.
 - An incomplete account cannot resolve a hosted handle or OAuth subject.
 
 ### Security and protocol
 
 - OAuth consent binds the authenticated internal user to one server-resolved DID and rechecks it on submission.
-- The PDS token signer rejects non-local, inactive, or unsupported-scope requests.
+- Accounts rejects invalid token issuance inputs. PDS token verification rejects an invalid signature, issuer, audience, lifetime, or scope.
 - Existing PAR, PKCE, DPoP, replay, refresh rotation, and revocation tests continue to pass under the single-subject model.
 - Production remains blocked until the PDS resource-server criteria below pass.
 
@@ -344,7 +358,7 @@ SVPG recommends addressing value, usability, feasibility, and viability risks be
 
 ### Supportability
 
-- Accounts can distinguish an unknown operation from a confirmed failure without access to OIDC credentials or tokens.
+- Accounts can distinguish an unknown transport outcome from a confirmed PDS response failure without access to OIDC credentials or tokens.
 - A normal retry does not require direct database edits.
 
 ### Localizability

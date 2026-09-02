@@ -35,9 +35,9 @@ describe("accounts server", () => {
       ).bind("alice-id", "alice", "alice@example.com", true),
       env.DB.prepare(
         `INSERT INTO atproto_account
-          (user_id, username, did, operation_id, status)
+          (user_id, username, did, signing_key, status)
          VALUES (?, ?, ?, ?, 'active')`
-      ).bind("alice-id", "alice", did, "alice-operation"),
+      ).bind("alice-id", "alice", did, "did:key:zQ3shAliceSigningKey"),
     ]);
 
     await expect(
@@ -60,9 +60,9 @@ describe("accounts server", () => {
       ).bind("waiting-id", "waiting", "waiting@example.com", true),
       env.DB.prepare(
         `INSERT INTO atproto_account
-          (user_id, username, operation_id, status)
-         VALUES (?, ?, ?, 'provisioning')`
-      ).bind("waiting-id", "waiting", "waiting-operation"),
+          (user_id, username, status)
+         VALUES (?, ?, 'provisioning')`
+      ).bind("waiting-id", "waiting"),
     ]);
 
     await expect(

@@ -1,4 +1,4 @@
-import { sql } from "drizzle-orm";
+import { defineRelationsPart, sql } from "drizzle-orm";
 import { check, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 import { user } from "./better-auth";
@@ -12,7 +12,7 @@ export const atprotoAccount = sqliteTable(
       .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
       .notNull(),
     did: text("did").unique(),
-    operationId: text("operation_id").notNull().unique(),
+    signingKey: text("signing_key"),
     status: text("status")
       .$type<AtprotoAccountStatus>()
       .notNull()
@@ -21,9 +21,7 @@ export const atprotoAccount = sqliteTable(
       .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
       .$onUpdate(() => new Date())
       .notNull(),
-    userId: text("user_id")
-      .primaryKey()
-      .references(() => user.id),
+    userId: text("user_id").primaryKey(),
     username: text("username").notNull().unique(),
   },
   (table) => [
@@ -33,7 +31,23 @@ export const atprotoAccount = sqliteTable(
     ),
     check(
       "atproto_account_active_did_check",
-      sql`(${table.status} = 'active' AND ${table.did} IS NOT NULL) OR (${table.status} = 'provisioning' AND ${table.did} IS NULL)`
+      sql`${table.status} != 'active' OR ${table.did} IS NOT NULL`
+    ),
+    check(
+      "atproto_account_identity_material_check",
+      sql`(${table.did} IS NULL AND ${table.signingKey} IS NULL) OR (${table.did} IS NOT NULL AND ${table.signingKey} IS NOT NULL)`
     ),
   ]
+);
+
+export const atprotoAccountRelations = defineRelationsPart(
+  { atprotoAccount, user },
+  (r) => ({
+    atprotoAccount: {
+      user: r.one.user({
+        from: r.atprotoAccount.userId,
+        to: r.user.id,
+      }),
+    },
+  })
 );

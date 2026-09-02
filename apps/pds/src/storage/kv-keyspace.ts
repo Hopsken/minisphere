@@ -1,5 +1,6 @@
 export const pdsKvKeyspaces = {
   inviteCodes: "invite",
+  reservedSigningKeys: "reserved-signing-key",
 } as const;
 
 export type PdsKvKeyspaceName =

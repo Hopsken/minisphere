@@ -1,6 +1,7 @@
 import { readdir } from "node:fs/promises";
 import path from "node:path";
 
+import { Secp256k1PrivateKeyExportable } from "@atcute/crypto";
 import {
   cloudflareTest,
   readD1Migrations,
@@ -27,12 +28,29 @@ export default defineConfig(async () => {
       return { ...migration, name: `${directory}/migration.sql` };
     })
   );
+  const [entrywayRotationKey, oauthSigningKey, repoSigningKey] =
+    await Promise.all([
+      Secp256k1PrivateKeyExportable.createKeypair(),
+      Secp256k1PrivateKeyExportable.createKeypair(),
+      Secp256k1PrivateKeyExportable.createKeypair(),
+    ]);
+  const [
+    entrywayRotationKeyMultikey,
+    oauthSigningKeyMultikey,
+    repoSigningKeyDid,
+  ] = await Promise.all([
+    entrywayRotationKey.exportPrivateKey("multikey"),
+    oauthSigningKey.exportPrivateKey("multikey"),
+    repoSigningKey.exportPublicKey("did"),
+  ]);
 
   return {
     plugins: [
       cloudflareTest({
         miniflare: {
           bindings: {
+            ACCOUNTS_OAUTH_SIGNING_KEY: oauthSigningKeyMultikey,
+            ACCOUNTS_PLC_ROTATION_KEY: entrywayRotationKeyMultikey,
             BETTER_AUTH_SECRET:
               "local-test-better-auth-secret-at-least-32-characters",
             OIDC_CLIENT_ID: "accounts-test-client",
@@ -48,42 +66,115 @@ export default defineConfig(async () => {
           workers: [
             {
               modules: true,
+              name: "minisphere-directory",
+              routes: ["https://directory.test/*"],
+              script: `
+                const operations = new Map();
+
+                export default {
+                  async fetch(request) {
+                    const url = new URL(request.url);
+                    const [did, endpoint] = url.pathname.split("/").filter(Boolean);
+                    if (request.method === "POST" && did && !endpoint) {
+                      operations.set(decodeURIComponent(did), await request.json());
+                      return Response.json({ ok: true });
+                    }
+                    const operation = did ? operations.get(decodeURIComponent(did)) : null;
+                    if (request.method !== "GET" || endpoint !== "data" || !operation) {
+                      return Response.json({ message: "DID not registered" }, { status: 404 });
+                    }
+                    const { sig, ...state } = operation;
+                    return Response.json({ did: decodeURIComponent(did), ...state });
+                  }
+                };
+              `,
+            },
+            {
+              modules: true,
               name: "minisphere-pds",
               script: `
                 import { WorkerEntrypoint } from "cloudflare:workers";
 
+                const accounts = new Set();
+                const inviteCodes = new Set();
+
+                const handleRequest = async (request, env) => {
+                  const url = new URL(request.url);
+                  if (request.method === "POST" && url.pathname === "/xrpc/com.atproto.server.reserveSigningKey") {
+                    return Response.json({ signingKey: ${JSON.stringify(repoSigningKeyDid)} });
+                  }
+                  if (request.method === "GET" && url.pathname === "/xrpc/com.atproto.sync.getRepoStatus") {
+                    const did = url.searchParams.get("did") ?? "";
+                    return Response.json({ active: accounts.has(did), did });
+                  }
+                  if (request.method !== "POST" || url.pathname !== "/xrpc/com.atproto.server.createAccount") {
+                    return new Response("Not Found", { status: 404 });
+                  }
+
+                  const input = await request.json();
+                  if (!input.inviteCode || !inviteCodes.has(input.inviteCode)) {
+                    return Response.json(
+                      { error: "InvalidRequest", message: "Invalid invite code" },
+                      { status: 400 }
+                    );
+                  }
+                  if (input.handle.startsWith("unavailable.")) {
+                    return Response.json(
+                      { error: "InvalidRequest", message: "Rejected account" },
+                      { status: 400 }
+                    );
+                  }
+                  if (input.handle.startsWith("waiting.")) {
+                    throw new Error("Simulated timeout before account creation");
+                  }
+                  if (accounts.has(input.did)) {
+                    return Response.json(
+                      { error: "InvalidRequest", message: "Account already exists" },
+                      { status: 400 }
+                    );
+                  }
+
+                  accounts.add(input.did);
+                  inviteCodes.delete(input.inviteCode);
+                  if (!input.handle.startsWith("pds-only.")) {
+                    await env.DIRECTORY.fetch(
+                      new Request(\`https://directory.test/\${encodeURIComponent(input.did)}\`, {
+                        body: JSON.stringify(input.plcOp),
+                        headers: { "Content-Type": "application/json" },
+                        method: "POST"
+                      })
+                    );
+                  }
+                  if (input.handle.startsWith("recovered.")) {
+                    throw new Error("Simulated timeout after account creation");
+                  }
+                  return Response.json({
+                    accessJwt: "unused-test-access-token",
+                    did: input.did,
+                    handle: input.handle,
+                    refreshJwt: "unused-test-refresh-token"
+                  });
+                };
+
                 export default {
-                  fetch() {
-                    return new Response("Not implemented", { status: 501 });
+                  fetch(request, env) {
+                    return handleRequest(request, env);
                   }
                 };
 
                 export class PdsControlPlane extends WorkerEntrypoint {
-                  createAccount(input) {
-                    if (input.handle.startsWith("waiting.")) {
-                      throw new Error("Simulated unknown outcome");
-                    }
-                    if (input.handle.startsWith("unavailable.")) {
-                      return { reason: "handle_unavailable", status: "failed" };
-                    }
-                    const label = input.handle.split(".")[0].padEnd(24, "0").slice(0, 24);
-                    return {
-                      did: \`did:plc:\${label}\`,
-                      handle: input.handle,
-                      status: "active"
-                    };
-                  }
-
                   generateInviteCode() {
-                    return crypto.randomUUID();
+                    const inviteCode = crypto.randomUUID();
+                    inviteCodes.add(inviteCode);
+                    return inviteCode;
                   }
 
-                  issueOAuthAccessToken(input) {
-                    const claims = btoa(JSON.stringify(input));
-                    return \`test.\${claims}.\${crypto.randomUUID()}\`;
+                  fetch(request) {
+                    return handleRequest(request, this.env);
                   }
                 }
               `,
+              serviceBindings: { DIRECTORY: "minisphere-directory" },
             },
             {
               modules: true,

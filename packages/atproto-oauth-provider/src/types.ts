@@ -4,9 +4,8 @@ export interface AtprotoAuthorizationSubject {
   handle?: string;
 }
 
-export interface AtprotoAuthorizationPageInput {
+export interface AtprotoAuthorizationDetails {
   clientId: string;
-  consentToken: string;
   scope: string;
   subject: AtprotoAuthorizationSubject;
 }
@@ -30,14 +29,13 @@ export interface AtprotoOAuthProviderOptions {
     | AtprotoAuthorizationSubject
     | null
     | Promise<AtprotoAuthorizationSubject | null>;
+  getAuthorizationPageUrl: (consentToken: string) => Promise<string> | string;
+  getJwks: () => Promise<{ keys: JsonWebKey[] }> | { keys: JsonWebKey[] };
   getLoginUrl: (returnTo: string) => Promise<string> | string;
   issuer: string;
   issueAccessToken: (
     input: AtprotoAccessTokenInput
   ) => Promise<string> | string;
-  renderAuthorizationPage: (
-    input: AtprotoAuthorizationPageInput
-  ) => Promise<Response> | Response;
   resource: string;
   supportedScopes?: string[];
 }

@@ -9,6 +9,7 @@ import {
   createDpopProof,
   createPar,
   errorResponseSchema,
+  getAuthorizationConsent,
   loginActiveUser,
   origin,
   parBody,
@@ -36,6 +37,7 @@ describe("AT Protocol OAuth authorization server", () => {
       dpop_signing_alg_values_supported: ["ES256"],
       grant_types_supported: ["authorization_code", "refresh_token"],
       issuer: origin,
+      jwks_uri: `${origin}/oauth/jwks`,
       pushed_authorization_request_endpoint: `${origin}/oauth/par`,
       request_uri_parameter_supported: true,
       require_pushed_authorization_requests: true,
@@ -46,6 +48,27 @@ describe("AT Protocol OAuth authorization server", () => {
       scopes_supported: ["atproto"],
       token_endpoint: `${origin}/oauth/token`,
       token_endpoint_auth_methods_supported: ["none"],
+    });
+
+    const jwksResponse = await request("/oauth/jwks");
+    expect(jwksResponse.status).toBe(200);
+    expect(jwksResponse.headers.get("access-control-allow-origin")).toBe("*");
+    expect(jwksResponse.headers.get("cache-control")).toBe(
+      "public, max-age=300"
+    );
+    await expect(jwksResponse.json()).resolves.toStrictEqual({
+      keys: [
+        {
+          alg: "ES256K",
+          crv: "secp256k1",
+          key_ops: ["verify"],
+          kid: expect.stringMatching(/^did:key:/u),
+          kty: "EC",
+          use: "sig",
+          x: expect.stringMatching(/^[A-Za-z\d_-]{43}$/u),
+          y: expect.stringMatching(/^[A-Za-z\d_-]{43}$/u),
+        },
+      ],
     });
 
     const preflight = await request("/oauth/token", { method: "OPTIONS" });
@@ -234,15 +257,19 @@ describe("AT Protocol OAuth authorization server", () => {
       await pkceChallenge("h".repeat(64)),
       "subject-recheck-state"
     );
-    const page = await request(
-      `/oauth/authorize?client_id=${encodeURIComponent(clientId)}&request_uri=${encodeURIComponent(pushed.par.request_uri)}`,
-      { headers: { cookie } }
+    const { consentToken, details } = await getAuthorizationConsent(
+      pushed.par.request_uri,
+      cookie
     );
-    const html = await page.text();
-    expect(html).toContain('<p class="client">Local application</p>');
-    const consentToken =
-      /name="consent_token"[^>]*value="(?<token>[^"]+)"/u.exec(html)?.groups
-        ?.token ?? "";
+    expect(details).toStrictEqual({
+      clientId,
+      scope: "atproto",
+      subject: {
+        did: accountDid,
+        displayName: "account",
+        handle: "account.r2d2.party",
+      },
+    });
     await env.DB.prepare("DELETE FROM atproto_account WHERE did = ?")
       .bind(accountDid)
       .run();

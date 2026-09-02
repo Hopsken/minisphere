@@ -1,10 +1,8 @@
+import { parsePrivateMultikey, Secp256k1PrivateKey } from "@atcute/crypto";
 import { env, exports } from "cloudflare:workers";
 import { describe, expect, it } from "vitest";
 
-import {
-  createOAuthAccessToken,
-  verifyOAuthAccessToken,
-} from "../src/auth/session";
+import { verifyOAuthAccessToken } from "../src/auth/oauth";
 
 const accountsOrigin = "https://accounts.test";
 const pdsOrigin = "https://pds.test";
@@ -19,6 +17,93 @@ const tokenInput = {
   jwkThumbprint,
   scope: "atproto",
   subject,
+};
+
+const encoder = new TextEncoder();
+
+const encodeBase64Url = (value: Uint8Array) => {
+  let binary = "";
+  for (const byte of value) {
+    binary += String.fromCodePoint(byte);
+  }
+  return btoa(binary)
+    .replaceAll("+", "-")
+    .replaceAll("/", "_")
+    .replace(/=+$/u, "");
+};
+
+const getSigningKey = async () => {
+  const parsedKey = parsePrivateMultikey(env.TEST_ACCOUNTS_OAUTH_SIGNING_KEY);
+  if (parsedKey.type !== "secp256k1") {
+    throw new Error("Test OAuth signing key must use secp256k1");
+  }
+  return Secp256k1PrivateKey.importRaw(parsedKey.privateKeyBytes);
+};
+
+const oauthMetadataFetch: typeof fetch = async (input) => {
+  const url = new URL(
+    typeof input === "string"
+      ? input
+      : input instanceof URL
+        ? input.href
+        : input.url
+  );
+  if (url.href === `${accountsOrigin}/.well-known/oauth-authorization-server`) {
+    return Response.json({
+      issuer: accountsOrigin,
+      jwks_uri: `${accountsOrigin}/oauth/jwks`,
+    });
+  }
+  if (url.href === `${accountsOrigin}/oauth/jwks`) {
+    const key = await getSigningKey();
+    return Response.json({
+      keys: [
+        {
+          ...(await key.exportPublicKey("jwk")),
+          alg: "ES256K",
+          key_ops: ["verify"],
+          kid: await key.exportPublicKey("did"),
+          use: "sig",
+        },
+      ],
+    });
+  }
+  return new Response("Not Found", { status: 404 });
+};
+
+const createAccessToken = async (
+  overrides: Partial<typeof tokenInput> & { issuedAt?: number } = {}
+) => {
+  const input = { ...tokenInput, ...overrides };
+  const key = await getSigningKey();
+  const issuedAt = overrides.issuedAt ?? Math.floor(Date.now() / 1000);
+  const header = encodeBase64Url(
+    encoder.encode(
+      JSON.stringify({
+        alg: "ES256K",
+        kid: await key.exportPublicKey("did"),
+        typ: "at+jwt",
+      })
+    )
+  );
+  const payload = encodeBase64Url(
+    encoder.encode(
+      JSON.stringify({
+        aud: input.audience,
+        client_id: input.clientId,
+        cnf: { jkt: input.jwkThumbprint },
+        exp: issuedAt + input.expiresIn,
+        iat: issuedAt,
+        iss: input.issuer,
+        jti: crypto.randomUUID(),
+        scope: input.scope,
+        sub: input.subject,
+      })
+    )
+  );
+  const signingInput = `${header}.${payload}`;
+  const signature = await key.sign(encoder.encode(signingInput));
+  return `${signingInput}.${encodeBase64Url(signature)}`;
 };
 
 describe("PDS OAuth resource contract", () => {
@@ -36,17 +121,13 @@ describe("PDS OAuth resource contract", () => {
     });
   });
 
-  it("issues a short-lived access token with DID, audience, and DPoP claims", async () => {
-    await env.PDS_DB.prepare("INSERT OR IGNORE INTO accounts (did) VALUES (?)")
-      .bind(subject)
-      .run();
-    const token =
-      await exports.PdsControlPlane.issueOAuthAccessToken(tokenInput);
+  it("verifies an Accounts-issued token with DID, audience, and DPoP claims", async () => {
+    const token = await createAccessToken();
     const claims = await verifyOAuthAccessToken(
       token,
       accountsOrigin,
       pdsOrigin,
-      env.PDS_JWT_SECRET
+      oauthMetadataFetch
     );
 
     expect(claims).toMatchObject({
@@ -62,42 +143,56 @@ describe("PDS OAuth resource contract", () => {
   });
 
   it("rejects the wrong audience during token verification", async () => {
-    await env.PDS_DB.prepare("INSERT OR IGNORE INTO accounts (did) VALUES (?)")
-      .bind(subject)
-      .run();
-    const token =
-      await exports.PdsControlPlane.issueOAuthAccessToken(tokenInput);
+    const token = await createAccessToken();
     await expect(
       verifyOAuthAccessToken(
         token,
         accountsOrigin,
         "https://other-pds.example",
-        env.PDS_JWT_SECRET
+        oauthMetadataFetch
       )
     ).rejects.toThrow(/aud/u);
   });
 
-  it("does not issue an access token beyond five minutes", () => {
-    expect(() =>
-      createOAuthAccessToken(
-        { ...tokenInput, expiresIn: 301 },
-        env.PDS_JWT_SECRET
+  it("rejects an access token with a lifetime beyond five minutes", async () => {
+    const token = await createAccessToken({ expiresIn: 301 });
+    await expect(
+      verifyOAuthAccessToken(
+        token,
+        accountsOrigin,
+        pdsOrigin,
+        oauthMetadataFetch
       )
-    ).toThrow(/300/u);
+    ).rejects.toThrow(/lifetime/u);
   });
 
-  it("does not issue a token for a non-local or incomplete account", async () => {
-    let rejection: Error | undefined;
-    try {
-      await exports.PdsControlPlane.issueOAuthAccessToken({
-        ...tokenInput,
-        subject: "did:plc:bbbbbbbbbbbbbbbbbbbbbbbb",
-      });
-    } catch (error) {
-      if (error instanceof Error) {
-        rejection = error;
-      }
-    }
-    expect(rejection?.message).toMatch(/active local/u);
+  it("rejects an access token issued in the future", async () => {
+    const now = Math.floor(Date.now() / 1000);
+    const token = await createAccessToken({ issuedAt: now + 60 });
+    await expect(
+      verifyOAuthAccessToken(
+        token,
+        accountsOrigin,
+        pdsOrigin,
+        oauthMetadataFetch,
+        now
+      )
+    ).rejects.toThrow(/lifetime/u);
+  });
+
+  it("rejects a token not signed by Accounts", async () => {
+    const token = await createAccessToken();
+    const parts = token.split(".");
+    const signature = parts[2] ?? "";
+    const replacement = signature.startsWith("A") ? "B" : "A";
+    parts[2] = `${replacement}${signature.slice(1)}`;
+    await expect(
+      verifyOAuthAccessToken(
+        parts.join("."),
+        accountsOrigin,
+        pdsOrigin,
+        oauthMetadataFetch
+      )
+    ).rejects.toThrow(/signature/u);
   });
 });

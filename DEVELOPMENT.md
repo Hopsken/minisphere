@@ -10,10 +10,12 @@ This file records the current implementation state and important architecture de
 - Its frontend environment matches the Control Plane stack: Vite, TanStack Router, TanStack Query, Tailwind CSS, and Base UI shadcn conventions.
 - It authenticates users through one deployment-configured generic OIDC provider. Local registration and primary passwords are disabled.
 - Each Better Auth user has zero or one `atproto_account`. That record reserves one permanent normalized username and becomes active with one immutable DID. Hosted handles are derived from usernames and `PUBLIC_HANDLE_DOMAIN`.
-- Account completion uses `needs_username`, `provisioning`, and `active` states. Unknown PDS outcomes keep the same operation ID for safe retry. Confirmed failure releases the provisional username claim.
-- Accounts calls the private, idempotent `PdsControlPlane.createAccount()` operation and exposes active-only handle resolution through `AccountsEntrypoint`.
+- Account completion uses `needs_username`, `provisioning`, and `active` states. A transport failure keeps the pre-derived DID and signed PLC operation for status checks and retry. A confirmed PDS response failure releases the provisional username claim.
+- Accounts gets one-time account invites from `PdsControlPlane.generateInviteCode()` and provisions through standard `com.atproto.server.reserveSigningKey` and `com.atproto.server.createAccount` XRPC methods exposed by `PdsControlPlane.fetch()`. It exposes active-only handle resolution through `AccountsEntrypoint`.
+- Accounts owns the PLC rotation private key. It derives the DID from the genesis operation before PDS account creation and activates only after PDS account and repository state and resolved PLC state match the expected identity.
 - Accounts provides the public-client AT Protocol OAuth authorization-code flow through a dedicated Better Auth plugin. App passwords are not implemented.
-- OAuth protocol and replay state uses database-backed Better Auth verification records. Consent binds one server-resolved active DID to the current user. The browser does not select or submit a DID.
+- OAuth protocol and replay state uses database-backed Better Auth verification records. Consent binds one server-resolved active DID to the current user. A React route renders server-validated consent details; the browser does not select or submit a DID.
+- Accounts signs DPoP-bound OAuth access JWTs with a dedicated private key and publishes the corresponding public JWKS.
 - Confidential `private_key_jwt` clients and client signing-key continuity are deferred and are not advertised.
 
 ### PLC Directory
@@ -21,6 +23,7 @@ This file records the current implementation state and important architecture de
 - The private PLC Directory supports DID registration, resolution, updates, recovery, and audit logs.
 - D1 stores the append-only PLC operation log and derived DID state.
 - The PDS submits genesis operations through its private `DIRECTORY` service binding.
+- Accounts reads resolved PLC state through its own `DIRECTORY` binding before activation. It does not submit operations.
 
 ### Handle Registry
 
@@ -30,16 +33,17 @@ This file records the current implementation state and important architecture de
 
 ### PDS
 
-- Entryway account creation uses the private `PdsControlPlane.createAccount()` operation and supports new local accounts only.
-- The PDS validates handle syntax, the KV-backed invite code, and the PLC recovery key. It rejects primary account passwords.
+- Entryway account creation uses standard signing-key reservation and account-creation XRPC methods and supports new local accounts only.
+- The PDS requires a KV-backed invite for every account creation and validates handle syntax, the DID and PLC operation, its canonical endpoint, and the reserved repository signing key. The standalone path also validates the PLC recovery key. Both paths reject primary account passwords.
 - Account and refresh-token state lives in PDS D1. Hosted handles live in Accounts. The PDS does not store primary account passwords.
-- The PDS stores one durable operation row before repository or PLC work. The operation ID deterministically derives one repository key, PLC genesis operation, and DID, so unknown outcomes can be retried without creating a second identity.
+- PDS KV stores temporary repository private signing-key reservations. Accounts stores the public signing key and pre-derived DID, so an unknown response can be checked and retried against the same identity material.
 - A DID-named `RepoDO` stores each repository, repository signing key, schema, and bundled migrations through `@minisphere/repo-do`.
-- Account creation generates the repository key, creates and submits the PLC genesis operation, initializes the repository, and issues the first access and refresh JWTs.
+- Entryway account creation validates the Accounts-created genesis PLC operation, initializes the repository with the reserved private signing key, submits the PLC operation, records the account, and issues the first PDS session JWTs.
+- The PDS does not own hosted-handle uniqueness. Accounts owns username allocation and the active handle mapping.
 - `PdsControlPlane.generateInviteCode()` exposes invite creation to Accounts through a named Worker RPC entrypoint. Invite generation has no public HTTP route.
-- `PdsControlPlane.issueOAuthAccessToken()` requires an active local subject and creates access JWTs with that DID, PDS audience, OAuth scope and client ID, and DPoP key thumbprint. Protected-resource metadata names Accounts as the authorization server.
-- Successful account creation removes the invite from KV. Cleanup failure is logged without changing the successful account response.
-- `getRepoStatus` and sync `getRecord` read initialized repositories. Session creation, other session methods, record mutations, repository export, and repository subscriptions are not implemented.
+- The PDS discovers Accounts OAuth verification keys from the `jwks_uri` in authorization-server metadata. Protected-resource metadata names Accounts as the authorization server.
+- Successful account creation removes its invite and any reserved signing key from KV. Cleanup failure is logged without changing the successful account response.
+- `getRepoStatus` requires both a PDS account record and a readable initialized repository. Sync `getRecord` reads initialized repositories. Session creation, other session methods, record mutations, repository export, and repository subscriptions are not implemented.
 - PDS XRPC routes do not yet validate OAuth access JWTs, DPoP `ath`, or AT Protocol repository scopes. Future enforcement will use `@atproto/oauth-scopes`.
 
 ### Control Plane
@@ -61,17 +65,18 @@ This file records the current implementation state and important architecture de
 - A PLC `alsoKnownAs` value is a handle claim, not proof of the reverse mapping. The stateless Handle Registry completes reverse verification with the DID supplied by Accounts.
 - The Control Plane database defines which DIDs it manages. Derived identity fields and primary account credentials do not belong in this database.
 - Access and refresh JWTs are session artifacts and are not persisted by the Control Plane.
-- The PDS signs OAuth access JWTs. Accounts owns authorization and refresh state but cannot mint a token for a different issuer or resource audience.
+- Accounts owns OAuth authorization, refresh state, and access-token signing. The PDS is the resource server and verifies the Accounts signature, configured issuer and audience, DPoP binding, scope, and local active subject before granting access.
 - Primary account authentication does not use a PDS password. Future app-password compatibility is a separate capability.
 - One Durable Object hosts one DID repository and uses the DID as its object name.
 - `packages/repo-do` owns `RepoDO`, repository storage, its Drizzle schema, and bundled migrations. The PDS owns global account and refresh-token D1 state.
-- Entryway account creation is idempotent by operation ID. Unknown outcomes stay reserved and retry the same operation. Confirmed failure releases the provisional Accounts username claim.
-- `PDS_ROTATION_KEY` is also the stable key-derivation secret for pending Entryway operations. It must not change while an operation is incomplete. A changed derived DID is rejected rather than duplicated.
+- Entryway account creation follows the AT Protocol reference flow: PDS reserves the repository signing key, Accounts signs the genesis PLC operation and derives the DID, and PDS validates and registers it through standard XRPC.
+- Identity-result retry is anchored by the DID and signed PLC operation stored during `provisioning`, not by a private operation ID. Unknown transport outcomes retain that material; confirmed PDS response failures release the provisional Accounts username.
+- `ACCOUNTS_PLC_ROTATION_KEY` is the Entryway's PLC rotation private key. Invitation codes authorize account creation, while the PDS validates the submitted genesis operation independently of the identity of its rotation key. `PDS_ROTATION_KEY` remains the private rotation key for standalone invite-based creation.
 - Migration generation commands require an explicit, readable migration name.
 
 ## Next
 
-1. Run an end-to-end account creation and handle verification test through Accounts, PDS, PLC Directory, and Handle Registry.
+1. Run a deployed end-to-end account creation test through Accounts, PDS, PLC Directory, repository storage, and derived Handle Registry publication.
 2. Add PDS OAuth resource-request DPoP and scope enforcement, then implement confidential `private_key_jwt` clients with signing-key continuity.
 3. Implement the remaining PDS session methods, authenticated record mutations, repository export, and repository event subscriptions.
 4. Configure Cloudflare Access before deploying the Control Plane.

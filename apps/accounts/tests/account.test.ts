@@ -62,15 +62,13 @@ describe("Entryway account API", () => {
     const first = await createAccount(cookie, "Alice-Entryway");
     const account = accountSchema.parse(await first.json());
 
-    expect({ account, status: first.status }).toStrictEqual({
-      account: {
-        did: "did:plc:alice-entryway0000000000",
-        handle: "alice-entryway.r2d2.party",
-        handleDomain: "r2d2.party",
-        state: "active",
-        username: "alice-entryway",
-      },
-      status: 201,
+    expect(first.status).toBe(201);
+    expect(account).toStrictEqual({
+      did: expect.stringMatching(/^did:plc:[a-z2-7]{24}$/u),
+      handle: "alice-entryway.r2d2.party",
+      handleDomain: "r2d2.party",
+      state: "active",
+      username: "alice-entryway",
     });
 
     const second = await createAccount(cookie, "alice-entryway");
@@ -85,28 +83,28 @@ describe("Entryway account API", () => {
       .bind("alice-entryway")
       .first();
     expect(row).toStrictEqual({
-      did: "did:plc:alice-entryway0000000000",
+      did: account.state === "active" ? account.did : null,
       status: "active",
       username: "alice-entryway",
     });
   });
 
-  it("keeps an unknown outcome reserved and retries the same operation", async () => {
+  it("keeps an unknown outcome on the same expected DID", async () => {
     const cookie = await login("waiting-entryway-user@example.com");
     const first = await createAccount(cookie, "waiting");
     const firstBody = accountSchema.parse(await first.json());
-    const operation = await env.DB.prepare(
-      "SELECT operation_id FROM atproto_account WHERE username = ?"
+    const identity = await env.DB.prepare(
+      "SELECT did, signing_key FROM atproto_account WHERE username = ?"
     )
       .bind("waiting")
-      .first<{ operation_id: string }>();
+      .first<{ did: string; signing_key: string }>();
 
     const retry = await createAccount(cookie, "waiting");
-    const retriedOperation = await env.DB.prepare(
-      "SELECT operation_id FROM atproto_account WHERE username = ?"
+    const retriedIdentity = await env.DB.prepare(
+      "SELECT did, signing_key FROM atproto_account WHERE username = ?"
     )
       .bind("waiting")
-      .first<{ operation_id: string }>();
+      .first<{ did: string; signing_key: string }>();
 
     expect({ body: firstBody, status: first.status }).toStrictEqual({
       body: {
@@ -118,9 +116,51 @@ describe("Entryway account API", () => {
       status: 202,
     });
     expect(retry.status).toBe(202);
-    expect(retriedOperation).toStrictEqual(operation);
+    expect(identity).toStrictEqual({
+      did: expect.stringMatching(/^did:plc:[a-z2-7]{24}$/u),
+      signing_key: expect.stringMatching(/^did:key:/u),
+    });
+    expect(retriedIdentity).toStrictEqual(identity);
     await expect(
       exports.AccountsEntrypoint.resolveHandle("waiting.r2d2.party")
+    ).resolves.toBeNull();
+  });
+
+  it("recovers a timed-out response by verifying PDS and PLC state", async () => {
+    const cookie = await login("recovered-entryway-user@example.com");
+    const response = await createAccount(cookie, "recovered");
+    const account = accountSchema.parse(await response.json());
+
+    expect(response.status).toBe(201);
+    expect(account).toMatchObject({
+      did: expect.stringMatching(/^did:plc:[a-z2-7]{24}$/u),
+      state: "active",
+      username: "recovered",
+    });
+  });
+
+  it("does not activate from a successful PDS response without PLC state", async () => {
+    const cookie = await login("pds-only-entryway-user@example.com");
+    const response = await createAccount(cookie, "pds-only");
+    const account = accountSchema.parse(await response.json());
+    const retry = await createAccount(cookie, "pds-only");
+    const retryAccount = accountSchema.parse(await retry.json());
+
+    expect({ account, status: response.status }).toStrictEqual({
+      account: {
+        handle: "pds-only.r2d2.party",
+        handleDomain: "r2d2.party",
+        state: "provisioning",
+        username: "pds-only",
+      },
+      status: 202,
+    });
+    expect({ account: retryAccount, status: retry.status }).toStrictEqual({
+      account,
+      status: 202,
+    });
+    await expect(
+      exports.AccountsEntrypoint.resolveHandle("pds-only.r2d2.party")
     ).resolves.toBeNull();
   });
 
@@ -128,7 +168,7 @@ describe("Entryway account API", () => {
     const cookie = await login("failed-entryway-user@example.com");
     const response = await createAccount(cookie, "unavailable");
 
-    expect(response.status).toBe(409);
+    expect(response.status).toBe(502);
     await expect(
       env.DB.prepare("SELECT username FROM atproto_account WHERE username = ?")
         .bind("unavailable")

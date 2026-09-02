@@ -1,7 +1,7 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "38122098-7400-4b0c-808a-20ac8bcdae1d",
+  "id": "2be03b31-8476-41e5-a2cf-2ac5b1522e1f",
   "prevIds": [
     "d3305a42-cfa4-4fd2-92e1-449298786ed0"
   ],
@@ -27,22 +27,12 @@
       "entityType": "tables"
     },
     {
-      "type": "text",
-      "notNull": false,
-      "autoincrement": false,
-      "default": null,
-      "generated": null,
-      "name": "user_id",
-      "entityType": "columns",
-      "table": "atproto_account"
-    },
-    {
-      "type": "text",
+      "type": "integer",
       "notNull": true,
       "autoincrement": false,
-      "default": null,
+      "default": "(cast(unixepoch('subsecond') * 1000 as integer))",
       "generated": null,
-      "name": "username",
+      "name": "created_at",
       "entityType": "columns",
       "table": "atproto_account"
     },
@@ -58,11 +48,11 @@
     },
     {
       "type": "text",
-      "notNull": true,
+      "notNull": false,
       "autoincrement": false,
       "default": null,
       "generated": null,
-      "name": "operation_id",
+      "name": "signing_key",
       "entityType": "columns",
       "table": "atproto_account"
     },
@@ -82,17 +72,27 @@
       "autoincrement": false,
       "default": "(cast(unixepoch('subsecond') * 1000 as integer))",
       "generated": null,
-      "name": "created_at",
+      "name": "updated_at",
       "entityType": "columns",
       "table": "atproto_account"
     },
     {
-      "type": "integer",
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "user_id",
+      "entityType": "columns",
+      "table": "atproto_account"
+    },
+    {
+      "type": "text",
       "notNull": true,
       "autoincrement": false,
-      "default": "(cast(unixepoch('subsecond') * 1000 as integer))",
+      "default": null,
       "generated": null,
-      "name": "updated_at",
+      "name": "username",
       "entityType": "columns",
       "table": "atproto_account"
     },
@@ -455,21 +455,6 @@
         "id"
       ],
       "onUpdate": "NO ACTION",
-      "onDelete": "NO ACTION",
-      "nameExplicit": false,
-      "name": "fk_atproto_account_user_id_user_id_fk",
-      "entityType": "fks",
-      "table": "atproto_account"
-    },
-    {
-      "columns": [
-        "user_id"
-      ],
-      "tableTo": "user",
-      "columnsTo": [
-        "id"
-      ],
-      "onUpdate": "NO ACTION",
       "onDelete": "CASCADE",
       "nameExplicit": false,
       "name": "fk_account_user_id_user_id_fk",
@@ -598,15 +583,6 @@
     },
     {
       "columns": [
-        "username"
-      ],
-      "nameExplicit": false,
-      "name": "atproto_account_username_unique",
-      "entityType": "uniques",
-      "table": "atproto_account"
-    },
-    {
-      "columns": [
         "did"
       ],
       "nameExplicit": false,
@@ -616,10 +592,10 @@
     },
     {
       "columns": [
-        "operation_id"
+        "username"
       ],
       "nameExplicit": false,
-      "name": "atproto_account_operation_id_unique",
+      "name": "atproto_account_username_unique",
       "entityType": "uniques",
       "table": "atproto_account"
     },
@@ -648,8 +624,14 @@
       "table": "atproto_account"
     },
     {
-      "value": "(\"status\" = 'active' AND \"did\" IS NOT NULL) OR (\"status\" = 'provisioning' AND \"did\" IS NULL)",
+      "value": "\"status\" != 'active' OR \"did\" IS NOT NULL",
       "name": "atproto_account_active_did_check",
+      "entityType": "checks",
+      "table": "atproto_account"
+    },
+    {
+      "value": "(\"did\" IS NULL AND \"signing_key\" IS NULL) OR (\"did\" IS NOT NULL AND \"signing_key\" IS NOT NULL)",
+      "name": "atproto_account_identity_material_check",
       "entityType": "checks",
       "table": "atproto_account"
     }

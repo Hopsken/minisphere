@@ -20,7 +20,7 @@ import type {
   AuthorizationRequest,
   ConsentRecord,
 } from "./oauth-state";
-import { consumeRecord, createUniqueRecord } from "./storage";
+import { consumeRecord, createUniqueRecord, findRecord } from "./storage";
 import type { AtprotoOAuthProviderOptions } from "./types";
 
 const encoder = new TextEncoder();
@@ -138,7 +138,7 @@ const localRedirect = async (
   });
 };
 
-const renderConsent = async (
+const createConsentRedirect = async (
   browserRequest: HonoRequest,
   request: AuthorizationRequest,
   jwkThumbprint: string,
@@ -177,21 +177,74 @@ const renderConsent = async (
     },
     expiresAt(AUTHORIZATION_INTERACTION_LIFETIME_MS)
   );
-  const page = await options.renderAuthorizationPage({
-    clientId: request.clientId,
-    consentToken,
-    scope: request.scope.join(" "),
-    subject: authorizationSubject,
-  });
-  const headers = new Headers(page.headers);
-  headers.set("Cache-Control", "no-store");
-  headers.set(
-    "Content-Security-Policy",
-    "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'"
+  return localRedirect(
+    options.getAuthorizationPageUrl(consentToken),
+    options.issuer
   );
-  headers.set("Pragma", "no-cache");
-  headers.set("X-Content-Type-Options", "nosniff");
-  return new Response(page.body, { headers, status: page.status });
+};
+
+export const handleAuthorizationDetailsGet = async (
+  request: HonoRequest,
+  context: AuthContext,
+  options: AtprotoOAuthProviderOptions
+) => {
+  try {
+    const parameters = new URL(request.url).searchParams;
+    const keys = [...new Set(parameters.keys())];
+    if (
+      keys.length !== 1 ||
+      keys[0] !== "consent_token" ||
+      parameters.getAll("consent_token").length !== 1
+    ) {
+      throw new OAuthError(
+        "invalid_request",
+        "Authorization details require one consent_token"
+      );
+    }
+    const consent = await findRecord<ConsentRecord>(
+      context.internalAdapter,
+      "consent",
+      requireParameter(parameters, "consent_token")
+    );
+    if (!consent) {
+      throw new OAuthError(
+        "invalid_request",
+        "Authorization consent is invalid"
+      );
+    }
+    const userSession = await readUserSession(request, context);
+    if (!userSession || userSession.user.id !== consent.userId) {
+      throw new OAuthError(
+        "access_denied",
+        "Authenticated user does not match consent"
+      );
+    }
+    const subject = await options.getAuthorizationSubject(consent.userId);
+    if (!subject || subject.did !== consent.subjectDid) {
+      throw new OAuthError(
+        "access_denied",
+        "Authorization subject is no longer active for this user"
+      );
+    }
+    return Response.json(
+      {
+        clientId: consent.request.clientId,
+        scope: consent.request.scope.join(" "),
+        subject,
+      },
+      {
+        headers: {
+          "Cache-Control": "no-store",
+          Pragma: "no-cache",
+        },
+      }
+    );
+  } catch (error) {
+    if (!(error instanceof OAuthError)) {
+      context.logger.error("AT Protocol authorization details failed", error);
+    }
+    return oauthErrorResponse(error instanceof Error ? error : null);
+  }
 };
 
 export const handleAuthorizeGet = async (
@@ -239,7 +292,7 @@ export const handleAuthorizeGet = async (
           "Authorization interaction is invalid"
         );
       }
-      return renderConsent(
+      return createConsentRedirect(
         request,
         continuation.request,
         continuation.jwkThumbprint,
@@ -270,7 +323,7 @@ export const handleAuthorizeGet = async (
         "PAR request_uri is invalid or expired"
       );
     }
-    return renderConsent(
+    return createConsentRedirect(
       request,
       par.request,
       par.jwkThumbprint,

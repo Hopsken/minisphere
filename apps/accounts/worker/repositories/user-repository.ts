@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 
 import type { Database } from "../db";
 import { atprotoAccount } from "../db/schema/atproto-account";
@@ -10,15 +10,33 @@ export class UserRepository {
     this.db = db;
   }
 
-  async reserveAccount(userId: string, username: string, operationId: string) {
+  async reserveAccount(userId: string, username: string) {
     await this.db
       .insert(atprotoAccount)
       .values({
-        operationId,
         userId,
         username,
       })
       .onConflictDoNothing();
+
+    return this.findAccountByUserId(userId);
+  }
+
+  async saveProvisioningIdentity(
+    userId: string,
+    did: string,
+    signingKey: string
+  ) {
+    await this.db
+      .update(atprotoAccount)
+      .set({ did, signingKey })
+      .where(
+        and(
+          eq(atprotoAccount.userId, userId),
+          eq(atprotoAccount.status, "provisioning"),
+          isNull(atprotoAccount.did)
+        )
+      );
 
     return this.findAccountByUserId(userId);
   }
@@ -41,14 +59,14 @@ export class UserRepository {
     return !account;
   }
 
-  async activateAccount(userId: string, operationId: string, did: string) {
+  async activateAccount(userId: string, did: string) {
     await this.db
       .update(atprotoAccount)
       .set({ did, status: "active" })
       .where(
         and(
           eq(atprotoAccount.userId, userId),
-          eq(atprotoAccount.operationId, operationId),
+          eq(atprotoAccount.did, did),
           eq(atprotoAccount.status, "provisioning")
         )
       );
@@ -56,13 +74,12 @@ export class UserRepository {
     return this.findAccountByUserId(userId);
   }
 
-  async releaseProvisioningAccount(userId: string, operationId: string) {
+  async releaseProvisioningAccount(userId: string) {
     await this.db
       .delete(atprotoAccount)
       .where(
         and(
           eq(atprotoAccount.userId, userId),
-          eq(atprotoAccount.operationId, operationId),
           eq(atprotoAccount.status, "provisioning")
         )
       );

@@ -22,6 +22,15 @@ export const tokenResponseSchema = z.object({
   token_type: z.literal("DPoP"),
 });
 export const errorResponseSchema = z.object({ error: z.string() });
+const authorizationDetailsSchema = z.object({
+  clientId: z.string(),
+  scope: z.string(),
+  subject: z.object({
+    did: z.string(),
+    displayName: z.string().optional(),
+    handle: z.string().optional(),
+  }),
+});
 
 export interface DpopKey {
   privateKey: CryptoKey;
@@ -162,30 +171,48 @@ export const loginActiveUser = async () => {
 
   await env.DB.prepare(
     `INSERT OR IGNORE INTO atproto_account
-      (user_id, username, did, operation_id, status)
+      (user_id, username, did, signing_key, status)
      VALUES (?, ?, ?, ?, 'active')`
   )
-    .bind(user.id, "account", accountDid, "oauth-test-operation")
+    .bind(user.id, "account", accountDid, "did:key:zQ3shOAuthSigningKey")
     .run();
   return cookie;
 };
 
-export const authorizePar = async (requestUri: string, cookie: string) => {
-  const page = await request(
+export const getAuthorizationConsent = async (
+  requestUri: string,
+  cookie: string
+) => {
+  const redirect = await request(
     `/oauth/authorize?client_id=${encodeURIComponent(clientId)}&request_uri=${encodeURIComponent(requestUri)}`,
     { headers: { cookie } }
   );
-  expect(page.status).toBe(200);
-  const html = await page.text();
-  expect(html).not.toContain('name="did"');
-  const consentToken = /name="consent_token"[^>]*value="(?<token>[^"]+)"/u.exec(
-    html
-  )?.groups?.token;
+  expect(redirect.status).toBe(302);
+  const location = new URL(redirect.headers.get("location") ?? "", origin);
+  expect(location.pathname).toBe("/authorize");
+  const consentToken = location.searchParams.get("consent_token");
   expect(consentToken).toStrictEqual(expect.any(String));
+
+  const parameters = new URLSearchParams({
+    consent_token: consentToken ?? "",
+  });
+  const detailsResponse = await request(
+    `/oauth/authorization-details?${parameters.toString()}`,
+    { headers: { cookie } }
+  );
+  expect(detailsResponse.status).toBe(200);
+  return {
+    consentToken: consentToken ?? "",
+    details: authorizationDetailsSchema.parse(await detailsResponse.json()),
+  };
+};
+
+export const authorizePar = async (requestUri: string, cookie: string) => {
+  const { consentToken } = await getAuthorizationConsent(requestUri, cookie);
 
   return request("/oauth/authorize", {
     body: new URLSearchParams({
-      consent_token: consentToken ?? "",
+      consent_token: consentToken,
       decision: "allow",
     }).toString(),
     headers: {

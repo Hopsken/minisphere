@@ -199,7 +199,11 @@ export const createResponseNonce = (context: AuthContext) =>
     expiresAt(DPOP_NONCE_LIFETIME_MS)
   );
 
-export const metadataResponse = (issuer: string, supportedScopes: string[]) => {
+export const metadataResponse = (
+  issuer: string,
+  jwksUri: string,
+  supportedScopes: string[]
+) => {
   const headers = protocolHeaders();
   headers.set("Cache-Control", "public, max-age=300");
   headers.delete("Pragma");
@@ -211,6 +215,7 @@ export const metadataResponse = (issuer: string, supportedScopes: string[]) => {
     dpop_signing_alg_values_supported: ["ES256"],
     grant_types_supported: ["authorization_code", "refresh_token"],
     issuer,
+    jwks_uri: jwksUri,
     pushed_authorization_request_endpoint: endpoint(issuer, "/oauth/par"),
     request_uri_parameter_supported: true,
     require_pushed_authorization_requests: true,

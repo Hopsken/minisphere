@@ -1,4 +1,10 @@
-import { Secp256k1PrivateKeyExportable } from "@atcute/crypto";
+import { parseDidKey, Secp256k1PrivateKeyExportable } from "@atcute/crypto";
+import { deriveDidFromGenesisOp, signOperation } from "@atcute/did-plc";
+import type {
+  DidKeyString,
+  Operation,
+  UnsignedOperation,
+} from "@atcute/did-plc";
 import { env, exports } from "cloudflare:workers";
 import { jwtVerify } from "jose";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -35,11 +41,17 @@ interface CreateAccountOverrides {
   handle?: string;
   inviteCode?: string;
   password?: string;
+  plcOp?: Operation;
   recoveryKey?: string;
 }
 
 const createInviteCode = (): Promise<string> =>
   exports.PdsControlPlane.generateInviteCode();
+
+const normalizeDidKey = (value: string): DidKeyString => {
+  parseDidKey(value);
+  return `did:key:${value.slice("did:key:".length)}`;
+};
 
 const postAccount = async (
   overrides: CreateAccountOverrides = {}
@@ -57,6 +69,37 @@ const postAccount = async (
     headers: { "Content-Type": "application/json" },
     method: "POST",
   });
+};
+
+const prepareEntrywayAccount = async (handle: string) => {
+  const reservation = await request(
+    "/xrpc/com.atproto.server.reserveSigningKey",
+    {
+      body: "{}",
+      headers: { "Content-Type": "application/json" },
+      method: "POST",
+    }
+  );
+  const { signingKey: signingKeyInput } = z
+    .object({ signingKey: z.string() })
+    .parse(await reservation.json());
+  const signingKey = normalizeDidKey(signingKeyInput);
+  const rotationKey = await Secp256k1PrivateKeyExportable.createKeypair();
+  const operation: UnsignedOperation = {
+    alsoKnownAs: [`at://${handle}`],
+    prev: null,
+    rotationKeys: [await rotationKey.exportPublicKey("did")],
+    services: {
+      atproto_pds: {
+        endpoint: "https://pds.test",
+        type: "AtprotoPersonalDataServer",
+      },
+    },
+    type: "plc_operation",
+    verificationMethods: { atproto: signingKey },
+  };
+  const plcOp = await signOperation(operation, rotationKey);
+  return { did: await deriveDidFromGenesisOp(plcOp), handle, plcOp };
 };
 
 describe("com.atproto.server.createAccount", () => {
@@ -157,6 +200,80 @@ describe("com.atproto.server.createAccount", () => {
         jti: refreshClaims.jti,
       },
     });
+  });
+
+  it("accepts an Entryway-derived DID and PLC operation", async () => {
+    const input = await prepareEntrywayAccount("entryway.pds.test");
+    const inviteCode = await createInviteCode();
+    const response = await request("/xrpc/com.atproto.server.createAccount", {
+      body: JSON.stringify({ ...input, inviteCode }),
+      headers: { "Content-Type": "application/json" },
+      method: "POST",
+    });
+
+    expect(response.status).toBe(200);
+    const account = createAccountResponseSchema.parse(await response.json());
+    expect(account).toMatchObject({ did: input.did, handle: input.handle });
+
+    const [repoStatus, plcState] = await Promise.all([
+      request(
+        `/xrpc/com.atproto.sync.getRepoStatus?did=${encodeURIComponent(input.did)}`
+      ),
+      env.DIRECTORY.fetch(
+        new Request(
+          `https://minisphere-directory.service/${encodeURIComponent(input.did)}/data`
+        )
+      ),
+    ]);
+    await expect(repoStatus.json()).resolves.toStrictEqual({
+      active: true,
+      did: input.did,
+      rev: expect.any(String),
+    });
+    await expect(plcState.json()).resolves.toMatchObject({
+      alsoKnownAs: [`at://${input.handle}`],
+      did: input.did,
+      verificationMethods: input.plcOp.verificationMethods,
+    });
+    await expect(
+      new InviteCodeRepository(env.PDS_KV).exists(inviteCode)
+    ).resolves.toBeFalsy();
+  });
+
+  it("requires an invite for a valid externally signed PLC operation", async () => {
+    const input = await prepareEntrywayAccount("uninvited.pds.test");
+    const response = await request("/xrpc/com.atproto.server.createAccount", {
+      body: JSON.stringify(input),
+      headers: { "Content-Type": "application/json" },
+      method: "POST",
+    });
+
+    expect(response.status).toBe(400);
+    await expect(response.text()).resolves.toBe("Invite code is required");
+  });
+
+  it("rejects an invalid PLC operation even with an invite", async () => {
+    const input = await prepareEntrywayAccount("invalid-operation.pds.test");
+    const replacement = input.plcOp.sig.startsWith("A") ? "B" : "A";
+    const plcOp = {
+      ...input.plcOp,
+      sig: `${replacement}${input.plcOp.sig.slice(1)}`,
+    };
+    const response = await request("/xrpc/com.atproto.server.createAccount", {
+      body: JSON.stringify({
+        ...input,
+        did: await deriveDidFromGenesisOp(plcOp),
+        inviteCode: await createInviteCode(),
+        plcOp,
+      }),
+      headers: { "Content-Type": "application/json" },
+      method: "POST",
+    });
+
+    expect(response.status).toBe(400);
+    await expect(response.text()).resolves.toBe(
+      "DID and PLC operation do not match"
+    );
   });
 
   it("generates invite codes that expire after two hours", async () => {

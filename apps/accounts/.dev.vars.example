@@ -4,4 +4,5 @@ OIDC_CLIENT_ID=minisphere-accounts-local
 OIDC_CLIENT_SECRET=replace-with-local-oidc-client-secret
 OIDC_DISCOVERY_URL=https://identity.example.com/.well-known/openid-configuration
 PDS_ORIGIN=https://pds.test
-ACCOUNTS_ACCOUNT_RECOVERY_KEY=did:key:zQ3shu7MitzDmMa4jP59hSmKvezXm6hvANxGe163LzpULGRMs
+ACCOUNTS_PLC_ROTATION_KEY=z3vLkg9CfGbLKz4hVw59gaeakjfwZZ1mzG6VFpiCnXuGUXFe
+ACCOUNTS_OAUTH_SIGNING_KEY=z3vLgutAnqAMEebBpzwLH6XXgsbGAfj7EM4xtwdikAXkDirW

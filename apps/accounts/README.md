@@ -11,8 +11,12 @@ OIDC provider ──▶ Better Auth ──▶ React onboarding
                                       │
                                       ▼
 React SPA ────────▶ Hono routes ──▶ Accounts D1
-                         │
-                         └───────▶ PdsControlPlane.createAccount()
+                         │                  │
+                         │ standard XRPC    │ submits genesis operation
+                         ▼                  ▼
+                    paired PDS ───────▶ PLC Directory
+                         ▲                  ▲
+                         └──── verifies ────┘
 
 Handle Registry ──▶ AccountsEntrypoint.resolveHandle() ─────────▶ D1
 ```
@@ -21,19 +25,21 @@ The frontend uses Vite, React, TanStack Router, TanStack Query, Tailwind CSS, an
 
 ## Data ownership
 
-Accounts D1 contains the ordinary Better Auth tables and one optional `atproto_account` row per Better Auth user. That row owns the normalized username, provisioning operation ID, status, and immutable DID. A hosted handle is derived as `<username>.<PUBLIC_HANDLE_DOMAIN>`. Accounts is the source of truth for the active handle-to-DID mapping.
+Accounts D1 contains the ordinary Better Auth tables and one optional `atproto_account` row per Better Auth user. That row owns the normalized username, status, immutable DID, and public repository signing key used to reconstruct the expected genesis PLC operation. A hosted handle is derived as `<username>.<PUBLIC_HANDLE_DOMAIN>`. Accounts is the source of truth for the active handle-to-DID mapping.
 
-The PDS owns its account, session, and repository state. The PLC Directory owns DID documents. Accounts does not bind to the PLC Directory because the PDS submits PLC operations.
+The PDS owns its account, session, repository state, and repository private signing keys. The PLC Directory owns DID documents. Accounts binds to both services: it creates accounts through standard PDS XRPC methods and reads PDS and PLC state before activation. The PDS remains responsible for submitting the PLC operation. Handle Registry publication is derived from the active Accounts mapping and is not an activation input.
 
 ## AT Protocol accounts
 
 An authenticated user completes one account through `POST /api/account`:
 
-1. Accounts normalizes and atomically reserves the username with a new operation ID.
-2. Accounts derives the hosted handle and calls the private, idempotent `PdsControlPlane.createAccount()` operation.
-3. A confirmed PDS failure removes the provisional claim. The username is available again.
-4. An unknown outcome remains `provisioning`. A retry uses the same operation ID.
-5. Success stores the PDS-created DID and activates the username, handle, and DID together.
+1. Accounts normalizes and atomically reserves the username.
+2. Accounts calls `com.atproto.server.reserveSigningKey`; the PDS keeps the private repository key and returns its public `did:key`.
+3. Accounts signs a genesis PLC operation with its rotation key, derives the expected `did:plc`, and stores that DID and public signing key while the account is `provisioning`.
+4. Accounts gets a one-time invite through `PdsControlPlane.generateInviteCode()`, then calls standard `com.atproto.server.createAccount` with the invite, DID, hosted handle, and PLC operation. The PDS validates the invite, operation, and reserved key, initializes the repository, and submits the PLC operation.
+5. Accounts activates only after `com.atproto.sync.getRepoStatus` confirms the local account and repository and the PLC Directory returns the expected DID, handle claim, PDS endpoint, and signing key.
+
+A confirmed PDS response failure removes the provisional claim, making the username available again. A transport failure has an unknown outcome, so Accounts retains the pre-derived DID and reconstructs the same PLC operation on retry. It checks PDS and PLC state before sending another create request. This makes the active identity result stable without a private provisioning RPC or operation ID.
 
 The account states are `needs_username`, `provisioning`, and `active`. Product access, hosted handle resolution, and AT Protocol OAuth require `active`.
 
@@ -59,12 +65,13 @@ The login page has one `Continue with <OIDC_PROVIDER_NAME>` action. An authentic
 - `/.well-known/oauth-authorization-server`
 - `/oauth/par`
 - `/oauth/authorize`
+- `/oauth/authorization-details`
 - `/oauth/token`
 - `/oauth/revoke`
 
-Better Auth authenticates the user. Accounts resolves no more than one active DID for that user. An incomplete user goes to username onboarding and must restart client authorization after setup. The consent page shows the server-resolved DID and hosted handle but has no DID chooser or DID form input. Consent submission resolves the subject again and requires it to match the server-side transaction.
+Better Auth authenticates the user. Accounts resolves no more than one active DID for that user. An incomplete user goes to username onboarding and must restart client authorization after setup. The protocol handler redirects to the React `/authorize` route with an opaque consent token. That page reads the server-validated client, scope, DID, and handle from `/oauth/authorization-details`; it has no DID chooser or DID form input. Consent submission resolves the subject again and requires it to match the server-side transaction.
 
-OAuth request, replay, code, session, and refresh state uses the database-backed Better Auth `verification` table. No separate OAuth migration is required. Accounts asks `PdsControlPlane.issueOAuthAccessToken()` to create each DPoP-bound access JWT, so the PDS remains the signing and audience-validation boundary.
+OAuth request, replay, code, session, and refresh state uses the database-backed Better Auth `verification` table. No separate OAuth migration is required. As the authorization server, Accounts signs each five-minute, DPoP-bound access JWT with its dedicated secp256k1 key and publishes the public key at the `jwks_uri` in its authorization-server metadata. The PDS discovers that JWKS from the configured Accounts origin.
 
 The Worker enables Cloudflare's `global_fetch_strictly_public` compatibility flag for Client ID Metadata Document fetches. Keep this flag enabled to prevent same-zone and private-network routing during client discovery.
 
@@ -103,7 +110,8 @@ pnpm --filter @minisphere/accounts db:migrate:remote
 Bindings:
 
 - `DB` — authoritative Accounts D1 database
-- `PDS` — the PDS `PdsControlPlane` named entrypoint
+- `DIRECTORY` — PLC Directory service used to verify resolved DID state
+- `PDS` — the PDS `PdsControlPlane` named entrypoint; it issues account invites and its `fetch` handler exposes standard XRPC
 
 Variables:
 
@@ -118,7 +126,8 @@ Secrets:
 - `OIDC_CLIENT_SECRET` — client secret registered with the configured OIDC provider
 - `OIDC_DISCOVERY_URL` — configured provider's OpenID discovery document URL
 - `PDS_ORIGIN` — canonical PDS OAuth resource origin
-- `ACCOUNTS_ACCOUNT_RECOVERY_KEY` — public PLC recovery `did:key` included in new accounts
+- `ACCOUNTS_OAUTH_SIGNING_KEY` — secp256k1 private multikey used only to sign OAuth access JWTs; Accounts publishes its public JWK
+- `ACCOUNTS_PLC_ROTATION_KEY` — secp256k1 private multikey used by Accounts to sign genesis PLC operations
 
 ```sh
 pnpm --filter @minisphere/accounts exec wrangler secret put BETTER_AUTH_SECRET
@@ -126,7 +135,8 @@ pnpm --filter @minisphere/accounts exec wrangler secret put OIDC_CLIENT_ID
 pnpm --filter @minisphere/accounts exec wrangler secret put OIDC_CLIENT_SECRET
 pnpm --filter @minisphere/accounts exec wrangler secret put OIDC_DISCOVERY_URL
 pnpm --filter @minisphere/accounts exec wrangler secret put PDS_ORIGIN
-pnpm --filter @minisphere/accounts exec wrangler secret put ACCOUNTS_ACCOUNT_RECOVERY_KEY
+pnpm --filter @minisphere/accounts exec wrangler secret put ACCOUNTS_OAUTH_SIGNING_KEY
+pnpm --filter @minisphere/accounts exec wrangler secret put ACCOUNTS_PLC_ROTATION_KEY
 ```
 
 ## Development

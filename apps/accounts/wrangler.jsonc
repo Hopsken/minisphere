@@ -39,10 +39,15 @@
       "OIDC_CLIENT_SECRET",
       "OIDC_DISCOVERY_URL",
       "PDS_ORIGIN",
-      "ACCOUNTS_ACCOUNT_RECOVERY_KEY",
+      "ACCOUNTS_PLC_ROTATION_KEY",
+      "ACCOUNTS_OAUTH_SIGNING_KEY",
     ],
   },
   "services": [
+    {
+      "binding": "DIRECTORY",
+      "service": "minisphere-directory",
+    },
     {
       "binding": "PDS",
       "service": "minisphere-pds",

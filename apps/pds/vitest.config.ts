@@ -29,8 +29,14 @@ export default defineConfig(async () => {
     })
   );
 
-  const rotationKey = await Secp256k1PrivateKeyExportable.createKeypair();
-  const rotationKeyMultikey = await rotationKey.exportPrivateKey("multikey");
+  const [oauthSigningKey, rotationKey] = await Promise.all([
+    Secp256k1PrivateKeyExportable.createKeypair(),
+    Secp256k1PrivateKeyExportable.createKeypair(),
+  ]);
+  const [oauthSigningKeyMultikey, rotationKeyMultikey] = await Promise.all([
+    oauthSigningKey.exportPrivateKey("multikey"),
+    rotationKey.exportPrivateKey("multikey"),
+  ]);
   const jwtSecret = "test-pds-jwt-secret-with-at-least-32-bytes";
   const pdsOrigin = "https://pds.test";
   process.env.PDS_JWT_SECRET = jwtSecret;
@@ -45,6 +51,7 @@ export default defineConfig(async () => {
             PDS_JWT_SECRET: jwtSecret,
             PDS_ORIGIN: pdsOrigin,
             PDS_ROTATION_KEY: rotationKeyMultikey,
+            TEST_ACCOUNTS_OAUTH_SIGNING_KEY: oauthSigningKeyMultikey,
             TEST_MIGRATIONS: migrations,
           },
           workers: [
@@ -63,6 +70,14 @@ export default defineConfig(async () => {
                     return operation
                       ? Response.json([operation])
                       : Response.json({ message: "DID not found" }, { status: 404 });
+                  }
+                  if (request.method === "GET" && parts[1] === "data") {
+                    const operation = operations.get(did);
+                    if (!operation) {
+                      return Response.json({ message: "DID not found" }, { status: 404 });
+                    }
+                    const { sig, prev, type, ...state } = operation;
+                    return Response.json({ did, ...state });
                   }
                   if (request.method !== "POST" || parts.length !== 1) {
                     return new Response("Method Not Allowed", { status: 405 });
