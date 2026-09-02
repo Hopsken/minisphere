@@ -1,5 +1,4 @@
 export const pdsKvKeyspaces = {
-  inviteCodes: "invite",
   reservedSigningKeys: "reserved-signing-key",
 } as const;
 
@@ -25,10 +24,6 @@ export class KvKeyspace {
     options?: KVNamespacePutOptions
   ): Promise<void> {
     return this.kv.put(this.getKey(id), value, options);
-  }
-
-  async has(id: string): Promise<boolean> {
-    return (await this.get(id)) !== null;
   }
 
   delete(id: string): Promise<void> {

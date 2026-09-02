@@ -247,10 +247,6 @@ app.post(
     if (!inviteCode) {
       throw new HTTPException(400, { message: "Invite code is required" });
     }
-    const inviteCodes = new InviteCodeRepository(c.env.PDS_KV);
-    if (!(await inviteCodes.exists(inviteCode))) {
-      throw new HTTPException(400, { message: "Invalid invite code" });
-    }
 
     const pdsUrl = new URL(c.env.PDS_ORIGIN);
     const pdsHostname = pdsUrl.hostname;
@@ -278,11 +274,16 @@ app.post(
       c.env.PDS_JWT_SECRET
     );
 
+    const pdsDb = createPdsDatabase(c.env.PDS_DB);
+    const inviteCodes = new InviteCodeRepository(pdsDb);
+    if (!(await inviteCodes.claim(inviteCode))) {
+      throw new HTTPException(400, { message: "Invalid invite code" });
+    }
+
     const repo = c.env.REPO.getByName(material.did);
     await repo.reserveRepo(material.did, material.repoSigningKey);
     await ensureDirectoryOperation(c.env, material.did, material.operation);
 
-    const pdsDb = createPdsDatabase(c.env.PDS_DB);
     await pdsDb.batch([
       pdsDb
         .insert(accountsTable)
@@ -304,11 +305,6 @@ app.post(
       } catch (error) {
         console.error("failed to clear reserved signing key", error);
       }
-    }
-    try {
-      await inviteCodes.delete(inviteCode);
-    } catch (error) {
-      console.error("failed to delete used invite code", error);
     }
 
     return c.json({

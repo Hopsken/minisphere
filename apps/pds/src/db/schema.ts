@@ -4,6 +4,15 @@ export const accountsTable = sqliteTable("accounts", {
   did: text().primaryKey(),
 });
 
+export const accountInvitationsTable = sqliteTable(
+  "account_invitations",
+  {
+    code: text().primaryKey(),
+    expires_at: integer().notNull(),
+  },
+  (table) => [index("account_invitations_expires_at_idx").on(table.expires_at)]
+);
+
 export const refreshTokensTable = sqliteTable(
   "refresh_tokens",
   {
