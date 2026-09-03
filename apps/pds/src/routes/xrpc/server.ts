@@ -19,6 +19,7 @@ import {
 import { InviteCodeRepository } from "../../repositories/invite-code";
 import { SigningKeyReservationRepository } from "../../repositories/signing-key-reservation";
 import { lexiconJsonValidator } from "../../utils/lexicon-validator";
+import { zValidator } from "../../utils/z-validator";
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -46,6 +47,7 @@ const entrywayAccountSchema = z.object({
     .transform(
       (value): DidPlcString => `did:plc:${value.slice("did:plc:".length)}`
     ),
+  handle: z.string(),
   inviteCode: z.string().min(1),
   plcOp: z.looseObject({
     alsoKnownAs: z.array(z.string()),
@@ -110,14 +112,9 @@ app.post(
 app.post(
   "/com.atproto.server.createAccount",
   lexiconJsonValidator(CreateAccount.mainSchema.input.schema),
+  zValidator("json", entrywayAccountSchema),
   async (c) => {
-    const input = c.req.valid("json");
-    const entrywayAccount = entrywayAccountSchema.safeParse(input);
-    if (!entrywayAccount.success) {
-      throw new HTTPException(400, { cause: entrywayAccount.error });
-    }
-    const { did, inviteCode, plcOp } = entrywayAccount.data;
-    const { handle } = input;
+    const { did, handle, inviteCode, plcOp } = c.req.valid("json");
     const pdsDb = createPdsDatabase(c.env.PDS_DB);
     if (!(await new InviteCodeRepository(pdsDb).claim(inviteCode))) {
       throw new HTTPException(400, { message: "Invalid invite code" });

@@ -34,10 +34,10 @@ The PDS owns its account, session, repository state, and repository private sign
 An authenticated user completes one account through `POST /api/account`:
 
 1. Accounts normalizes and atomically reserves the username.
-2. Accounts calls `com.atproto.server.reserveSigningKey`; the PDS keeps the private repository key and returns its public `did:key`.
-3. Accounts signs a genesis PLC operation with its rotation key, derives the expected `did:plc`, and stores that DID and public signing key while the account is `provisioning`.
-4. Accounts gets a one-time invite through `PdsControlPlane.generateInviteCode()`, then calls standard `com.atproto.server.createAccount` with the invite, DID, hosted handle, and PLC operation. The PDS claims the invite, trusts the Accounts-supplied identity material, initializes the repository, and submits the PLC operation.
-5. Accounts activates only after `com.atproto.sync.getRepoStatus` confirms the local account and repository and the PLC Directory returns the expected DID, handle claim, PDS endpoint, and signing key.
+2. For a new provisioning attempt, Accounts calls `com.atproto.server.reserveSigningKey`. The PDS keeps the private repository key and returns its public `did:key`. Accounts signs the genesis PLC operation, derives the expected `did:plc`, and stores the DID and public signing key.
+3. Accounts reconstructs the same PLC operation and checks the PDS repository and PLC Directory before it starts another create request. A complete matching result activates the account. An unavailable result keeps the account in `provisioning`.
+4. If the account is missing, Accounts gets a one-time invite through `PdsControlPlane.generateInviteCode()` and calls `com.atproto.server.createAccount` with the invite, DID, hosted handle, and PLC operation. The PDS validates the required request shape, claims the invite and reserved signing key, initializes the repository, and submits the PLC operation.
+5. Accounts checks the PDS and PLC state again. It activates the account only when the local repository and the PLC identity state match the expected DID, handle, PDS endpoint, rotation keys, and repository signing key.
 
 A confirmed PDS response failure removes the provisional claim, making the username available again. A transport failure has an unknown outcome, so Accounts retains the pre-derived DID and reconstructs the same PLC operation on retry. It checks PDS and PLC state before sending another create request. This makes the active identity result stable without a private provisioning RPC or operation ID.
 
