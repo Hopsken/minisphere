@@ -56,6 +56,7 @@ The example Worker secrets are for local development only. Production secrets ar
 ## Commands
 
 ```sh
+pnpm dev              # Run Town, PLC Directory, PDS, Accounts, and Handle Registry
 pnpm dev:accounts     # Run Accounts and its PDS dependency
 pnpm dev:control      # Run the Control Plane and its dependencies
 pnpm dev:pds          # Run the PDS and Directory

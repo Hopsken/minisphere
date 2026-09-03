@@ -25,6 +25,16 @@
       "persistent": true,
       "interactive": true
     },
+    "//#dev:stack": {
+      "cache": false,
+      "with": [
+        "@minisphere/town#dev",
+        "@minisphere/directory#dev",
+        "@minisphere/pds#dev",
+        "@minisphere/accounts#dev",
+        "@minisphere/handle-registry#dev"
+      ]
+    },
     "//#format:check:root": {},
     "//#lint:root": {},
     "test": {
