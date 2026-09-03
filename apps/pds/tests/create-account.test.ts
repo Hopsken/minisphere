@@ -282,46 +282,15 @@ describe("com.atproto.server.createAccount", () => {
     });
   });
 
-  it("requires an invite for a valid externally signed PLC operation", async () => {
+  it("requires a non-empty invite", async () => {
     const input = await prepareEntrywayAccount("uninvited.pds.test");
     const response = await request("/xrpc/com.atproto.server.createAccount", {
-      body: JSON.stringify(input),
+      body: JSON.stringify({ ...input, inviteCode: "" }),
       headers: { "Content-Type": "application/json" },
       method: "POST",
     });
 
     expect(response.status).toBe(400);
-  });
-
-  it("rejects an invalid PLC operation even with an invite", async () => {
-    const input = await prepareEntrywayAccount("invalid-operation.pds.test");
-    const inviteCode = await createInviteCode();
-    const replacement = input.plcOp.sig.startsWith("A") ? "B" : "A";
-    const plcOp = {
-      ...input.plcOp,
-      sig: `${replacement}${input.plcOp.sig.slice(1)}`,
-    };
-    const response = await request("/xrpc/com.atproto.server.createAccount", {
-      body: JSON.stringify({
-        ...input,
-        did: await deriveDidFromGenesisOp(plcOp),
-        inviteCode,
-        plcOp,
-      }),
-      headers: { "Content-Type": "application/json" },
-      method: "POST",
-    });
-
-    expect(response.status).toBe(400);
-    await expect(response.text()).resolves.toBe(
-      "DID and PLC operation do not match"
-    );
-
-    const retry = await postAccount({
-      handle: "valid-after-invalid.pds.test",
-      inviteCode,
-    });
-    expect(retry.status).toBe(200);
   });
 
   it("stores invite codes with a two-hour expiry", async () => {
@@ -480,28 +449,12 @@ describe("com.atproto.server.createAccount", () => {
     await expect(retry.text()).resolves.toBe("Invalid invite code");
   });
 
-  it("rejects incomplete account material and primary passwords", async () => {
-    const input = await prepareEntrywayAccount("incomplete.pds.test");
-    const inviteCode = await createInviteCode();
-    const incompleteAccount = await request(
-      "/xrpc/com.atproto.server.createAccount",
-      {
-        body: JSON.stringify({
-          did: input.did,
-          handle: input.handle,
-          inviteCode,
-        }),
-        headers: { "Content-Type": "application/json" },
-        method: "POST",
-      }
-    );
-    expect(incompleteAccount.status).toBe(400);
-
-    const primaryPassword = await postAccount({
+  it("ignores standard account fields unused by Entryway", async () => {
+    const response = await postAccount({
       handle: "password.pds.test",
       password: "primary-password-is-not-supported",
     });
-    expect(primaryPassword.status).toBe(400);
+    expect(response.status).toBe(200);
   });
 
   it("accepts a valid handle outside the PDS domain", async () => {

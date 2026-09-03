@@ -36,7 +36,7 @@ An authenticated user completes one account through `POST /api/account`:
 1. Accounts normalizes and atomically reserves the username.
 2. Accounts calls `com.atproto.server.reserveSigningKey`; the PDS keeps the private repository key and returns its public `did:key`.
 3. Accounts signs a genesis PLC operation with its rotation key, derives the expected `did:plc`, and stores that DID and public signing key while the account is `provisioning`.
-4. Accounts gets a one-time invite through `PdsControlPlane.generateInviteCode()`, then calls standard `com.atproto.server.createAccount` with the invite, DID, hosted handle, and PLC operation. The PDS validates the invite, operation, and reserved key, initializes the repository, and submits the PLC operation.
+4. Accounts gets a one-time invite through `PdsControlPlane.generateInviteCode()`, then calls standard `com.atproto.server.createAccount` with the invite, DID, hosted handle, and PLC operation. The PDS claims the invite, trusts the Accounts-supplied identity material, initializes the repository, and submits the PLC operation.
 5. Accounts activates only after `com.atproto.sync.getRepoStatus` confirms the local account and repository and the PLC Directory returns the expected DID, handle claim, PDS endpoint, and signing key.
 
 A confirmed PDS response failure removes the provisional claim, making the username available again. A transport failure has an unknown outcome, so Accounts retains the pre-derived DID and reconstructs the same PLC operation on retry. It checks PDS and PLC state before sending another create request. This makes the active identity result stable without a private provisioning RPC or operation ID.
