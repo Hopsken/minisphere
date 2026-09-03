@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tests/tsconfig.json",
-    "typegen": "wrangler types -c ./wrangler.jsonc -c ../../apps/directory/wrangler.jsonc",
+    "typegen": "wrangler types",
     "postinstall": "pnpm typegen"
   },
   "dependencies": {

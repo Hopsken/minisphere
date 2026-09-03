@@ -1,6 +1,8 @@
 import { exports } from "cloudflare:workers";
 import { describe, expect, it } from "vitest";
 
+import app from "../worker";
+
 const request = (path: string) =>
   exports.default.fetch(new Request(`https://town.hopsken.dev${path}`));
 
@@ -35,9 +37,46 @@ describe("Town server", () => {
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toStrictEqual({
       clientId: "https://town.hopsken.dev/oauth-client-metadata.json",
-      handleResolverOrigin: "https://pds.hopsken.dev",
       redirectUri: "https://town.hopsken.dev/oauth/callback",
       scope: "atproto",
+    });
+  });
+
+  it("resolves local .test handles through the development adapter", async () => {
+    const response = await request(
+      "/xrpc/com.atproto.identity.resolveHandle?handle=alice.r2d2.test"
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toStrictEqual({
+      did: "did:plc:aaaaaaaaaaaaaaaaaaaaaaaa",
+    });
+  });
+
+  it("resolves public handles with standard handle resolution", async () => {
+    const response = await request(
+      "/xrpc/com.atproto.identity.resolveHandle?handle=alice.example.com"
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toStrictEqual({
+      did: "did:plc:aaaaaaaaaaaaaaaaaaaaaaaa",
+    });
+  });
+
+  it("fails .test resolution before external requests when unconfigured", async () => {
+    const response = await app.request(
+      "https://town.hopsken.dev/xrpc/com.atproto.identity.resolveHandle?handle=alice.r2d2.test",
+      undefined,
+      {
+        PLC_DIRECTORY_ORIGIN: "https://plc.test",
+        PUBLIC_URL: "https://town.hopsken.dev",
+      }
+    );
+
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toStrictEqual({
+      message: "Local .test handle resolution is not configured",
     });
   });
 
@@ -54,7 +93,7 @@ describe("Town server", () => {
       status: 200,
     });
     await expect(response.json()).resolves.toMatchObject({
-      alsoKnownAs: ["at://alice.r2d2.party"],
+      alsoKnownAs: ["at://alice.r2d2.test"],
       id: "did:plc:aaaaaaaaaaaaaaaaaaaaaaaa",
     });
   });
@@ -67,7 +106,7 @@ describe("Town server", () => {
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toStrictEqual({
       did: "did:plc:aaaaaaaaaaaaaaaaaaaaaaaa",
-      handle: "alice.r2d2.party",
+      handle: "alice.r2d2.test",
     });
   });
 

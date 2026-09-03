@@ -4,7 +4,6 @@ import { routeTree } from "./routeTree.gen";
 
 export interface TownConfiguration {
   clientId: string;
-  handleResolverOrigin: string;
   redirectUri: string;
   scope: string;
 }

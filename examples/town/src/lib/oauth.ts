@@ -2,7 +2,6 @@ import {
   CompositeDidDocumentResolver,
   LocalActorResolver,
   PlcDidDocumentResolver,
-  WebDidDocumentResolver,
   XrpcHandleResolver,
 } from "@atcute/identity-resolver";
 import { configureOAuth } from "@atcute/oauth-browser-client";
@@ -40,11 +39,10 @@ export const configureTownOAuth = (
             apiUrl: window.location.origin,
             fetch: fetchPlcDocument,
           }),
-          web: new WebDidDocumentResolver(),
         },
       }),
       handleResolver: new XrpcHandleResolver({
-        serviceUrl: browserConfiguration.handleResolverOrigin,
+        serviceUrl: window.location.origin,
       }),
     }),
     metadata: {

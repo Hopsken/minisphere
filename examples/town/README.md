@@ -4,36 +4,31 @@ Town is a minimal AT Protocol OAuth client. It proves that a public browser clie
 
 ## Flow
 
-1. The user enters a handle. `@atcute/oauth-browser-client` asks the configured XRPC handle resolver for its DID.
-2. Atcute resolves the DID document through Town's PLC-backed API and reads the user's PDS service endpoint.
-3. Atcute discovers the PDS OAuth protected-resource metadata and its authorization server, then creates the PAR request, PKCE verifier, and DPoP key.
-4. Accounts authenticates the user and obtains consent for the resolved DID.
-5. Town receives the authorization response at `/oauth/callback`, exchanges the code, and verifies the returned identity again.
-6. Town sends the verified DID to its Worker. The Worker reads the DID's `alsoKnownAs` claim through the private PLC Directory binding and returns the handle for display.
+1. The user enters a handle. `@atcute/oauth-browser-client` asks Town's same-origin XRPC endpoint for its DID.
+2. Town's Worker uses standard DNS and HTTPS handle resolution. Handles under `.test` use the configured local XRPC adapter.
+3. Atcute resolves the DID document through Town's PLC-backed API and reads the user's PDS service endpoint.
+4. Atcute discovers the PDS OAuth protected-resource metadata and its authorization server, then creates the PAR request, PKCE verifier, and DPoP key.
+5. Accounts authenticates the user and obtains consent for the resolved DID.
+6. Town receives the authorization response at `/oauth/callback`, exchanges the code, verifies the returned identity, and displays the handle from the selected PLC Directory.
 
-Town does not bind to Accounts, the PDS, D1, KV, or a Durable Object.
+Town runs as an external client with a Worker, static assets, and configuration variables. It reaches AT Protocol services through HTTP discovery.
 
-## Binding and variables
+## Variables
 
-Binding:
+- `PUBLIC_URL` — canonical Town origin used by the OAuth Client ID Metadata Document and redirect URI.
+- `PLC_DIRECTORY_ORIGIN` — selected `did:plc` directory. The DID document selects the PDS, and PDS metadata selects the authorization server.
+- `DEV_HANDLE_RESOLVER_ORIGIN` — optional local XRPC transport for `.test` handles.
 
-- `DIRECTORY` — PLC Directory service used only to read the signed-in DID's handle claim.
-
-Variables:
-
-- `HANDLE_RESOLVER_ORIGIN` — XRPC service used only for the initial handle-to-DID lookup. The resolved DID document selects the PDS used for OAuth.
-- `PUBLIC_URL` — canonical public Town origin used by the OAuth Client ID Metadata Document and redirect URI.
-
-`/oauth-client-metadata.json` is Town's public client metadata document. Town requests only the `atproto` scope.
+`/oauth-client-metadata.json` is Town's public client metadata document. Town requests the `atproto` scope. The Worker exposes same-origin handle resolution and PLC reads to the browser.
 
 ## Development
 
 ```sh
-cp examples/town/.env.example examples/town/.env
-cp examples/town/.dev.vars.example examples/town/.dev.vars
 pnpm setup:local
-pnpm dev
+pnpm dev:town:local
 pnpm turbo test typecheck build --filter=@minisphere/town
 ```
 
-The Vite server uses `http://127.0.0.1:5174`. On loopback, Town uses the AT Protocol `http://localhost` development Client ID convention. The local variables point handle resolution to the Handle Registry on port `8789`; the resolved PLC document then points OAuth to the PDS on port `8787` and Accounts on port `5173`.
+The Vite server uses `http://127.0.0.1:5174`. On loopback, Town uses the AT Protocol `http://localhost` development Client ID convention. The default local variables select PLC Directory port `8788` and Handle Registry port `8789`; discovery then reaches PDS port `8787` and Accounts port `8790`.
+
+Use `pnpm dev:town` to run Town independently. Set `PLC_DIRECTORY_ORIGIN=https://plc.directory` in Town's `.dev.vars` to verify public handles and infrastructure.

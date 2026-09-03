@@ -21,9 +21,14 @@ export default defineConfig(({ mode }) => {
     resolve: {
       tsconfigPaths: true,
     },
+    server: {
+      host: "localhost",
+      port: 5175,
+      strictPort: true,
+    },
   };
   if (allowedHosts) {
-    config.server = { allowedHosts };
+    config.server = { ...config.server, allowedHosts };
   }
   return config;
 });

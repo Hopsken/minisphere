@@ -101,7 +101,7 @@ function TownPage() {
               id="handle"
               name="handle"
               onChange={(event) => setHandle(event.target.value)}
-              placeholder="alice.r2d2.party"
+              placeholder="alice.r2d2.test"
               required
               spellCheck={false}
               type="text"

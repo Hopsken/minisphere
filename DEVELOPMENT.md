@@ -2,7 +2,7 @@
 
 This file records the current implementation state and important architecture decisions. Keep entries concise and update them when a decision changes.
 
-## Current state — 2026-09-02
+## Current state — 2026-09-03
 
 ### Accounts
 
@@ -30,12 +30,14 @@ This file records the current implementation state and important architecture de
 - The Handle Registry is stateless and has no D1 database or registration API.
 - Wildcard HTTPS routes send the request hostname to `AccountsEntrypoint` through a trusted service binding.
 - `/.well-known/atproto-did` returns the DID supplied by Accounts; unknown handles return `404`.
+- `com.atproto.identity.resolveHandle` exposes the same Accounts-owned mapping for local `.test` resolution.
 
 ### Town example
 
 - Town is a minimal external AT Protocol OAuth browser client on React, TanStack Router, Atcute, Vite, and a Hono Worker.
 - It accepts a handle, resolves the DID, reads the PDS from the PLC DID document, discovers that PDS's authorization server, completes the OAuth flow through `@atcute/oauth-browser-client`, and displays the active user's handle.
-- Its only service binding is `DIRECTORY`. Town exposes PLC DID documents to its browser resolver and reads `alsoKnownAs` for the displayed handle. It does not bind to Accounts or the PDS and has no database or durable storage.
+- Town selects one PLC Directory origin and reaches it through HTTP. Its same-origin handle endpoint uses standard DNS and HTTPS resolution for public handles and a local XRPC adapter for `.test` handles.
+- Town has no database or durable storage. DID documents and OAuth metadata discover the PDS and authorization server.
 
 ### PDS
 

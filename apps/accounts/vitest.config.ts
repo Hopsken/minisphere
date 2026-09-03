@@ -59,6 +59,7 @@ export default defineConfig(async () => {
               "https://oidc.test/.well-known/openid-configuration",
             OIDC_PROVIDER_NAME: "Test Identity",
             PDS_ORIGIN: "https://pds.test",
+            PUBLIC_HANDLE_DOMAIN: "r2d2.party",
             PUBLIC_URL: "https://accounts.test",
             TEST_MIGRATIONS: migrations,
           },

@@ -40,6 +40,7 @@ export default defineConfig(async () => {
         miniflare: {
           bindings: {
             CONTROL_PLANE_ACCOUNT_RECOVERY_KEY: recoveryKey,
+            HANDLE_DOMAIN: "r2d2.party",
             PDS_ORIGIN: pdsOrigin,
             TEST_MIGRATIONS: migrations,
           },

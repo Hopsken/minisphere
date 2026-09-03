@@ -44,14 +44,10 @@ A minimal Relay is planned.
 
 ```sh
 pnpm install
-cp apps/accounts/.env.example apps/accounts/.env
-cp apps/accounts/.dev.vars.example apps/accounts/.dev.vars
-cp apps/control-plane/.env.example apps/control-plane/.env
-cp apps/control-plane/.dev.vars.example apps/control-plane/.dev.vars
-cp apps/pds/.dev.vars.example apps/pds/.dev.vars
-cp examples/town/.dev.vars.example examples/town/.dev.vars
 pnpm setup:local
 ```
+
+The setup command validates the fixed local topology, creates each missing `.env` and `.dev.vars` file from its project template, generates Worker types, and applies local database migrations. It preserves existing developer-owned files.
 
 Shared external dependencies, core toolchain packages, and direct `@atcute/*` dependencies are defined in the pnpm catalog in `pnpm-workspace.yaml`. Workspace manifests reference them with the `catalog:` protocol, and `pnpm add` prefers matching catalog entries.
 
@@ -61,12 +57,14 @@ The example Worker secrets are for local development only. Production secrets ar
 
 ```sh
 pnpm dev              # Run Town, PLC Directory, PDS, Accounts, and Handle Registry
+pnpm dev:atproto      # Run PLC Directory, PDS, Accounts, and Handle Registry
 pnpm dev:accounts     # Run Accounts and its PDS dependency
 pnpm dev:control      # Run the Control Plane and its dependencies
 pnpm dev:pds          # Run the PDS and Directory
 pnpm dev:directory    # Run only the Directory
 pnpm dev:handle-registry # Run the Handle Registry and its dependencies
-pnpm dev:town         # Run Town and the Directory
+pnpm dev:town         # Run Town with its current local configuration
+pnpm dev:town:local   # Run Town and the complete local AT Protocol service group
 pnpm check            # Run all repository checks through Turbo
 pnpm test             # Test all workspace projects
 pnpm typecheck        # Type-check all workspace projects

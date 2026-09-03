@@ -75,10 +75,9 @@ pnpm --filter @minisphere/pds exec wrangler secret put PDS_SIGNING_KEY_ENCRYPTIO
 
 ## Development
 
-Create local secrets once and initialize the local stack from the repository root:
+Initialize local configuration and the stack from the repository root:
 
 ```sh
-cp apps/pds/.dev.vars.example apps/pds/.dev.vars
 pnpm setup:local
 ```
 
@@ -89,6 +88,6 @@ pnpm dev:pds
 pnpm turbo test typecheck build --filter=@minisphere/pds
 ```
 
-The local PDS listens on `http://localhost:8787`. Its Directory dependency listens on port `8788`. The local `.dev.vars` file makes protected-resource metadata refer to this PDS and to Accounts on `http://localhost:5173`. Inspector ports remain dynamic so the Workers can run together.
+The local PDS listens on `http://localhost:8787`. Its Directory dependency listens on port `8788`. The local `.dev.vars` file makes protected-resource metadata refer to this PDS and to Accounts on `http://localhost:8790`. Inspector ports remain dynamic so the Workers can run together.
 
 Turbo regenerates PDS Worker types before type-checking when its Wrangler configuration or Directory dependency changes.
