@@ -1,19 +1,18 @@
 import * as CreateAccount from "@atcute/atproto/types/server/createAccount";
 import * as CreateSession from "@atcute/atproto/types/server/createSession";
 import * as ReserveSigningKey from "@atcute/atproto/types/server/reserveSigningKey";
-import { parseDidKey } from "@atcute/crypto";
 import {
+  defs,
   deriveDidFromGenesisOp,
   isSignedOperationValid,
   PlcClient,
   validateIncomingOp,
 } from "@atcute/did-plc";
 import type { DidKeyString, DidPlcString, Operation } from "@atcute/did-plc";
-import { isHandle } from "@atcute/lexicons/syntax";
 import { and, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
-import z from "zod";
+import * as v from "valibot";
 
 import { createSessionTokens } from "../../auth/session";
 import { createPdsDatabase } from "../../db";
@@ -25,69 +24,54 @@ import {
 import { InviteCodeRepository } from "../../repositories/invite-code";
 import { SigningKeyReservationRepository } from "../../repositories/signing-key-reservation";
 import { lexiconJsonValidator } from "../../utils/lexicon-validator";
-import { zValidator } from "../../utils/z-validator";
 
 const app = new Hono<{ Bindings: Env }>();
-
-const didKeySchema = z
-  .string()
-  .refine(
-    (value) => {
-      try {
-        parseDidKey(value);
-        return true;
-      } catch {
-        return false;
-      }
-    },
-    { error: "Invalid did:key" }
-  )
-  .transform(
-    (value): DidKeyString => `did:key:${value.slice("did:key:".length)}`
-  );
-
-const didPlcSchema = z
-  .string()
-  .regex(/^did:plc:[a-z2-7]{24}$/u, "Invalid did:plc identifier")
-  .transform(
-    (value): DidPlcString => `did:plc:${value.slice("did:plc:".length)}`
-  );
-
-const handleSchema = z
-  .string()
-  .transform((value) => value.toLowerCase())
-  .refine(isHandle, { error: "Invalid handle" })
-  .refine(
-    (value) => {
-      const accountNameLength = value.split(".", 1)[0]?.length ?? 0;
-      return accountNameLength >= 2 && accountNameLength <= 63;
-    },
-    { error: "Account name must contain 2-63 characters" }
-  );
-
-const createAccountSchema = z.strictObject({
-  did: didPlcSchema,
-  handle: handleSchema,
-  inviteCode: z.string().min(1),
-  plcOp: z.strictObject({
-    alsoKnownAs: z.array(z.string()),
-    prev: z.null(),
-    rotationKeys: z.array(didKeySchema),
-    services: z.record(
-      z.string(),
-      z.strictObject({ endpoint: z.string(), type: z.string() })
-    ),
-    sig: z.string().min(1),
-    type: z.literal("plc_operation"),
-    verificationMethods: z.record(z.string(), didKeySchema),
-  }),
-});
 
 interface AccountMaterial {
   did: DidPlcString;
   operation: Operation;
   reservedSigningKey: DidKeyString;
 }
+
+const validateCreateAccountInput = (input: CreateAccount.$input) => {
+  const { did, handle, inviteCode, plcOp } = input;
+  if (!inviteCode) {
+    throw new HTTPException(400, { message: "Invite code is required" });
+  }
+  if (
+    (
+      [
+        "email",
+        "password",
+        "recoveryKey",
+        "verificationCode",
+        "verificationPhone",
+      ] as const
+    ).some((field) => input[field] !== undefined)
+  ) {
+    throw new HTTPException(400, {
+      message: "Unsupported account creation fields",
+    });
+  }
+
+  const didResult = v.safeParse(defs.didPlcString, did);
+  const operationResult = v.safeParse(defs.operation, plcOp);
+  if (!didResult.success || !operationResult.success) {
+    throw new HTTPException(400, {
+      message: "Account creation requires a DID PLC genesis operation",
+    });
+  }
+  if (operationResult.output.prev !== null) {
+    throw new HTTPException(400, { message: "Invalid PLC operation" });
+  }
+
+  return {
+    did: didResult.output,
+    handle: handle.toLowerCase(),
+    inviteCode,
+    plcOp: operationResult.output,
+  };
+};
 
 const directoryClient = (env: Env) =>
   new PlcClient({
@@ -194,9 +178,10 @@ app.post(
 app.post(
   "/com.atproto.server.createAccount",
   lexiconJsonValidator(CreateAccount.mainSchema.input.schema),
-  zValidator("json", createAccountSchema),
   async (c) => {
-    const { did, handle, inviteCode, plcOp } = c.req.valid("json");
+    const { did, handle, inviteCode, plcOp } = validateCreateAccountInput(
+      c.req.valid("json")
+    );
     const material = await validateEntrywayAccountMaterial(
       c.env,
       did,

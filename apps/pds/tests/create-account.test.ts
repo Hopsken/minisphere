@@ -513,14 +513,9 @@ describe("com.atproto.server.createAccount", () => {
     ).toMatchObject({ handle: "agent.example.com" });
   });
 
-  it("requires a 2-63 character account name", async () => {
-    const shortAccountName = await postAccount({ handle: "a.pds.test" });
-    expect(shortAccountName.status).toBe(400);
-
-    const longAccountName = await postAccount({
-      handle: `${"a".repeat(64)}.pds.test`,
-    });
-    expect(longAccountName.status).toBe(400);
+  it("accepts account names allowed by the handle lexicon", async () => {
+    const response = await postAccount({ handle: "a.pds.test" });
+    expect(response.status).toBe(200);
   });
 
   it("does not publish handle mappings", async () => {

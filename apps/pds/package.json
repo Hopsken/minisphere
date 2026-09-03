@@ -31,6 +31,7 @@
     "drizzle-orm": "catalog:",
     "hono": "catalog:",
     "jose": "catalog:",
+    "valibot": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {
