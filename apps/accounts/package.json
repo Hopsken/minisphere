@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "vite build",
-    "typegen": "wrangler types -c ./wrangler.jsonc -c ../pds/wrangler.jsonc",
+    "typegen": "wrangler types -c ./wrangler.jsonc -c ../pds/wrangler.jsonc -c ../directory/wrangler.jsonc",
     "db:generate": "drizzle-kit generate --name",
     "db:migrate:local": "wrangler d1 migrations apply DB --local",
     "db:migrate:remote": "wrangler d1 migrations apply DB --remote",
@@ -21,9 +21,12 @@
   "dependencies": {
     "@atcute/atproto": "catalog:",
     "@atcute/client": "catalog:",
+    "@atcute/crypto": "catalog:",
+    "@atcute/did-plc": "catalog:",
     "@base-ui/react": "catalog:",
     "@better-auth/drizzle-adapter": "catalog:",
     "@fontsource-variable/inter": "catalog:",
+    "@minisphere/atproto-oauth-provider": "workspace:*",
     "@minisphere/hono-utils": "workspace:*",
     "@tanstack/react-query": "catalog:",
     "@tanstack/react-router": "catalog:",
@@ -52,6 +55,7 @@
     "@types/react-dom": "catalog:",
     "@vitejs/plugin-react": "catalog:",
     "drizzle-kit": "catalog:",
+    "jose": "catalog:",
     "tailwindcss": "catalog:",
     "vite": "catalog:",
     "vitest": "catalog:"

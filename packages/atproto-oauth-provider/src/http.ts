@@ -11,6 +11,7 @@ import { createUniqueRecord } from "./storage";
 const FORM_CONTENT_TYPE = "application/x-www-form-urlencoded";
 const encoder = new TextEncoder();
 const formValueSchema = z.string();
+const protocolParametersSchema = z.record(z.string(), formValueSchema);
 
 export const FORM_BODY_LIMIT_BYTES = 16 * 1024;
 
@@ -159,6 +160,36 @@ export const readForm = async (
   return form;
 };
 
+export const readProtocolParameters = async (
+  request: HonoRequest,
+  allowedFields: Set<string>
+) => {
+  const contentType = request.header("Content-Type")?.split(";", 1)[0];
+  if (contentType?.trim().toLowerCase() !== "application/json") {
+    return readForm(request, allowedFields);
+  }
+
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    throw new OAuthError("invalid_request", "Request body is malformed");
+  }
+  const result = protocolParametersSchema.safeParse(body);
+  if (!result.success) {
+    throw new OAuthError("invalid_request", "Request body must be an object");
+  }
+
+  const parameters = new URLSearchParams();
+  for (const [key, value] of Object.entries(result.data)) {
+    if (!allowedFields.has(key)) {
+      throw new OAuthError("invalid_request", `Unsupported parameter: ${key}`);
+    }
+    parameters.set(key, value);
+  }
+  return parameters;
+};
+
 export const requireParameter = (parameters: URLSearchParams, name: string) => {
   const value = parameters.get(name);
   if (!value) {
@@ -199,7 +230,11 @@ export const createResponseNonce = (context: AuthContext) =>
     expiresAt(DPOP_NONCE_LIFETIME_MS)
   );
 
-export const metadataResponse = (issuer: string, supportedScopes: string[]) => {
+export const metadataResponse = (
+  issuer: string,
+  jwksUri: string,
+  supportedScopes: string[]
+) => {
   const headers = protocolHeaders();
   headers.set("Cache-Control", "public, max-age=300");
   headers.delete("Pragma");
@@ -211,10 +246,11 @@ export const metadataResponse = (issuer: string, supportedScopes: string[]) => {
     dpop_signing_alg_values_supported: ["ES256"],
     grant_types_supported: ["authorization_code", "refresh_token"],
     issuer,
+    jwks_uri: jwksUri,
     pushed_authorization_request_endpoint: endpoint(issuer, "/oauth/par"),
     request_uri_parameter_supported: true,
     require_pushed_authorization_requests: true,
-    response_modes_supported: ["query"],
+    response_modes_supported: ["fragment", "query"],
     response_types_supported: ["code"],
     revocation_endpoint: endpoint(issuer, "/oauth/revoke"),
     revocation_endpoint_auth_methods_supported: ["none"],

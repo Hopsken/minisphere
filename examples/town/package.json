@@ -1,0 +1,41 @@
+{
+  "name": "@minisphere/town",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "deploy": "wrangler deploy",
+    "dev": "vite dev",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tests/tsconfig.json",
+    "typegen": "wrangler types",
+    "postinstall": "pnpm typegen"
+  },
+  "dependencies": {
+    "@atcute/did-plc": "catalog:",
+    "@atcute/identity-resolver": "catalog:",
+    "@atcute/lexicons": "catalog:",
+    "@atcute/oauth-browser-client": "catalog:",
+    "@fontsource-variable/inter": "catalog:",
+    "@tanstack/react-router": "catalog:",
+    "hono": "catalog:",
+    "lucide-react": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:"
+  },
+  "devDependencies": {
+    "@cloudflare/vite-plugin": "catalog:",
+    "@cloudflare/vitest-pool-workers": "catalog:",
+    "@tailwindcss/vite": "catalog:",
+    "@tanstack/router-plugin": "catalog:",
+    "@types/node": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "@vitejs/plugin-react": "catalog:",
+    "tailwindcss": "catalog:",
+    "vite": "catalog:",
+    "vitest": "catalog:"
+  }
+}

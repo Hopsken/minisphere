@@ -4,11 +4,10 @@ export interface AtprotoAuthorizationSubject {
   handle?: string;
 }
 
-export interface AtprotoAuthorizationPageInput {
+export interface AtprotoAuthorizationDetails {
   clientId: string;
-  consentToken: string;
   scope: string;
-  subjects: AtprotoAuthorizationSubject[];
+  subject: AtprotoAuthorizationSubject;
 }
 
 export interface AtprotoAccessTokenInput {
@@ -23,21 +22,20 @@ export interface AtprotoAccessTokenInput {
 
 export interface AtprotoOAuthProviderOptions {
   clientMetadataFetch?: typeof fetch;
-  getAuthorizationSubjects: (
+  getAccountCompletionUrl: () => Promise<string> | string;
+  getAuthorizationSubject: (
     userId: string
-  ) => AtprotoAuthorizationSubject[] | Promise<AtprotoAuthorizationSubject[]>;
+  ) =>
+    | AtprotoAuthorizationSubject
+    | null
+    | Promise<AtprotoAuthorizationSubject | null>;
+  getAuthorizationPageUrl: (consentToken: string) => Promise<string> | string;
+  getJwks: () => Promise<{ keys: JsonWebKey[] }> | { keys: JsonWebKey[] };
   getLoginUrl: (returnTo: string) => Promise<string> | string;
-  isAuthorizedSubject: (
-    userId: string,
-    did: string
-  ) => Promise<boolean> | boolean;
   issuer: string;
   issueAccessToken: (
     input: AtprotoAccessTokenInput
   ) => Promise<string> | string;
-  renderAuthorizationPage: (
-    input: AtprotoAuthorizationPageInput
-  ) => Promise<Response> | Response;
   resource: string;
   supportedScopes?: string[];
 }

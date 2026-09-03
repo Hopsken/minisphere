@@ -235,6 +235,9 @@ catalogs:
     '@atcute/mst':
       specifier: ^1.0.3
       version: 1.0.3
+    '@atcute/oauth-browser-client':
+      specifier: ^5.0.0
+      version: 5.0.0
     '@atcute/oauth-types':
       specifier: ^1.0.1
       version: 1.0.1
@@ -399,6 +402,12 @@ importers:
       '@atcute/client':
         specifier: 'catalog:'
         version: 5.1.1(@atcute/lexicons@2.1.0)(typescript@7.0.2)
+      '@atcute/crypto':
+        specifier: 'catalog:'
+        version: 2.4.4
+      '@atcute/did-plc':
+        specifier: 'catalog:'
+        version: 1.0.1(@atcute/cbor@2.3.6(@atcute/cid@2.4.2))(@atcute/cid@2.4.2)(@atcute/identity@2.0.2(@atcute/lexicons@2.1.0)(typescript@7.0.2))(@atcute/lexicons@2.1.0)(typescript@7.0.2)
       '@base-ui/react':
         specifier: 'catalog:'
         version: 1.7.0(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -408,6 +417,9 @@ importers:
       '@fontsource-variable/inter':
         specifier: 'catalog:'
         version: 5.3.0
+      '@minisphere/atproto-oauth-provider':
+        specifier: workspace:*
+        version: link:../../packages/atproto-oauth-provider
       '@minisphere/hono-utils':
         specifier: workspace:*
         version: link:../../packages/hono-utils
@@ -487,6 +499,9 @@ importers:
       drizzle-kit:
         specifier: 'catalog:'
         version: 1.0.0-rc.5-ab785fc
+      jose:
+        specifier: 'catalog:'
+        version: 6.2.9
       tailwindcss:
         specifier: 'catalog:'
         version: 4.3.3
@@ -660,6 +675,9 @@ importers:
 
   apps/handle-registry:
     dependencies:
+      '@atcute/lexicons':
+        specifier: 'catalog:'
+        version: 2.1.0
       hono:
         specifier: 'catalog:'
         version: 4.13.3
@@ -740,6 +758,73 @@ importers:
       drizzle-kit:
         specifier: 'catalog:'
         version: 1.0.0-rc.5-ab785fc
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@types/node@26.2.0)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0))
+
+  examples/town:
+    dependencies:
+      '@atcute/did-plc':
+        specifier: 'catalog:'
+        version: 1.0.1(@atcute/cbor@2.3.6(@atcute/cid@2.4.2))(@atcute/cid@2.4.2)(@atcute/identity@2.0.2(@atcute/lexicons@2.1.0)(typescript@7.0.2))(@atcute/lexicons@2.1.0)(typescript@7.0.2)
+      '@atcute/identity-resolver':
+        specifier: 'catalog:'
+        version: 2.0.1(@atcute/identity@2.0.2(@atcute/lexicons@2.1.0)(typescript@7.0.2))(@atcute/lexicons@2.1.0)(typescript@7.0.2)
+      '@atcute/lexicons':
+        specifier: 'catalog:'
+        version: 2.1.0
+      '@atcute/oauth-browser-client':
+        specifier: 'catalog:'
+        version: 5.0.0(@atcute/identity-resolver@2.0.1(@atcute/identity@2.0.2(@atcute/lexicons@2.1.0)(typescript@7.0.2))(@atcute/lexicons@2.1.0)(typescript@7.0.2))(@atcute/lexicons@2.1.0)(typescript@7.0.2)
+      '@fontsource-variable/inter':
+        specifier: 'catalog:'
+        version: 5.3.0
+      '@tanstack/react-router':
+        specifier: 'catalog:'
+        version: 1.170.31(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      hono:
+        specifier: 'catalog:'
+        version: 4.13.3
+      lucide-react:
+        specifier: 'catalog:'
+        version: 1.33.0(react@19.2.8)
+      react:
+        specifier: 'catalog:'
+        version: 19.2.8
+      react-dom:
+        specifier: 'catalog:'
+        version: 19.2.8(react@19.2.8)
+    devDependencies:
+      '@cloudflare/vite-plugin':
+        specifier: 'catalog:'
+        version: 1.52.0(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0))(wrangler@4.124.0(@cloudflare/workers-types@5.20260821.1))
+      '@cloudflare/vitest-pool-workers':
+        specifier: 'catalog:'
+        version: 0.22.0(@cloudflare/workers-types@5.20260821.1)(@vitest/runner@4.1.11)(@vitest/snapshot@4.1.11)(vitest@4.1.11(@types/node@26.2.0)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0)))
+      '@tailwindcss/vite':
+        specifier: 'catalog:'
+        version: 4.3.3(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0))
+      '@tanstack/router-plugin':
+        specifier: 'catalog:'
+        version: 1.168.34(@tanstack/react-router@1.170.31(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(esbuild@0.28.1)(rolldown@1.2.4)(supports-color@10.2.2)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0))
+      '@types/node':
+        specifier: 'catalog:'
+        version: 26.2.0
+      '@types/react':
+        specifier: 'catalog:'
+        version: 19.2.18
+      '@types/react-dom':
+        specifier: 'catalog:'
+        version: 19.2.4(@types/react@19.2.18)
+      '@vitejs/plugin-react':
+        specifier: 'catalog:'
+        version: 6.1.0(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0))
+      tailwindcss:
+        specifier: 'catalog:'
+        version: 4.3.3
+      vite:
+        specifier: 'catalog:'
+        version: 8.2.2(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0)
       vitest:
         specifier: 'catalog:'
         version: 4.1.11(@types/node@26.2.0)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0))
@@ -878,6 +963,12 @@ packages:
 
   '@atcute/multibase@1.2.5':
     resolution: {integrity: sha512-cReTONgYpQo/VHD3ZmzPNoyBKJgSk1J4h//cvvdVVJBMar+SjlQ/sUXeTjQfuyfmDKv+TLKhmutLcvbMcQ9Rvw==}
+
+  '@atcute/oauth-browser-client@5.0.0':
+    resolution: {integrity: sha512-G8Rsvci+QIFUy3xbop0cqsLsqftryQF5mQuCY8t8KUVX2WyGlMEhFDjBeZwKpfNgxKKnPqVi1GkLKNaRD7JNHQ==}
+    peerDependencies:
+      '@atcute/identity-resolver': ^2.0.0
+      '@atcute/lexicons': ^2.0.0
 
   '@atcute/oauth-crypto@1.0.1':
     resolution: {integrity: sha512-ghC8ceFx0r6pi5X3dNoET1K6PNg8afeAOZLD4PKLhrpVYdRtRrgY4uqAe3ojtSIjoS6GXmVm063CoJ2xtg/MoQ==}
@@ -3966,6 +4057,11 @@ packages:
     engines: {node: ^18 || >=20}
     hasBin: true
 
+  nanoid@6.0.1:
+    resolution: {integrity: sha512-3wVS3i51pE2pi1k5FFL/95BGfVS0kSsvDVuGXHOtxox/TywUmtgq+3qiTOTbs9J7KfHaXPiN171k/A6dBnaXFw==}
+    engines: {node: ^22 || ^24 || >=26}
+    hasBin: true
+
   nanostores@1.5.2:
     resolution: {integrity: sha512-B0UbxzK1s0CN8Xht6r+7iT5+xV8PTaRERR1nATeplRv1Rw5YLWfVAid0hkqY3EceqpG4RjTk8GAwIxQY39Rnwg==}
     engines: {node: ^20.0.0 || >=22.0.0}
@@ -4950,6 +5046,17 @@ snapshots:
   '@atcute/multibase@1.2.5':
     dependencies:
       '@atcute/uint8array': 1.1.5
+
+  '@atcute/oauth-browser-client@5.0.0(@atcute/identity-resolver@2.0.1(@atcute/identity@2.0.2(@atcute/lexicons@2.1.0)(typescript@7.0.2))(@atcute/lexicons@2.1.0)(typescript@7.0.2))(@atcute/lexicons@2.1.0)(typescript@7.0.2)':
+    dependencies:
+      '@atcute/client': 5.1.1(@atcute/lexicons@2.1.0)(typescript@7.0.2)
+      '@atcute/identity-resolver': 2.0.1(@atcute/identity@2.0.2(@atcute/lexicons@2.1.0)(typescript@7.0.2))(@atcute/lexicons@2.1.0)(typescript@7.0.2)
+      '@atcute/lexicons': 2.1.0
+      '@atcute/oauth-crypto': 1.0.1(typescript@7.0.2)
+      '@atcute/oauth-types': 1.0.1(typescript@7.0.2)
+      nanoid: 6.0.1
+    transitivePeerDependencies:
+      - typescript
 
   '@atcute/oauth-crypto@1.0.1(typescript@7.0.2)':
     dependencies:
@@ -7400,6 +7507,8 @@ snapshots:
   nanoid@3.3.18: {}
 
   nanoid@5.1.16: {}
+
+  nanoid@6.0.1: {}
 
   nanostores@1.5.2: {}
 

@@ -34,21 +34,34 @@ export class RepoDO extends DurableObject<Record<string, never>> {
       this.keypair = signingKey ? await importSigningKey(signingKey) : null;
     });
 
-    this.core = new CoreStorage(db);
+    this.core = new CoreStorage(db, ctx.storage);
   }
 
   async reserveRepo(did: string, signingKey: string): Promise<void> {
-    const root = await this.core.getRoot();
-    if (root) {
-      throw new Error(`DID(${did}) already has a repo`);
+    const keypair = await importSigningKey(signingKey);
+    const metadata = await this.core.getMetadata();
+    if (metadata) {
+      if (metadata.did !== did) {
+        throw new Error(
+          `Repository is reserved for ${metadata.did}, not ${did}`
+        );
+      }
+      if (this.keypair && this.keypair.did() !== keypair.did()) {
+        throw new Error("Repository uses a different signing key");
+      }
+      if (metadata.root_cid && metadata.rev) {
+        if (!this.keypair) {
+          throw new Error("Repository is missing its signing key");
+        }
+        await this.getRepo();
+        return;
+      }
     }
 
-    const keypair = await importSigningKey(signingKey);
-    this.ctx.storage.kv.put("signingKey", signingKey);
+    const commit = await Repo.formatInitCommit(this.core, did, keypair);
+    this.core.initializeRepo(did, signingKey, commit, metadata !== null);
     this.keypair = keypair;
-
-    await this.core.setDid(did);
-    this.repo = await Repo.create(this.core, did, keypair);
+    this.repo = await Repo.load(this.core, commit.cid);
   }
 
   async getRepo(): Promise<Repo> {

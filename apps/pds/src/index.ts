@@ -4,6 +4,7 @@ import { cors } from "hono/cors";
 import { HTTPException } from "hono/http-exception";
 import { logger } from "hono/logger";
 
+import { createPdsDatabase } from "./db";
 import { InviteCodeRepository } from "./repositories/invite-code";
 import xrpcRoutes from "./routes/xrpc";
 
@@ -14,6 +15,14 @@ const app = new Hono<{
 app.use(cors()).use(logger());
 
 app.get("/", (ctx) => ctx.json({ name: "pds" }));
+
+app.get("/.well-known/oauth-protected-resource", (ctx) => {
+  ctx.header("Cache-Control", "public, max-age=300");
+  return ctx.json({
+    authorization_servers: [ctx.env.ACCOUNTS_ORIGIN],
+    resource: ctx.env.PDS_ORIGIN,
+  });
+});
 
 app.route("/xrpc", xrpcRoutes);
 
@@ -40,7 +49,9 @@ export class PdsControlPlane extends WorkerEntrypoint<Env> {
   }
 
   generateInviteCode(): Promise<string> {
-    return new InviteCodeRepository(this.env.PDS_KV).create();
+    return new InviteCodeRepository(
+      createPdsDatabase(this.env.PDS_DB)
+    ).create();
   }
 }
 

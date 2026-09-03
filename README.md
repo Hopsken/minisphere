@@ -23,8 +23,13 @@ Handle requests ──▶ Handle Registry  private PLC Directory
 - [`apps/control-plane`](./apps/control-plane/README.md) — Cloudflare Access-protected account dashboard and API
 - [`apps/handle-registry`](./apps/handle-registry/README.md) — stateless AT Protocol HTTPS handle verification wrapper
 
+### Examples
+
+- [`examples/town`](./examples/town/README.md) — minimal external AT Protocol OAuth browser client
+
 ### Packages
 
+- [`packages/atproto-oauth-provider`](./packages/atproto-oauth-provider/README.md) — Worker-compatible AT Protocol OAuth authorization-server plugin for Better Auth
 - [`packages/hono-utils`](./packages/hono-utils/README.md) — shared Hono request-validation helpers
 - [`packages/repo-do`](./packages/repo-do/README.md) — DID-scoped repository Durable Object, schema, and migrations
 
@@ -39,13 +44,10 @@ A minimal Relay is planned.
 
 ```sh
 pnpm install
-cp apps/accounts/.env.example apps/accounts/.env
-cp apps/accounts/.dev.vars.example apps/accounts/.dev.vars
-cp apps/control-plane/.env.example apps/control-plane/.env
-cp apps/control-plane/.dev.vars.example apps/control-plane/.dev.vars
-cp apps/pds/.dev.vars.example apps/pds/.dev.vars
 pnpm setup:local
 ```
+
+The setup command validates the fixed local topology, creates each missing `.env` and `.dev.vars` file from its project template, generates Worker types, and applies local database migrations. It preserves existing developer-owned files.
 
 Shared external dependencies, core toolchain packages, and direct `@atcute/*` dependencies are defined in the pnpm catalog in `pnpm-workspace.yaml`. Workspace manifests reference them with the `catalog:` protocol, and `pnpm add` prefers matching catalog entries.
 
@@ -54,11 +56,15 @@ The example Worker secrets are for local development only. Production secrets ar
 ## Commands
 
 ```sh
+pnpm dev              # Run Town, PLC Directory, PDS, Accounts, and Handle Registry
+pnpm dev:atproto      # Run PLC Directory, PDS, Accounts, and Handle Registry
 pnpm dev:accounts     # Run Accounts and its PDS dependency
 pnpm dev:control      # Run the Control Plane and its dependencies
 pnpm dev:pds          # Run the PDS and Directory
 pnpm dev:directory    # Run only the Directory
 pnpm dev:handle-registry # Run the Handle Registry and its dependencies
+pnpm dev:town         # Run Town with its current local configuration
+pnpm dev:town:local   # Run Town and the complete local AT Protocol service group
 pnpm check            # Run all repository checks through Turbo
 pnpm test             # Test all workspace projects
 pnpm typecheck        # Type-check all workspace projects
@@ -89,6 +95,8 @@ GitHub Actions runs `pnpm check` for pull requests, merge queue entries, and pus
 
 ## Documentation
 
+- [Accounts Entryway product requirements](./docs/product/accounts-entryway.md)
+- [Local development environment](./docs/LOCAL_DEVELOPMENT.md)
 - [Development status and decision log](./DEVELOPMENT.md)
 - [Coding style](./docs/CODING_STYLE.md)
 - [Architecture Decision Records](./docs/adr/README.md)

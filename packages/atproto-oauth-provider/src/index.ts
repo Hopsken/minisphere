@@ -2,7 +2,7 @@ export { resolveAtprotoClientMetadata } from "./client-metadata";
 export { atprotoOAuthProvider } from "./plugin";
 export type {
   AtprotoAccessTokenInput,
-  AtprotoAuthorizationPageInput,
+  AtprotoAuthorizationDetails,
   AtprotoAuthorizationSubject,
   AtprotoClientMetadata,
   AtprotoOAuthProviderOptions,

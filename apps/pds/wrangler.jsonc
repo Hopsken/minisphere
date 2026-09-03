@@ -22,22 +22,20 @@
     },
   ],
   "vars": {
+    "ACCOUNTS_ORIGIN": "https://accounts.hopsken.dev",
     "PDS_ORIGIN": "https://pds.hopsken.dev",
   },
   "secrets": {
-    "required": ["PDS_JWT_SECRET", "PDS_ROTATION_KEY"],
+    "required": [
+      "PDS_JWT_SECRET",
+      "PDS_ROTATION_KEY",
+      "PDS_SIGNING_KEY_ENCRYPTION_KEY",
+    ],
   },
   "services": [
     {
       "binding": "DIRECTORY",
       "service": "minisphere-directory",
-    },
-  ],
-  "kv_namespaces": [
-    {
-      // Replace this placeholder with the ID returned by `wrangler kv namespace create` before deploying.
-      "binding": "PDS_KV",
-      "id": "76fd5fe0f29e4098972414a59c35d167",
     },
   ],
   "d1_databases": [

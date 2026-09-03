@@ -20,7 +20,7 @@ import type {
   AuthorizationRequest,
   ConsentRecord,
 } from "./oauth-state";
-import { consumeRecord, createUniqueRecord } from "./storage";
+import { consumeRecord, createUniqueRecord, findRecord } from "./storage";
 import type { AtprotoOAuthProviderOptions } from "./types";
 
 const encoder = new TextEncoder();
@@ -85,10 +85,17 @@ const addAuthorizationResponseParameters = (
   parameters: Record<string, string>
 ) => {
   const redirect = new URL(request.redirectUri);
-  redirect.searchParams.set("iss", issuer);
-  redirect.searchParams.set("state", request.state);
+  const responseParameters =
+    request.responseMode === "fragment"
+      ? new URLSearchParams(redirect.hash.slice(1))
+      : redirect.searchParams;
+  responseParameters.set("iss", issuer);
+  responseParameters.set("state", request.state);
   for (const [name, value] of Object.entries(parameters)) {
-    redirect.searchParams.set(name, value);
+    responseParameters.set(name, value);
+  }
+  if (request.responseMode === "fragment") {
+    redirect.hash = responseParameters.toString();
   }
   return redirect.href;
 };
@@ -120,7 +127,25 @@ const createLoginRedirect = async (
   });
 };
 
-const renderConsent = async (
+const localRedirect = async (
+  destination: string | Promise<string>,
+  issuer: string
+) => {
+  const url = new URL(await destination, issuer);
+  if (url.origin !== issuer) {
+    throw new Error("Redirect callback must return an issuer-local URL");
+  }
+  return new Response(null, {
+    headers: {
+      "Cache-Control": "no-store",
+      Location: `${url.pathname}${url.search}${url.hash}`,
+      Pragma: "no-cache",
+    },
+    status: 302,
+  });
+};
+
+const createConsentRedirect = async (
   browserRequest: HonoRequest,
   request: AuthorizationRequest,
   jwkThumbprint: string,
@@ -132,42 +157,101 @@ const renderConsent = async (
     return createLoginRedirect(request, jwkThumbprint, context, options);
   }
 
-  const authorizationSubjects = await options.getAuthorizationSubjects(
+  const authorizationSubject = await options.getAuthorizationSubject(
     userSession.user.id
   );
-  const subjects = request.loginHint
-    ? authorizationSubjects.filter(
-        (subject) =>
-          subject.did === request.loginHint ||
-          subject.handle === request.loginHint
-      )
-    : authorizationSubjects;
+  if (!authorizationSubject) {
+    return localRedirect(options.getAccountCompletionUrl(), options.issuer);
+  }
+  if (
+    request.loginHint &&
+    request.loginHint !== authorizationSubject.did &&
+    request.loginHint !== authorizationSubject.handle
+  ) {
+    throw new OAuthError(
+      "access_denied",
+      "Authenticated account does not match login_hint"
+    );
+  }
   const consentToken = await createUniqueRecord<ConsentRecord>(
     context.internalAdapter,
     "consent",
     {
       jwkThumbprint,
       request,
-      subjectDids: subjects.map((subject) => subject.did),
+      subjectDid: authorizationSubject.did,
       userId: userSession.user.id,
     },
     expiresAt(AUTHORIZATION_INTERACTION_LIFETIME_MS)
   );
-  const page = await options.renderAuthorizationPage({
-    clientId: request.clientId,
-    consentToken,
-    scope: request.scope.join(" "),
-    subjects,
-  });
-  const headers = new Headers(page.headers);
-  headers.set("Cache-Control", "no-store");
-  headers.set(
-    "Content-Security-Policy",
-    "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'"
+  return localRedirect(
+    options.getAuthorizationPageUrl(consentToken),
+    options.issuer
   );
-  headers.set("Pragma", "no-cache");
-  headers.set("X-Content-Type-Options", "nosniff");
-  return new Response(page.body, { headers, status: page.status });
+};
+
+export const handleAuthorizationDetailsGet = async (
+  request: HonoRequest,
+  context: AuthContext,
+  options: AtprotoOAuthProviderOptions
+) => {
+  try {
+    const parameters = new URL(request.url).searchParams;
+    const keys = [...new Set(parameters.keys())];
+    if (
+      keys.length !== 1 ||
+      keys[0] !== "consent_token" ||
+      parameters.getAll("consent_token").length !== 1
+    ) {
+      throw new OAuthError(
+        "invalid_request",
+        "Authorization details require one consent_token"
+      );
+    }
+    const consent = await findRecord<ConsentRecord>(
+      context.internalAdapter,
+      "consent",
+      requireParameter(parameters, "consent_token")
+    );
+    if (!consent) {
+      throw new OAuthError(
+        "invalid_request",
+        "Authorization consent is invalid"
+      );
+    }
+    const userSession = await readUserSession(request, context);
+    if (!userSession || userSession.user.id !== consent.userId) {
+      throw new OAuthError(
+        "access_denied",
+        "Authenticated user does not match consent"
+      );
+    }
+    const subject = await options.getAuthorizationSubject(consent.userId);
+    if (!subject || subject.did !== consent.subjectDid) {
+      throw new OAuthError(
+        "access_denied",
+        "Authorization subject is no longer active for this user"
+      );
+    }
+    return Response.json(
+      {
+        clientId: consent.request.clientId,
+        scope: consent.request.scope.join(" "),
+        subject,
+      },
+      {
+        headers: {
+          "Cache-Control": "no-store",
+          Pragma: "no-cache",
+        },
+      }
+    );
+  } catch (error) {
+    if (!(error instanceof OAuthError)) {
+      context.logger.error("AT Protocol authorization details failed", error);
+    }
+    return oauthErrorResponse(error instanceof Error ? error : null);
+  }
 };
 
 export const handleAuthorizeGet = async (
@@ -215,7 +299,7 @@ export const handleAuthorizeGet = async (
           "Authorization interaction is invalid"
         );
       }
-      return renderConsent(
+      return createConsentRedirect(
         request,
         continuation.request,
         continuation.jwkThumbprint,
@@ -246,7 +330,7 @@ export const handleAuthorizeGet = async (
         "PAR request_uri is invalid or expired"
       );
     }
-    return renderConsent(
+    return createConsentRedirect(
       request,
       par.request,
       par.jwkThumbprint,
@@ -275,7 +359,7 @@ export const handleAuthorizePost = async (
     }
     const form = await readForm(
       request,
-      new Set(["consent_token", "decision", "did"])
+      new Set(["consent_token", "decision"])
     );
     const consentToken = requireParameter(form, "consent_token");
     const consent = await consumeRecord<ConsentRecord>(
@@ -309,14 +393,11 @@ export const handleAuthorizePost = async (
       throw new OAuthError("invalid_request", "decision must be allow or deny");
     }
 
-    const did = requireParameter(form, "did");
-    if (
-      !consent.subjectDids.includes(did) ||
-      !(await options.isAuthorizedSubject(consent.userId, did))
-    ) {
+    const subject = await options.getAuthorizationSubject(consent.userId);
+    if (!subject || subject.did !== consent.subjectDid) {
       throw new OAuthError(
         "access_denied",
-        "Selected DID cannot be authorized by this user"
+        "Authorization subject is no longer active for this user"
       );
     }
 
@@ -324,7 +405,7 @@ export const handleAuthorizePost = async (
       context.internalAdapter,
       "authorization-code",
       {
-        did,
+        did: subject.did,
         jwkThumbprint: consent.jwkThumbprint,
         request: consent.request,
       },

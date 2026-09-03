@@ -1,8 +1,18 @@
+import { sql } from "drizzle-orm";
 import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 export const accountsTable = sqliteTable("accounts", {
   did: text().primaryKey(),
 });
+
+export const accountInvitationsTable = sqliteTable(
+  "account_invitations",
+  {
+    code: text().primaryKey(),
+    expires_at: integer().notNull(),
+  },
+  (table) => [index("account_invitations_expires_at_idx").on(table.expires_at)]
+);
 
 export const refreshTokensTable = sqliteTable(
   "refresh_tokens",
@@ -14,4 +24,18 @@ export const refreshTokensTable = sqliteTable(
     jti: text().primaryKey(),
   },
   (table) => [index("refresh_tokens_did_idx").on(table.did)]
+);
+
+export const signingKeyReservationsTable = sqliteTable(
+  "signing_key_reservations",
+  {
+    claimedAt: integer("claimed_at", { mode: "timestamp_ms" }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
+      .notNull(),
+    did: text("did").unique(),
+    encryptedPrivateKey: text("encrypted_private_key").notNull(),
+    encryptionIv: text("encryption_iv").notNull(),
+    signingKey: text("signing_key").primaryKey(),
+  }
 );

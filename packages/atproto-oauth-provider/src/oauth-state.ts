@@ -15,6 +15,7 @@ export interface AuthorizationRequest {
   loginHint?: string;
   metadata: AtprotoClientMetadata;
   redirectUri: string;
+  responseMode: "fragment" | "query";
   scope: string[];
   state: string;
 }
@@ -22,7 +23,7 @@ export interface AuthorizationRequest {
 export interface ConsentRecord {
   jwkThumbprint: string;
   request: AuthorizationRequest;
-  subjectDids: string[];
+  subjectDid: string;
   userId: string;
 }
 

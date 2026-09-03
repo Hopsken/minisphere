@@ -12,7 +12,9 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ProtectedRouteImport } from './routes/_protected'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as ProtectedAuthorizeRouteImport } from './routes/_protected/authorize'
 import { Route as ProtectedDashboardRouteImport } from './routes/_protected/dashboard'
+import { Route as ProtectedOnboardingUsernameRouteImport } from './routes/_protected/onboarding/username'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -28,35 +30,60 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProtectedAuthorizeRoute = ProtectedAuthorizeRouteImport.update({
+  id: '/authorize',
+  path: '/authorize',
+  getParentRoute: () => ProtectedRoute,
+} as any)
 const ProtectedDashboardRoute = ProtectedDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
   getParentRoute: () => ProtectedRoute,
 } as any)
+const ProtectedOnboardingUsernameRoute =
+  ProtectedOnboardingUsernameRouteImport.update({
+    id: '/onboarding/username',
+    path: '/onboarding/username',
+    getParentRoute: () => ProtectedRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/authorize': typeof ProtectedAuthorizeRoute
   '/dashboard': typeof ProtectedDashboardRoute
+  '/onboarding/username': typeof ProtectedOnboardingUsernameRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/authorize': typeof ProtectedAuthorizeRoute
   '/dashboard': typeof ProtectedDashboardRoute
+  '/onboarding/username': typeof ProtectedOnboardingUsernameRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_protected': typeof ProtectedRouteWithChildren
   '/login': typeof LoginRoute
+  '/_protected/authorize': typeof ProtectedAuthorizeRoute
   '/_protected/dashboard': typeof ProtectedDashboardRoute
+  '/_protected/onboarding/username': typeof ProtectedOnboardingUsernameRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/login' | '/dashboard'
+  fullPaths:
+    '/' | '/login' | '/authorize' | '/dashboard' | '/onboarding/username'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/login' | '/dashboard'
-  id: '__root__' | '/' | '/_protected' | '/login' | '/_protected/dashboard'
+  to: '/' | '/login' | '/authorize' | '/dashboard' | '/onboarding/username'
+  id:
+    | '__root__'
+    | '/'
+    | '/_protected'
+    | '/login'
+    | '/_protected/authorize'
+    | '/_protected/dashboard'
+    | '/_protected/onboarding/username'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -88,6 +115,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_protected/authorize': {
+      id: '/_protected/authorize'
+      path: '/authorize'
+      fullPath: '/authorize'
+      preLoaderRoute: typeof ProtectedAuthorizeRouteImport
+      parentRoute: typeof ProtectedRoute
+    }
     '/_protected/dashboard': {
       id: '/_protected/dashboard'
       path: '/dashboard'
@@ -95,15 +129,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProtectedDashboardRouteImport
       parentRoute: typeof ProtectedRoute
     }
+    '/_protected/onboarding/username': {
+      id: '/_protected/onboarding/username'
+      path: '/onboarding/username'
+      fullPath: '/onboarding/username'
+      preLoaderRoute: typeof ProtectedOnboardingUsernameRouteImport
+      parentRoute: typeof ProtectedRoute
+    }
   }
 }
 
 interface ProtectedRouteChildren {
+  ProtectedAuthorizeRoute: typeof ProtectedAuthorizeRoute
   ProtectedDashboardRoute: typeof ProtectedDashboardRoute
+  ProtectedOnboardingUsernameRoute: typeof ProtectedOnboardingUsernameRoute
 }
 
 const ProtectedRouteChildren: ProtectedRouteChildren = {
+  ProtectedAuthorizeRoute: ProtectedAuthorizeRoute,
   ProtectedDashboardRoute: ProtectedDashboardRoute,
+  ProtectedOnboardingUsernameRoute: ProtectedOnboardingUsernameRoute,
 }
 
 const ProtectedRouteWithChildren = ProtectedRoute._addFileChildren(

@@ -8,11 +8,13 @@
     },
     "types": [
       "./worker-configuration.d.ts",
+      "../directory/worker-configuration.d.ts",
       "../pds/worker-configuration.d.ts",
       "vite/client"
     ]
   },
   "include": [
+    "schema/**/*.ts",
     "src/**/*.ts",
     "src/**/*.tsx",
     "worker/**/*.ts",

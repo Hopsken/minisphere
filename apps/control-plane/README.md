@@ -85,11 +85,9 @@ pnpm --filter @minisphere/control-plane exec wrangler secret put CONTROL_PLANE_A
 
 ## Development
 
-Create the local configuration once, then initialize generated types and local databases from the repository root:
+Initialize local configuration, generated types, and local databases from the repository root:
 
 ```sh
-cp apps/control-plane/.env.example apps/control-plane/.env
-cp apps/control-plane/.dev.vars.example apps/control-plane/.dev.vars
 pnpm setup:local
 ```
 
@@ -101,6 +99,8 @@ pnpm turbo test typecheck build --filter=@minisphere/control-plane
 ```
 
 The Control Plane type-generation task reads its own, PDS, Directory, and Handle Registry Wrangler configurations. Turbo reruns it before type-checking when a bound Worker changes.
+
+The local Control Plane uses `http://localhost:5175` and its `.dev.vars` selects the local PDS and `.test` handle domain.
 
 For Amp orb previews, set `VITE_ALLOWED_HOSTS` in `.env` to a comma-separated host list. A leading dot permits that domain and its subdomains.
 

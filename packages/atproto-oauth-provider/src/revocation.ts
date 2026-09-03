@@ -8,7 +8,7 @@ import {
   jsonResponse,
   OAuthError,
   oauthErrorResponse,
-  readForm,
+  readProtocolParameters,
   requireParameter,
 } from "./http";
 import type { OAuthSessionRecord, SessionTokenRecord } from "./oauth-state";
@@ -22,7 +22,7 @@ export const handleRevoke = async (
 ) => {
   const responseNonce = await createResponseNonce(context);
   try {
-    const form = await readForm(
+    const form = await readProtocolParameters(
       request,
       new Set(["client_id", "token", "token_type_hint"])
     );

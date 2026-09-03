@@ -29,34 +29,67 @@ export default defineConfig(async () => {
     })
   );
 
-  const rotationKey = await Secp256k1PrivateKeyExportable.createKeypair();
-  const rotationKeyMultikey = await rotationKey.exportPrivateKey("multikey");
+  const [oauthSigningKey, rotationKey] = await Promise.all([
+    Secp256k1PrivateKeyExportable.createKeypair(),
+    Secp256k1PrivateKeyExportable.createKeypair(),
+  ]);
+  const [oauthSigningKeyMultikey, rotationKeyMultikey] = await Promise.all([
+    oauthSigningKey.exportPrivateKey("multikey"),
+    rotationKey.exportPrivateKey("multikey"),
+  ]);
   const jwtSecret = "test-pds-jwt-secret-with-at-least-32-bytes";
+  const signingKeyEncryptionKey =
+    "test-signing-key-encryption-secret-at-least-32-bytes";
   const pdsOrigin = "https://pds.test";
   process.env.PDS_JWT_SECRET = jwtSecret;
   process.env.PDS_ROTATION_KEY = rotationKeyMultikey;
+  process.env.PDS_SIGNING_KEY_ENCRYPTION_KEY = signingKeyEncryptionKey;
 
   return {
     plugins: [
       cloudflareTest({
         miniflare: {
           bindings: {
+            ACCOUNTS_ORIGIN: "https://accounts.test",
             PDS_JWT_SECRET: jwtSecret,
             PDS_ORIGIN: pdsOrigin,
             PDS_ROTATION_KEY: rotationKeyMultikey,
+            PDS_SIGNING_KEY_ENCRYPTION_KEY: signingKeyEncryptionKey,
+            TEST_ACCOUNTS_OAUTH_SIGNING_KEY: oauthSigningKeyMultikey,
             TEST_MIGRATIONS: migrations,
           },
           workers: [
             {
               modules: true,
               name: "minisphere-directory",
-              script: `export default {
+              script: `const operations = new Map();
+
+              export default {
                 async fetch(request) {
-                  if (request.method !== "POST") {
+                  const url = new URL(request.url);
+                  const parts = url.pathname.split("/").filter(Boolean);
+                  const did = decodeURIComponent(parts[0] ?? "");
+                  if (request.method === "GET" && parts[1] === "log") {
+                    const operation = operations.get(did);
+                    return operation
+                      ? Response.json([operation])
+                      : Response.json({ message: "DID not found" }, { status: 404 });
+                  }
+                  if (request.method === "GET" && parts[1] === "data") {
+                    const operation = operations.get(did);
+                    if (!operation) {
+                      return Response.json({ message: "DID not found" }, { status: 404 });
+                    }
+                    const { sig, prev, type, ...state } = operation;
+                    return Response.json({ did, ...state });
+                  }
+                  if (request.method !== "POST" || parts.length !== 1) {
                     return new Response("Method Not Allowed", { status: 405 });
                   }
-                  const did = decodeURIComponent(new URL(request.url).pathname.slice(1));
                   const operation = await request.json();
+                  if (operation.alsoKnownAs?.[0] === "at://directory-failure.pds.test") {
+                    return Response.json({ message: "Test failure" }, { status: 500 });
+                  }
                   if (
                     !did.startsWith("did:plc:") ||
                     operation.type !== "plc_operation" ||
@@ -66,6 +99,10 @@ export default defineConfig(async () => {
                   ) {
                     return Response.json({ message: "Invalid operation" }, { status: 400 });
                   }
+                  if (operations.has(did)) {
+                    return Response.json({ message: "DID already exists" }, { status: 409 });
+                  }
+                  operations.set(did, operation);
                   return Response.json({ ok: true });
                 }
               }`,

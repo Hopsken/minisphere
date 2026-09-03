@@ -15,16 +15,21 @@ export interface SessionTokens {
   };
 }
 
+const getSecretBytes = (secret: string) => {
+  const secretBytes = textEncoder.encode(secret);
+  if (secretBytes.length < SESSION_SECRET_MIN_BYTES) {
+    throw new Error("PDS_JWT_SECRET must contain at least 32 bytes");
+  }
+  return secretBytes;
+};
+
 export const createSessionTokens = async (
   did: string,
   audience: string,
   secret: string,
   now = Math.floor(Date.now() / 1000)
 ): Promise<SessionTokens> => {
-  const secretBytes = textEncoder.encode(secret);
-  if (secretBytes.length < SESSION_SECRET_MIN_BYTES) {
-    throw new Error("PDS_JWT_SECRET must contain at least 32 bytes");
-  }
+  const secretBytes = getSecretBytes(secret);
 
   const refreshJti = crypto.randomUUID();
   const refreshExpiresAt = now + REFRESH_TOKEN_LIFETIME_SECONDS;

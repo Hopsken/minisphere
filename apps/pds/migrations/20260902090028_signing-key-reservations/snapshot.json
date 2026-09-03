@@ -1,0 +1,188 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "id": "16077e66-bede-493d-9d5c-08b2fb4894d0",
+  "prevIds": [
+    "277272a1-4385-441d-a49b-8925404c0577"
+  ],
+  "ddl": [
+    {
+      "name": "accounts",
+      "entityType": "tables"
+    },
+    {
+      "name": "refresh_tokens",
+      "entityType": "tables"
+    },
+    {
+      "name": "signing_key_reservations",
+      "entityType": "tables"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "did",
+      "entityType": "columns",
+      "table": "accounts"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "did",
+      "entityType": "columns",
+      "table": "refresh_tokens"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "expires_at",
+      "entityType": "columns",
+      "table": "refresh_tokens"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "jti",
+      "entityType": "columns",
+      "table": "refresh_tokens"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "claimed_at",
+      "entityType": "columns",
+      "table": "signing_key_reservations"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "(cast(unixepoch('subsecond') * 1000 as integer))",
+      "generated": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "table": "signing_key_reservations"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "did",
+      "entityType": "columns",
+      "table": "signing_key_reservations"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "encrypted_private_key",
+      "entityType": "columns",
+      "table": "signing_key_reservations"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "encryption_iv",
+      "entityType": "columns",
+      "table": "signing_key_reservations"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "signing_key",
+      "entityType": "columns",
+      "table": "signing_key_reservations"
+    },
+    {
+      "columns": [
+        "did"
+      ],
+      "tableTo": "accounts",
+      "columnsTo": [
+        "did"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "nameExplicit": false,
+      "name": "fk_refresh_tokens_did_accounts_did_fk",
+      "entityType": "fks",
+      "table": "refresh_tokens"
+    },
+    {
+      "columns": [
+        "did"
+      ],
+      "nameExplicit": false,
+      "name": "accounts_pk",
+      "table": "accounts",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "jti"
+      ],
+      "nameExplicit": false,
+      "name": "refresh_tokens_pk",
+      "table": "refresh_tokens",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "signing_key"
+      ],
+      "nameExplicit": false,
+      "name": "signing_key_reservations_pk",
+      "table": "signing_key_reservations",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        {
+          "value": "did",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "name": "refresh_tokens_did_idx",
+      "entityType": "indexes",
+      "table": "refresh_tokens"
+    },
+    {
+      "columns": [
+        "did"
+      ],
+      "nameExplicit": false,
+      "name": "signing_key_reservations_did_unique",
+      "entityType": "uniques",
+      "table": "signing_key_reservations"
+    }
+  ],
+  "renames": []
+}

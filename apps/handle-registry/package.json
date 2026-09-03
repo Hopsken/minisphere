@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit && tsc --noEmit -p tests/tsconfig.json"
   },
   "dependencies": {
+    "@atcute/lexicons": "catalog:",
     "hono": "catalog:"
   },
   "devDependencies": {

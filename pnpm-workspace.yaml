@@ -1,5 +1,6 @@
 packages:
   - apps/*
+  - examples/*
   - packages/*
 
 catalogMode: prefer
@@ -16,6 +17,7 @@ catalog:
   "@atcute/lexicons": ^2.1.0
   "@atcute/mst": ^1.0.3
   "@atcute/multibase": ^1.2.5
+  "@atcute/oauth-browser-client": ^5.0.0
   "@atcute/oauth-types": ^1.0.1
   "@atcute/tid": ^1.1.4
   "@atproto/crypto": ^0.4.5

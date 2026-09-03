@@ -1,3 +1,4 @@
 # Local development values only. Never reuse them in production.
 CONTROL_PLANE_ACCOUNT_RECOVERY_KEY=did:key:zQ3shu7MitzDmMa4jP59hSmKvezXm6hvANxGe163LzpULGRMs
-PDS_ORIGIN=https://pds.test
+HANDLE_DOMAIN=r2d2.test
+PDS_ORIGIN=http://localhost:8787

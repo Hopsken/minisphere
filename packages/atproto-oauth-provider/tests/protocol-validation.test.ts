@@ -19,7 +19,7 @@ const validAuthorizationServerMetadata = {
   pushed_authorization_request_endpoint: `${issuer}/oauth/par`,
   request_uri_parameter_supported: true,
   require_pushed_authorization_requests: true,
-  response_modes_supported: ["query"],
+  response_modes_supported: ["fragment", "query"],
   response_types_supported: ["code"],
   revocation_endpoint: `${issuer}/oauth/revoke`,
   revocation_endpoint_auth_methods_supported: ["none"],

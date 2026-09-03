@@ -1,0 +1,4 @@
+# Local development values only.
+DEV_HANDLE_RESOLVER_ORIGIN=http://localhost:8789
+PLC_DIRECTORY_ORIGIN=http://localhost:8788
+PUBLIC_URL=http://127.0.0.1:5174

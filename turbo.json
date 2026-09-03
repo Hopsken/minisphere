@@ -10,7 +10,6 @@
       "outputs": ["worker-configuration.d.ts"]
     },
     "db:migrate:local": {
-      "interactive": true,
       "cache": false
     },
     "db:migrate:remote": {
@@ -22,8 +21,26 @@
     },
     "dev": {
       "cache": false,
-      "persistent": true,
-      "interactive": true
+      "persistent": true
+    },
+    "//#dev:atproto:stack": {
+      "cache": false,
+      "with": [
+        "@minisphere/directory#dev",
+        "@minisphere/pds#dev",
+        "@minisphere/accounts#dev",
+        "@minisphere/handle-registry#dev"
+      ]
+    },
+    "//#dev:town:local:stack": {
+      "cache": false,
+      "with": [
+        "@minisphere/town#dev",
+        "@minisphere/directory#dev",
+        "@minisphere/pds#dev",
+        "@minisphere/accounts#dev",
+        "@minisphere/handle-registry#dev"
+      ]
     },
     "//#format:check:root": {},
     "//#lint:root": {},

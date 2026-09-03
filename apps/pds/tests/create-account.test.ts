@@ -1,10 +1,14 @@
-import { Secp256k1PrivateKeyExportable } from "@atcute/crypto";
+import { parseDidKey, Secp256k1PrivateKeyExportable } from "@atcute/crypto";
+import { deriveDidFromGenesisOp, signOperation } from "@atcute/did-plc";
+import type {
+  DidKeyString,
+  Operation,
+  UnsignedOperation,
+} from "@atcute/did-plc";
 import { env, exports } from "cloudflare:workers";
 import { jwtVerify } from "jose";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import z from "zod";
-
-import { InviteCodeRepository } from "../src/repositories/invite-code";
 
 const REQUEST_ORIGIN = "https://service-binding.test";
 
@@ -35,11 +39,17 @@ interface CreateAccountOverrides {
   handle?: string;
   inviteCode?: string;
   password?: string;
+  plcOp?: Operation;
   recoveryKey?: string;
 }
 
 const createInviteCode = (): Promise<string> =>
   exports.PdsControlPlane.generateInviteCode();
+
+const normalizeDidKey = (value: string): DidKeyString => {
+  parseDidKey(value);
+  return `did:key:${value.slice("did:key:".length)}`;
+};
 
 const postAccount = async (
   overrides: CreateAccountOverrides = {}
@@ -57,6 +67,37 @@ const postAccount = async (
     headers: { "Content-Type": "application/json" },
     method: "POST",
   });
+};
+
+const prepareEntrywayAccount = async (handle: string) => {
+  const reservation = await request(
+    "/xrpc/com.atproto.server.reserveSigningKey",
+    {
+      body: "{}",
+      headers: { "Content-Type": "application/json" },
+      method: "POST",
+    }
+  );
+  const { signingKey: signingKeyInput } = z
+    .object({ signingKey: z.string() })
+    .parse(await reservation.json());
+  const signingKey = normalizeDidKey(signingKeyInput);
+  const rotationKey = await Secp256k1PrivateKeyExportable.createKeypair();
+  const operation: UnsignedOperation = {
+    alsoKnownAs: [`at://${handle}`],
+    prev: null,
+    rotationKeys: [await rotationKey.exportPublicKey("did")],
+    services: {
+      atproto_pds: {
+        endpoint: "https://pds.test",
+        type: "AtprotoPersonalDataServer",
+      },
+    },
+    type: "plc_operation",
+    verificationMethods: { atproto: signingKey },
+  };
+  const plcOp = await signOperation(operation, rotationKey);
+  return { did: await deriveDidFromGenesisOp(plcOp), handle, plcOp };
 };
 
 describe("com.atproto.server.createAccount", () => {
@@ -114,30 +155,30 @@ describe("com.atproto.server.createAccount", () => {
     });
 
     const repoObject = env.REPO.getByName(payload.did);
-    const inviteCodes = new InviteCodeRepository(env.PDS_KV);
-    const [
-      account,
-      accountColumns,
-      storedRefreshToken,
-      inviteCodeExists,
-      repo,
-    ] = await Promise.all([
-      env.PDS_DB.prepare("SELECT did FROM accounts WHERE did = ?")
-        .bind(payload.did)
-        .first(),
-      env.PDS_DB.prepare("PRAGMA table_info(accounts)").all<{ name: string }>(),
-      env.PDS_DB.prepare(
-        "SELECT did, jti, expires_at FROM refresh_tokens WHERE did = ?"
-      )
-        .bind(payload.did)
-        .first(),
-      inviteCodes.exists(inviteCode),
-      repoObject.rpcGetRepoStatus(),
-    ]);
+    const [account, accountColumns, storedRefreshToken, invitation, repo] =
+      await Promise.all([
+        env.PDS_DB.prepare("SELECT did FROM accounts WHERE did = ?")
+          .bind(payload.did)
+          .first(),
+        env.PDS_DB.prepare("PRAGMA table_info(accounts)").all<{
+          name: string;
+        }>(),
+        env.PDS_DB.prepare(
+          "SELECT did, jti, expires_at FROM refresh_tokens WHERE did = ?"
+        )
+          .bind(payload.did)
+          .first(),
+        env.PDS_DB.prepare(
+          "SELECT code FROM account_invitations WHERE code = ?"
+        )
+          .bind(inviteCode)
+          .first(),
+        repoObject.rpcGetRepoStatus(),
+      ]);
     expect({
       account,
       accountColumns: accountColumns.results.map(({ name }) => name),
-      inviteCodeExists,
+      invitation,
       repo,
       storedRefreshToken,
     }).toMatchObject({
@@ -145,7 +186,7 @@ describe("com.atproto.server.createAccount", () => {
         did: payload.did,
       },
       accountColumns: ["did"],
-      inviteCodeExists: false,
+      invitation: null,
       repo: {
         did: payload.did,
         head: expect.any(String),
@@ -159,23 +200,192 @@ describe("com.atproto.server.createAccount", () => {
     });
   });
 
-  it("generates invite codes that expire after two hours", async () => {
-    const generatedAt = Math.floor(Date.now() / 1000);
+  it("accepts an Entryway-derived DID and PLC operation", async () => {
+    const input = await prepareEntrywayAccount("entryway.pds.test");
     const inviteCode = await createInviteCode();
-    const inviteCodes = new InviteCodeRepository(env.PDS_KV);
-    const listed = await env.PDS_KV.list();
-    const storedInvite = listed.keys.find(({ name }) =>
-      name.endsWith(inviteCode)
+    const signingKey = input.plcOp.verificationMethods.atproto;
+    const reservationBefore = await env.PDS_DB.prepare(
+      `SELECT did, encrypted_private_key
+       FROM signing_key_reservations
+       WHERE signing_key = ?`
+    )
+      .bind(signingKey)
+      .first<{ did: string | null; encrypted_private_key: string }>();
+
+    const response = await request("/xrpc/com.atproto.server.createAccount", {
+      body: JSON.stringify({ ...input, inviteCode }),
+      headers: { "Content-Type": "application/json" },
+      method: "POST",
+    });
+
+    const account = createAccountResponseSchema.parse(await response.json());
+
+    const [
+      repoStatus,
+      plcState,
+      storedAccount,
+      storedRefreshToken,
+      reservation,
+      invitation,
+    ] = await Promise.all([
+      request(
+        `/xrpc/com.atproto.sync.getRepoStatus?did=${encodeURIComponent(input.did)}`
+      ),
+      env.DIRECTORY.fetch(
+        new Request(
+          `https://minisphere-directory.service/${encodeURIComponent(input.did)}/data`
+        )
+      ),
+      env.PDS_DB.prepare("SELECT did FROM accounts WHERE did = ?")
+        .bind(input.did)
+        .first(),
+      env.PDS_DB.prepare("SELECT did FROM refresh_tokens WHERE did = ? LIMIT 1")
+        .bind(input.did)
+        .first(),
+      env.PDS_DB.prepare(
+        "SELECT signing_key FROM signing_key_reservations WHERE signing_key = ?"
+      )
+        .bind(signingKey)
+        .first(),
+      env.PDS_DB.prepare("SELECT code FROM account_invitations WHERE code = ?")
+        .bind(inviteCode)
+        .first(),
+    ]);
+    await expect(
+      Promise.all([repoStatus.json(), plcState.json()])
+    ).resolves.toStrictEqual([
+      {
+        active: true,
+        did: input.did,
+        rev: expect.any(String),
+      },
+      expect.objectContaining({
+        alsoKnownAs: [`at://${input.handle}`],
+        did: input.did,
+        verificationMethods: input.plcOp.verificationMethods,
+      }),
+    ]);
+    expect({
+      account,
+      invitation,
+      reservation,
+      reservationBefore,
+      responseStatus: response.status,
+      storedAccount,
+      storedRefreshToken,
+    }).toMatchObject({
+      account: { did: input.did, handle: input.handle },
+      invitation: null,
+      reservation: null,
+      reservationBefore: {
+        did: null,
+        encrypted_private_key: expect.any(String),
+      },
+      responseStatus: 200,
+      storedAccount: { did: input.did },
+      storedRefreshToken: { did: input.did },
+    });
+  });
+
+  it("requires an invite for a valid externally signed PLC operation", async () => {
+    const input = await prepareEntrywayAccount("uninvited.pds.test");
+    const response = await request("/xrpc/com.atproto.server.createAccount", {
+      body: JSON.stringify(input),
+      headers: { "Content-Type": "application/json" },
+      method: "POST",
+    });
+
+    expect(response.status).toBe(400);
+    await expect(response.text()).resolves.toBe("Invite code is required");
+  });
+
+  it("rejects an invalid PLC operation even with an invite", async () => {
+    const input = await prepareEntrywayAccount("invalid-operation.pds.test");
+    const inviteCode = await createInviteCode();
+    const replacement = input.plcOp.sig.startsWith("A") ? "B" : "A";
+    const plcOp = {
+      ...input.plcOp,
+      sig: `${replacement}${input.plcOp.sig.slice(1)}`,
+    };
+    const response = await request("/xrpc/com.atproto.server.createAccount", {
+      body: JSON.stringify({
+        ...input,
+        did: await deriveDidFromGenesisOp(plcOp),
+        inviteCode,
+        plcOp,
+      }),
+      headers: { "Content-Type": "application/json" },
+      method: "POST",
+    });
+
+    expect(response.status).toBe(400);
+    await expect(response.text()).resolves.toBe(
+      "DID and PLC operation do not match"
     );
 
+    const retry = await postAccount({
+      handle: "valid-after-invalid.pds.test",
+      inviteCode,
+    });
+    expect(retry.status).toBe(200);
+  });
+
+  it("stores invite codes with a two-hour expiry", async () => {
+    const generatedAt = Math.floor(Date.now() / 1000);
+    const inviteCode = await createInviteCode();
+    const storedInvite = await env.PDS_DB.prepare(
+      "SELECT code, expires_at FROM account_invitations WHERE code = ?"
+    )
+      .bind(inviteCode)
+      .first<{ code: string; expires_at: number }>();
+
     expect(inviteCode).toMatch(/^[A-Za-z0-9_-]{43}$/u);
-    await expect(inviteCodes.exists(inviteCode)).resolves.toBeTruthy();
-    expect(storedInvite?.expiration).toBeGreaterThanOrEqual(
+    expect(storedInvite?.code).toBe(inviteCode);
+    expect(storedInvite?.expires_at).toBeGreaterThanOrEqual(
       generatedAt + 2 * 60 * 60
     );
-    expect(storedInvite?.expiration).toBeLessThanOrEqual(
+    expect(storedInvite?.expires_at).toBeLessThanOrEqual(
       Math.floor(Date.now() / 1000) + 2 * 60 * 60
     );
+  });
+
+  it("rejects and removes an expired invite", async () => {
+    const inviteCode = await createInviteCode();
+    await env.PDS_DB.prepare(
+      "UPDATE account_invitations SET expires_at = 0 WHERE code = ?"
+    )
+      .bind(inviteCode)
+      .run();
+
+    const response = await postAccount({
+      handle: "expired-invite.pds.test",
+      inviteCode,
+    });
+
+    expect(response.status).toBe(400);
+    await expect(response.text()).resolves.toBe("Invalid invite code");
+    await expect(
+      env.PDS_DB.prepare("SELECT code FROM account_invitations WHERE code = ?")
+        .bind(inviteCode)
+        .first()
+    ).resolves.toBeNull();
+  });
+
+  it("removes unused expired invites when generating another invite", async () => {
+    const inviteCode = await createInviteCode();
+    await env.PDS_DB.prepare(
+      "UPDATE account_invitations SET expires_at = 0 WHERE code = ?"
+    )
+      .bind(inviteCode)
+      .run();
+
+    await createInviteCode();
+
+    await expect(
+      env.PDS_DB.prepare("SELECT code FROM account_invitations WHERE code = ?")
+        .bind(inviteCode)
+        .first()
+    ).resolves.toBeNull();
   });
 
   it("does not own handle uniqueness", async () => {
@@ -192,13 +402,26 @@ describe("com.atproto.server.createAccount", () => {
   });
 
   it("rejects an invite not issued by the control plane", async () => {
-    const response = await postAccount({
-      handle: "unsigned.pds.test",
-      inviteCode: "not-issued-by-the-control-plane",
+    const input = await prepareEntrywayAccount("unsigned.pds.test");
+    const signingKey = input.plcOp.verificationMethods.atproto;
+    const response = await request("/xrpc/com.atproto.server.createAccount", {
+      body: JSON.stringify({
+        ...input,
+        inviteCode: "not-issued-by-the-control-plane",
+      }),
+      headers: { "Content-Type": "application/json" },
+      method: "POST",
     });
 
     expect(response.status).toBe(400);
     await expect(response.text()).resolves.toBe("Invalid invite code");
+    await expect(
+      env.PDS_DB.prepare(
+        "SELECT did FROM signing_key_reservations WHERE signing_key = ?"
+      )
+        .bind(signingKey)
+        .first()
+    ).resolves.toStrictEqual({ did: null });
   });
 
   it("rejects an invite after successful use", async () => {
@@ -217,24 +440,50 @@ describe("com.atproto.server.createAccount", () => {
     await expect(second.text()).resolves.toBe("Invalid invite code");
   });
 
-  it("returns the created account when invite deletion fails", async () => {
-    const deleteError = new Error("KV delete failed");
-    const deleteInvite = vi
-      .spyOn(InviteCodeRepository.prototype, "delete")
-      .mockRejectedValueOnce(deleteError);
-    const logError = vi.spyOn(console, "error").mockImplementation(() => {});
+  it("allows only one concurrent request to claim an invite", async () => {
+    const inviteCode = await createInviteCode();
+    const accountCountBefore =
+      (await env.PDS_DB.prepare(
+        "SELECT count(*) AS count FROM accounts"
+      ).first<number>("count")) ?? 0;
+    const responses = await Promise.all([
+      postAccount({ handle: "concurrent-first.pds.test", inviteCode }),
+      postAccount({ handle: "concurrent-second.pds.test", inviteCode }),
+    ]);
 
-    const response = await postAccount({ handle: "delete-failure.pds.test" });
+    expect(responses.map(({ status }) => status).toSorted()).toStrictEqual([
+      200, 400,
+    ]);
+    await expect(
+      Promise.all(
+        responses
+          .filter(({ status }) => status === 400)
+          .map((response) => response.text())
+      )
+    ).resolves.toStrictEqual(["Invalid invite code"]);
+    await expect(
+      env.PDS_DB.prepare(
+        "SELECT count(*) AS count FROM accounts"
+      ).first<number>("count")
+    ).resolves.toBe(accountCountBefore + 1);
+  });
 
-    expect(response.status).toBe(200);
-    expect(
-      createAccountResponseSchema.parse(await response.json())
-    ).toMatchObject({ handle: "delete-failure.pds.test" });
-    expect(deleteInvite).toHaveBeenCalledOnce();
-    expect(logError).toHaveBeenCalledWith(
-      "failed to delete used invite code",
-      deleteError
-    );
+  it("keeps an invite spent when account creation later fails", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const inviteCode = await createInviteCode();
+
+    const failed = await postAccount({
+      handle: "directory-failure.pds.test",
+      inviteCode,
+    });
+    expect(failed.status).toBe(500);
+
+    const retry = await postAccount({
+      handle: "retry-after-failure.pds.test",
+      inviteCode,
+    });
+    expect(retry.status).toBe(400);
+    await expect(retry.text()).resolves.toBe("Invalid invite code");
   });
 
   it("rejects account imports and primary passwords", async () => {

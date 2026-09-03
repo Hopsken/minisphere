@@ -6,6 +6,7 @@ import { isDid, isNsid, isRecordKey } from "@atcute/lexicons/syntax";
 import { Hono } from "hono";
 import z from "zod";
 
+import { createPdsDatabase } from "../../db";
 import { lexiconQueryValidator } from "../../utils/lexicon-validator";
 import { zValidator } from "../../utils/z-validator";
 
@@ -36,10 +37,23 @@ app.get(
   lexiconQueryValidator(GetRepoStatus.mainSchema.params),
   async (c) => {
     const { did } = c.req.valid("query");
+    const database = createPdsDatabase(c.env.PDS_DB);
+    const account = await database.query.accountsTable.findFirst({
+      columns: { did: true },
+      where: { did },
+    });
+    if (!account) {
+      return c.json({ active: false, did });
+    }
+
     const repo = c.env.REPO.getByName(did);
-    const repoStatus = await repo.rpcGetRepoStatus();
-    // Expected response: GetRepoStatus.$output
-    return c.json(repoStatus);
+    try {
+      const repoStatus = await repo.rpcGetRepoStatus();
+      return c.json({ active: true, did: repoStatus.did, rev: repoStatus.rev });
+    } catch (error) {
+      console.error("active PDS account has no readable repository", error);
+      return c.json({ active: false, did, status: "desynchronized" });
+    }
   }
 );
 

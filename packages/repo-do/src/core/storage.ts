@@ -9,11 +9,19 @@ import {
   sql,
 } from "drizzle-orm";
 
+import type { Database } from "../db";
 import { blocksTable, metadataTable } from "../db/schema";
 import { BlockStorage } from "./block";
 import type { RootState } from "./type";
 
 export class CoreStorage extends BlockStorage implements RepoStorage {
+  private readonly storage: DurableObjectStorage;
+
+  constructor(db: Database, storage: DurableObjectStorage) {
+    super(db);
+    this.storage = storage;
+  }
+
   async getMetadata(): Promise<RootState | null> {
     const row = await this.db.query.metadataTable.findFirst();
     return row ?? null;
@@ -57,12 +65,6 @@ export class CoreStorage extends BlockStorage implements RepoStorage {
       });
   }
 
-  async setDid(did: string): Promise<void> {
-    await this.db
-      .insert(metadataTable)
-      .values({ did, id: 1, rev: "", root_cid: "" });
-  }
-
   async updateRoot(cid: Cid, rev: string): Promise<void> {
     const cidString = cid.toString();
 
@@ -72,21 +74,73 @@ export class CoreStorage extends BlockStorage implements RepoStorage {
       .where(eq(metadataTable.id, 1));
   }
 
+  initializeRepo(
+    did: string,
+    signingKey: string,
+    commit: CommitData,
+    replaceIncomplete: boolean
+  ): void {
+    const blocks = commit.newBlocks.entries().map(({ bytes, cid }) => ({
+      bytes: Buffer.from(bytes),
+      cid: cid.toString(),
+      rev: commit.rev,
+    }));
+
+    this.db.transaction((transaction) => {
+      if (replaceIncomplete) {
+        transaction.delete(blocksTable).run();
+        transaction.delete(metadataTable).run();
+      }
+      if (blocks.length > 0) {
+        transaction.insert(blocksTable).values(blocks).run();
+      }
+      transaction
+        .insert(metadataTable)
+        .values({
+          did,
+          id: 1,
+          rev: commit.rev,
+          root_cid: commit.cid.toString(),
+        })
+        .run();
+      this.storage.kv.put("signingKey", signingKey);
+    });
+  }
+
   /**
    * Apply a commit atomically: add new blocks, remove old blocks, update root.
    */
-  async applyCommit(commit: CommitData) {
-    await this.putMany(commit.newBlocks, commit.rev);
+  applyCommit(commit: CommitData): Promise<void> {
+    const blocks = commit.newBlocks.entries().map(({ bytes, cid }) => ({
+      bytes: Buffer.from(bytes),
+      cid: cid.toString(),
+      rev: commit.rev,
+    }));
 
-    // May not need to delete outdated cids for backward verifications
-    // const removedCids = commit.removedCids
-    //   .toList()
-    //   .map((cid) => cid.toString());
-    // await this.db
-    //   .delete(blocksTable)
-    //   .where(inArray(blocksTable.cid, removedCids));
+    this.db.transaction((transaction) => {
+      if (blocks.length > 0) {
+        transaction
+          .insert(blocksTable)
+          .values(blocks)
+          .onConflictDoUpdate({
+            set: { bytes: sql`excluded.bytes`, rev: sql`excluded.rev` },
+            target: blocksTable.cid,
+          })
+          .run();
+      }
 
-    await this.updateRoot(commit.cid, commit.rev);
+      // May not need to delete outdated cids for backward verifications
+      // const removedCids = commit.removedCids
+      //   .toList()
+      //   .map((cid) => cid.toString());
+
+      transaction
+        .update(metadataTable)
+        .set({ rev: commit.rev, root_cid: commit.cid.toString() })
+        .where(eq(metadataTable.id, 1))
+        .run();
+    });
+    return Promise.resolve();
   }
 
   healthCheck() {

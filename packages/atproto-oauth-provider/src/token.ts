@@ -10,7 +10,7 @@ import {
   jsonResponse,
   OAuthError,
   oauthErrorResponse,
-  readForm,
+  readProtocolParameters,
   requireParameter,
   sha256Base64Url,
 } from "./http";
@@ -305,7 +305,7 @@ export const handleToken = async (
 ) => {
   const responseNonce = await createResponseNonce(context);
   try {
-    const form = await readForm(
+    const form = await readProtocolParameters(
       request,
       new Set([
         "client_id",

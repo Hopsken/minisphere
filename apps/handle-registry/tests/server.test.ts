@@ -41,4 +41,32 @@ describe("handle registry server", () => {
 
     expect(response.status).toBe(404);
   });
+
+  it("resolves a handle through the XRPC endpoint", async () => {
+    const response = await request(
+      "handle-registry.test",
+      "/xrpc/com.atproto.identity.resolveHandle?handle=alice.r2d2.party"
+    );
+
+    expect({
+      allowOrigin: response.headers.get("access-control-allow-origin"),
+      status: response.status,
+    }).toStrictEqual({ allowOrigin: "*", status: 200 });
+    await expect(response.json()).resolves.toStrictEqual({
+      did: "did:plc:alice0000000000000000000",
+    });
+  });
+
+  it("returns an XRPC error for an unknown handle", async () => {
+    const response = await request(
+      "handle-registry.test",
+      "/xrpc/com.atproto.identity.resolveHandle?handle=unknown.r2d2.party"
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toStrictEqual({
+      error: "HandleNotFound",
+      message: "Handle not found",
+    });
+  });
 });
