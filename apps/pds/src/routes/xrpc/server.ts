@@ -1,25 +1,14 @@
 import * as CreateAccount from "@atcute/atproto/types/server/createAccount";
 import * as CreateSession from "@atcute/atproto/types/server/createSession";
 import * as ReserveSigningKey from "@atcute/atproto/types/server/reserveSigningKey";
-import {
-  parseDidKey,
-  parsePrivateMultikey,
-  Secp256k1PrivateKey,
-  Secp256k1PrivateKeyExportable,
-} from "@atcute/crypto";
+import { parseDidKey } from "@atcute/crypto";
 import {
   deriveDidFromGenesisOp,
   isSignedOperationValid,
   PlcClient,
-  signOperation,
   validateIncomingOp,
 } from "@atcute/did-plc";
-import type {
-  DidKeyString,
-  DidPlcString,
-  Operation,
-  UnsignedOperation,
-} from "@atcute/did-plc";
+import type { DidKeyString, DidPlcString, Operation } from "@atcute/did-plc";
 import { isHandle } from "@atcute/lexicons/syntax";
 import { and, eq } from "drizzle-orm";
 import { Hono } from "hono";
@@ -51,7 +40,7 @@ const didKeySchema = z
         return false;
       }
     },
-    { error: "Invalid DID PLC recovery key" }
+    { error: "Invalid did:key" }
   )
   .transform(
     (value): DidKeyString => `did:key:${value.slice("did:key:".length)}`
@@ -77,31 +66,27 @@ const handleSchema = z
   );
 
 const createAccountSchema = z.strictObject({
-  did: didPlcSchema.optional(),
+  did: didPlcSchema,
   handle: handleSchema,
-  inviteCode: z.string().min(1).optional(),
-  plcOp: z
-    .strictObject({
-      alsoKnownAs: z.array(z.string()),
-      prev: z.null(),
-      rotationKeys: z.array(didKeySchema),
-      services: z.record(
-        z.string(),
-        z.strictObject({ endpoint: z.string(), type: z.string() })
-      ),
-      sig: z.string().min(1),
-      type: z.literal("plc_operation"),
-      verificationMethods: z.record(z.string(), didKeySchema),
-    })
-    .optional(),
-  recoveryKey: didKeySchema.optional(),
+  inviteCode: z.string().min(1),
+  plcOp: z.strictObject({
+    alsoKnownAs: z.array(z.string()),
+    prev: z.null(),
+    rotationKeys: z.array(didKeySchema),
+    services: z.record(
+      z.string(),
+      z.strictObject({ endpoint: z.string(), type: z.string() })
+    ),
+    sig: z.string().min(1),
+    type: z.literal("plc_operation"),
+    verificationMethods: z.record(z.string(), didKeySchema),
+  }),
 });
 
 interface AccountMaterial {
   did: DidPlcString;
   operation: Operation;
-  repoSigningKey: string;
-  reservedSigningKey?: DidKeyString;
+  reservedSigningKey: DidKeyString;
 }
 
 const directoryClient = (env: Env) =>
@@ -135,48 +120,6 @@ const ensureDirectoryOperation = async (
     }
     throw submitError;
   }
-};
-
-const createLocalAccountMaterial = async (
-  env: Env,
-  handle: string,
-  recoveryKey?: DidKeyString
-): Promise<AccountMaterial> => {
-  const parsedRotationKey = parsePrivateMultikey(env.PDS_ROTATION_KEY);
-  if (parsedRotationKey.type !== "secp256k1") {
-    throw new Error("PDS_ROTATION_KEY must be a secp256k1 private multikey");
-  }
-
-  const rotationKey = await Secp256k1PrivateKey.importRaw(
-    parsedRotationKey.privateKeyBytes
-  );
-  const pdsRotationKey = await rotationKey.exportPublicKey("did");
-  const rotationKeys = [pdsRotationKey];
-  if (recoveryKey && recoveryKey !== pdsRotationKey) {
-    rotationKeys.unshift(recoveryKey);
-  }
-
-  const repoKey = await Secp256k1PrivateKeyExportable.createKeypair();
-  const repoSigningKey = await repoKey.exportPublicKey("did");
-  const unsignedOperation: UnsignedOperation = {
-    alsoKnownAs: [`at://${handle}`],
-    prev: null,
-    rotationKeys,
-    services: {
-      atproto_pds: {
-        endpoint: new URL(env.PDS_ORIGIN).origin,
-        type: "AtprotoPersonalDataServer",
-      },
-    },
-    type: "plc_operation",
-    verificationMethods: { atproto: repoSigningKey },
-  };
-  const operation = await signOperation(unsignedOperation, rotationKey);
-  return {
-    did: await deriveDidFromGenesisOp(operation),
-    operation,
-    repoSigningKey: await repoKey.exportPrivateKey("multikey"),
-  };
 };
 
 const validateEntrywayAccountMaterial = async (
@@ -229,13 +172,12 @@ const validateEntrywayAccountMaterial = async (
   }
 
   const reservations = signingKeyReservations(env);
-  const repoSigningKey = await reservations.get(did, signingKey);
-  if (!repoSigningKey) {
+  if (!(await reservations.get(did, signingKey))) {
     throw new HTTPException(400, {
       message: "Reserved repository signing key does not exist",
     });
   }
-  return { did, operation, repoSigningKey, reservedSigningKey: signingKey };
+  return { did, operation, reservedSigningKey: signingKey };
 };
 
 app.post(
@@ -254,50 +196,30 @@ app.post(
   lexiconJsonValidator(CreateAccount.mainSchema.input.schema),
   zValidator("json", createAccountSchema),
   async (c) => {
-    const { did, handle, inviteCode, plcOp, recoveryKey } = c.req.valid("json");
-
-    if (!inviteCode) {
-      throw new HTTPException(400, { message: "Invite code is required" });
-    }
-
-    const pdsUrl = new URL(c.env.PDS_ORIGIN);
-    const pdsHostname = pdsUrl.hostname;
-    const isEntrywayAccount = did !== undefined || plcOp !== undefined;
-    let material: AccountMaterial;
-    if (isEntrywayAccount) {
-      if (!did || !plcOp) {
-        throw new HTTPException(400, {
-          message: "Entryway account creation requires DID and PLC operation",
-        });
-      }
-      material = await validateEntrywayAccountMaterial(
-        c.env,
-        did,
-        handle,
-        plcOp
-      );
-    } else {
-      material = await createLocalAccountMaterial(c.env, handle, recoveryKey);
-    }
+    const { did, handle, inviteCode, plcOp } = c.req.valid("json");
+    const material = await validateEntrywayAccountMaterial(
+      c.env,
+      did,
+      handle,
+      plcOp
+    );
 
     const pdsDb = createPdsDatabase(c.env.PDS_DB);
     if (!(await new InviteCodeRepository(pdsDb).claim(inviteCode))) {
       throw new HTTPException(400, { message: "Invalid invite code" });
     }
 
-    if (material.reservedSigningKey) {
-      const claimedKey = await signingKeyReservations(c.env).claim(
-        material.did,
-        material.reservedSigningKey
-      );
-      if (!claimedKey) {
-        throw new HTTPException(400, {
-          message: "Reserved repository signing key is no longer available",
-        });
-      }
-      material.repoSigningKey = claimedKey;
+    const repoSigningKey = await signingKeyReservations(c.env).claim(
+      material.did,
+      material.reservedSigningKey
+    );
+    if (!repoSigningKey) {
+      throw new HTTPException(400, {
+        message: "Reserved repository signing key is no longer available",
+      });
     }
 
+    const pdsHostname = new URL(c.env.PDS_ORIGIN).hostname;
     const session = await createSessionTokens(
       material.did,
       `did:web:${pdsHostname}`,
@@ -305,7 +227,7 @@ app.post(
     );
 
     const repo = c.env.REPO.getByName(material.did);
-    await repo.reserveRepo(material.did, material.repoSigningKey);
+    await repo.reserveRepo(material.did, repoSigningKey);
     await ensureDirectoryOperation(c.env, material.did, material.operation);
 
     const accountWrites = [
@@ -319,22 +241,20 @@ app.post(
         jti: session.refreshToken.jti,
       }),
     ] as const;
-    await (material.reservedSigningKey
-      ? pdsDb.batch([
-          ...accountWrites,
-          pdsDb
-            .delete(signingKeyReservationsTable)
-            .where(
-              and(
-                eq(signingKeyReservationsTable.did, material.did),
-                eq(
-                  signingKeyReservationsTable.signingKey,
-                  material.reservedSigningKey
-                )
-              )
-            ),
-        ])
-      : pdsDb.batch(accountWrites));
+    await pdsDb.batch([
+      ...accountWrites,
+      pdsDb
+        .delete(signingKeyReservationsTable)
+        .where(
+          and(
+            eq(signingKeyReservationsTable.did, material.did),
+            eq(
+              signingKeyReservationsTable.signingKey,
+              material.reservedSigningKey
+            )
+          )
+        ),
+    ]);
 
     return c.json({
       accessJwt: session.accessJwt,

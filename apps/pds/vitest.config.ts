@@ -29,20 +29,14 @@ export default defineConfig(async () => {
     })
   );
 
-  const [oauthSigningKey, rotationKey] = await Promise.all([
-    Secp256k1PrivateKeyExportable.createKeypair(),
-    Secp256k1PrivateKeyExportable.createKeypair(),
-  ]);
-  const [oauthSigningKeyMultikey, rotationKeyMultikey] = await Promise.all([
-    oauthSigningKey.exportPrivateKey("multikey"),
-    rotationKey.exportPrivateKey("multikey"),
-  ]);
+  const oauthSigningKey = await Secp256k1PrivateKeyExportable.createKeypair();
+  const oauthSigningKeyMultikey =
+    await oauthSigningKey.exportPrivateKey("multikey");
   const jwtSecret = "test-pds-jwt-secret-with-at-least-32-bytes";
   const signingKeyEncryptionKey =
     "test-signing-key-encryption-secret-at-least-32-bytes";
   const pdsOrigin = "https://pds.test";
   process.env.PDS_JWT_SECRET = jwtSecret;
-  process.env.PDS_ROTATION_KEY = rotationKeyMultikey;
   process.env.PDS_SIGNING_KEY_ENCRYPTION_KEY = signingKeyEncryptionKey;
 
   return {
@@ -53,7 +47,6 @@ export default defineConfig(async () => {
             ACCOUNTS_ORIGIN: "https://accounts.test",
             PDS_JWT_SECRET: jwtSecret,
             PDS_ORIGIN: pdsOrigin,
-            PDS_ROTATION_KEY: rotationKeyMultikey,
             PDS_SIGNING_KEY_ENCRYPTION_KEY: signingKeyEncryptionKey,
             TEST_ACCOUNTS_OAUTH_SIGNING_KEY: oauthSigningKeyMultikey,
             TEST_MIGRATIONS: migrations,

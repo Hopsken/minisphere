@@ -3,15 +3,15 @@
 - **Status:** Draft for product discovery
 - **Scope:** OIDC login, username onboarding, local DID account provisioning, hosted handle registration, and OAuth subject selection
 - **Baseline:** `feat/accounts-entryway-account-model`
-- **Last updated:** 2026-09-02
+- **Last updated:** 2026-09-03
 
 This is a living product document. It records the target, settled product decisions, unresolved risks, and release criteria. It does not replace product discovery, interaction prototypes, or technical design.
 
 ## Product purpose
 
-Minisphere needs an Accounts service that behaves like an AT Protocol Entryway rather than a control plane for owner-managed identities. In the first release, a person authenticates through one configured OIDC provider. After authentication, the person chooses one local username and creates one DID account on the paired PDS. Successful account creation commits the username, its hosted handle, and the DID as one product outcome.
+Minisphere needs an Accounts service that behaves like an AT Protocol Entryway. In the first release, a person authenticates through one configured OIDC provider. After authentication, the person chooses one local username and creates one DID account on the paired PDS. Successful account creation commits the username, its hosted handle, and the DID as one product outcome.
 
-The resulting Accounts and PDS pair should be usable independently of Minisphere's Control Plane and should preserve a path toward participation in the wider AT Protocol network.
+The resulting Accounts and PDS pair should preserve a path toward participation in the wider AT Protocol network.
 
 The first release deliberately excludes local registration, passwords, passkeys, and their verification and recovery flows. Those capabilities require separate discovery and must not complicate the initial Entryway onboarding path.
 
@@ -26,7 +26,7 @@ The current account model has four product problems:
 
 ### Value proposition
 
-A new member can sign in through the configured OIDC provider, complete one clear username step, and receive one working AT Protocol identity. The member does not need to understand owner relationships, DID selection, PDS placement, or Control Plane concepts.
+A new member can sign in through the configured OIDC provider, complete one clear username step, and receive one working AT Protocol identity. The member does not need to understand owner relationships, DID selection, or PDS placement.
 
 ### Release objectives
 
@@ -37,7 +37,7 @@ Objectives are listed in priority order.
 3. **Stable identity:** a DID never changes and a committed username is never reused.
 4. **Atomic product outcome:** a successful attempt commits one username and one active DID; a confirmed failure does not retain the username; an unknown outcome is checked and retried against the same pre-derived DID.
 5. **Protocol-safe authorization:** a user without an active DID cannot authorize an AT Protocol OAuth client.
-6. **Portable product boundary:** the local Accounts and PDS pair does not depend on the Control Plane during onboarding, login, consent, or token issuance.
+6. **Portable product boundary:** the local Accounts and PDS pair supports onboarding, login, consent, and token issuance as one complete product boundary.
 
 The first release is successful when all must-have scenarios and release criteria in this document pass. Conversion and latency targets require a measured baseline during discovery; they must be set before production release rather than invented in this document.
 
@@ -52,10 +52,6 @@ This member signs in with the deployment's configured OIDC provider. The provide
 #### Returning AT Protocol member
 
 This member has completed provisioning. They expect normal login to restore access to the same DID and expect OAuth authorization to show that identity without asking them to choose among DIDs.
-
-#### Operator
-
-An operator needs to observe provisioning state and request lifecycle actions. The operator does not choose a user's DID, handle consent, or participate in the real-time OAuth path.
 
 ### Core scenarios
 
@@ -101,7 +97,7 @@ Accounts may suggest a username from upstream profile data, but it must not clai
 4. **The user chooses names, not identifiers.** The member chooses a username. Accounts derives the DID from a server-signed genesis PLC operation; the browser never supplies or selects one.
 5. **Fail closed and verify unknown outcomes.** Incomplete accounts cannot authorize clients. After a transport failure, Accounts checks the known DID in the PDS and PLC Directory before it retries creation.
 6. **One source of truth per responsibility.** Accounts owns authentication and hosted handle claims. The PDS owns local account state and repository hosting. The PLC Directory owns DID documents.
-7. **The Control Plane stays off the critical path.** Operator tooling can request or observe actions, but user-facing identity and authorization do not depend on it.
+7. **Accounts owns provisioning.** User-facing identity and authorization use the Accounts-owned account state and provisioning workflow.
 8. **Protocol security is a release property.** A friendly onboarding experience cannot compensate for incomplete OAuth resource enforcement.
 
 ## Settled product decisions
@@ -149,7 +145,7 @@ Provisioning follows the AT Protocol reference Entryway flow. Accounts first cal
 
 Accounts activates only after the PDS reports that both the local account and repository exist and PLC resolves the expected DID, handle claim, PDS endpoint, and repository signing key. Handle Registry publication is controlled by the resulting active Accounts mapping, so querying that derived publication is not an activation prerequisite.
 
-A confirmed PDS response failure releases the provisional Accounts username. A transport failure remains unknown and retains the expected DID and signed operation for status checks and retry. This guarantees one active identity result for the attempt without a custom PDS provisioning service or operation ID. The PDS and Control Plane must not receive OIDC credentials or Better Auth session material, or write Better Auth storage directly.
+A confirmed PDS response failure releases the provisional Accounts username. A transport failure remains unknown and retains the expected DID and signed operation for status checks and retry. This guarantees one active identity result for the attempt without a custom PDS provisioning service or operation ID. The PDS must not receive OIDC credentials or Better Auth session material, or write Better Auth storage directly.
 
 ### Target flow
 
@@ -187,9 +183,6 @@ OIDC provider ──> Better Auth session ──> username onboarding
                                                              |
                                                              v
                                                     PDS resource verifier
-
-Control Plane ──> asynchronous operator actions only; never a dependency
-                  of login, onboarding, consent, or token issuance
 ```
 
 ### Service ownership
@@ -200,7 +193,6 @@ Control Plane ──> asynchronous operator actions only; never a dependency
 | PDS | Local DID existence, provisioning and hosting state, repositories and private signing keys, PLC submission, PDS sessions or app passwords, OAuth access-token verification, resource authorization | OIDC identity links, Better Auth sessions, hosted username allocation or uniqueness, OAuth consent or access-token signing |
 | PLC Directory | DID operation log and resolved DID document | Login, username availability, handle reverse mapping |
 | Handle Registry | Stateless HTTPS publication of the active hosted handle mapping supplied by Accounts | Username allocation, account creation, DID documents |
-| Control Plane | Operator inventory, labels, desired lifecycle actions, and audit | OIDC identity data, Better Auth sessions, canonical identity data, OAuth consent, synchronous authorization decisions |
 
 ## Account state model
 
@@ -245,7 +237,7 @@ Requirements are ranked in release priority order.
 5. **Safe unknown-outcome retry.** A member must be able to retry a transport failure against the same pre-derived DID and signed PLC operation.
 6. **Single-subject OAuth.** An active member authorizes only their DID. A non-active member cannot receive a code or token, and consent submission must revalidate the current session and subject.
 7. **Handle publication.** An active hosted handle must resolve to the same DID that claims it. A failed, incomplete, or unknown hosted handle must not resolve. Because Accounts owns both activation and the hosted mapping, Handle Registry is derived output rather than an activation gate.
-8. **Paired local deployment.** OIDC login, onboarding, consent, and token issuance must work with a configured local Accounts and PDS pair without a synchronous Control Plane dependency.
+8. **Paired local deployment.** OIDC login, onboarding, consent, and token issuance must work with a configured local Accounts and PDS pair.
 9. **No managed-account surface.** The user experience and service contracts must not expose owner, child, descendant, managed-DID CRUD, multi-DID selection, or external DID attachment concepts.
 
 ### High-want
@@ -262,14 +254,12 @@ These requirements are important but do not justify delaying the first safe loca
 3. Multiple upstream identity providers and cross-provider account linking.
 4. Multiple local PDS resources behind one Accounts Entryway.
 5. External DID migration or authorization-server delegation.
-6. Rich Control Plane provisioning and lifecycle workflows built on the same Accounts-owned contract.
 
 ## Explicit non-goals for the first release
 
 - Importing, attaching, claiming, or authorizing an existing external DID.
 - Allowing one Better Auth user to control multiple DIDs.
 - Sharing one DID across multiple Better Auth users.
-- Making the Control Plane the registration orchestrator or a real-time authorization dependency.
 - Native registration with passwords, passkeys, email verification, or credential recovery.
 - Multiple upstream identity providers or cross-provider account linking.
 - Account recovery, self-service deactivation, and self-service deletion.
@@ -286,11 +276,10 @@ These requirements are important but do not justify delaying the first safe loca
 - Only a successful Accounts provisioning operation may commit the user-to-DID reference and permanent username claim.
 - Accounts decides which scopes the user consents to. The PDS constrains those scopes to capabilities it supports and is willing to enforce.
 - Accounts must stamp the configured issuer, PDS audience, and maximum lifetime, sign with its dedicated OAuth key, and publish the corresponding public JWKS. The PDS must discover that key from the configured Accounts issuer and confirm that the subject is a local, active DID on protected requests.
-- The Control Plane's operator authorization does not grant authority to impersonate an end user in OAuth.
 
 ## Migration
 
-The first release assumes disposable development data. Migration uses a synchronized destructive rebuild of Accounts and PDS D1, repository Durable Objects, PLC Directory, Handle Registry-visible mappings, and Control Plane inventory. Migrating production owner-to-managed-DID data is out of scope.
+The first release assumes disposable development data. Migration uses a synchronized destructive rebuild of Accounts and PDS D1, repository Durable Objects, PLC Directory, and Handle Registry-visible mappings. Migrating production owner-to-managed-DID data is out of scope.
 
 ## Product risks and discovery plan
 
@@ -345,7 +334,7 @@ SVPG recommends addressing value, usability, feasibility, and viability risks be
 
 ### Usability
 
-- A member from the configured OIDC provider can reach an active account without operator assistance under normal conditions.
+- A member from the configured OIDC provider can reach an active account without manual assistance under normal conditions.
 - A member encounters no DID selector and is never asked to type or paste a DID.
 - A member can distinguish username conflict from provisioning delay or failure.
 - Prototype testing validates the onboarding copy and interaction before release scope is committed.

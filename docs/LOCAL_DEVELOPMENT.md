@@ -20,8 +20,7 @@ apps/
 ├── accounts
 ├── directory
 ├── handle-registry
-├── pds
-└── control-plane
+└── pds
 
 examples/
 └── town
@@ -40,8 +39,6 @@ The AT Protocol service group uses one contiguous port range. Town uses an indep
 | Handle Registry | `http://localhost:8789` | Hosted-handle publication and local `.test` resolution |
 | Accounts | `http://localhost:8790` | Account entryway and OAuth authorization server |
 | Town | `http://127.0.0.1:5174` | Independent OAuth client example |
-
-Control Plane can use port `5175` when it runs beside this topology.
 
 Each server uses its assigned port in strict mode. A port conflict stops startup, which keeps the absolute URLs in DID documents, OAuth metadata, and redirects aligned with the running services.
 

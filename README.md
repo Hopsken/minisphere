@@ -7,7 +7,7 @@ Every AT Protocol identity uses the same account model. Clients and runtimes def
 ## Architecture
 
 ```text
-Operators / clients ──▶ Accounts ──▶ PDS ──▶ Relay ──▶ consumers / AppViews
+Members / clients ──▶ Accounts ──▶ PDS ──▶ Relay ──▶ consumers / AppViews
                            ▲          │
                            │          ▼
 Handle requests ──▶ Handle Registry  private PLC Directory
@@ -20,7 +20,6 @@ Handle requests ──▶ Handle Registry  private PLC Directory
 - [`apps/accounts`](./apps/accounts/README.md) — system authentication server and React SPA on Better Auth, Hono, and D1
 - [`apps/directory`](./apps/directory/README.md) — private PLC Directory on a Hono Worker and D1
 - [`apps/pds`](./apps/pds/README.md) — PDS XRPC, account, authentication, and repository routing Worker
-- [`apps/control-plane`](./apps/control-plane/README.md) — Cloudflare Access-protected account dashboard and API
 - [`apps/handle-registry`](./apps/handle-registry/README.md) — stateless AT Protocol HTTPS handle verification wrapper
 
 ### Examples
@@ -59,7 +58,6 @@ The example Worker secrets are for local development only. Production secrets ar
 pnpm dev              # Run Town, PLC Directory, PDS, Accounts, and Handle Registry
 pnpm dev:atproto      # Run PLC Directory, PDS, Accounts, and Handle Registry
 pnpm dev:accounts     # Run Accounts and its PDS dependency
-pnpm dev:control      # Run the Control Plane and its dependencies
 pnpm dev:pds          # Run the PDS and Directory
 pnpm dev:directory    # Run only the Directory
 pnpm dev:handle-registry # Run the Handle Registry and its dependencies
@@ -79,7 +77,7 @@ Use a Turbo filter for a targeted read-only task:
 
 ```sh
 pnpm turbo test typecheck --filter=@minisphere/pds
-pnpm turbo build --filter=@minisphere/control-plane
+pnpm turbo build --filter=@minisphere/accounts
 ```
 
 Use a pnpm filter for an explicit project-local write operation:
