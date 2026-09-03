@@ -15,6 +15,7 @@ export interface AuthorizationRequest {
   loginHint?: string;
   metadata: AtprotoClientMetadata;
   redirectUri: string;
+  responseMode: "fragment" | "query";
   scope: string[];
   state: string;
 }

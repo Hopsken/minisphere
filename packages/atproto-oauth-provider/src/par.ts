@@ -14,7 +14,7 @@ import {
   jsonResponse,
   OAuthError,
   oauthErrorResponse,
-  readForm,
+  readProtocolParameters,
   requireParameter,
 } from "./http";
 import {
@@ -57,10 +57,11 @@ const parseAuthorizationRequest = async (
       "response_type must be code"
     );
   }
-  if (form.get("response_mode") && form.get("response_mode") !== "query") {
+  const responseMode = form.get("response_mode") ?? "query";
+  if (responseMode !== "fragment" && responseMode !== "query") {
     throw new OAuthError(
       "invalid_request",
-      "Only query response mode is supported"
+      "response_mode must be fragment or query"
     );
   }
 
@@ -101,6 +102,7 @@ const parseAuthorizationRequest = async (
     codeChallenge,
     metadata,
     redirectUri,
+    responseMode,
     scope,
     state,
   };
@@ -124,7 +126,7 @@ export const handlePar = async (
       proofJwt: request.raw.headers.get("DPoP"),
       url: endpoint(options.issuer, "/oauth/par"),
     });
-    const form = await readForm(
+    const form = await readProtocolParameters(
       request,
       new Set([
         "client_id",

@@ -12,6 +12,7 @@
     "dev:directory": "turbo dev --filter=@minisphere/directory",
     "dev:handle-registry": "turbo dev --filter=@minisphere/handle-registry",
     "dev:pds": "turbo dev --filter=@minisphere/pds",
+    "dev:town": "turbo dev --filter=@minisphere/town",
     "format": "oxfmt --write .",
     "format:check": "turbo format:check:root",
     "format:check:root": "oxfmt --check .",

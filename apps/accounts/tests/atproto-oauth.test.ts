@@ -13,8 +13,10 @@ import {
   loginActiveUser,
   origin,
   parBody,
+  parResponseSchema,
   pkceChallenge,
   postOAuth,
+  postOAuthJson,
   redirectUri,
   request,
   tokenResponseSchema,
@@ -43,7 +45,7 @@ describe("AT Protocol OAuth authorization server", () => {
       pushed_authorization_request_endpoint: `${origin}/oauth/par`,
       request_uri_parameter_supported: true,
       require_pushed_authorization_requests: true,
-      response_modes_supported: ["query"],
+      response_modes_supported: ["fragment", "query"],
       response_types_supported: ["code"],
       revocation_endpoint: `${origin}/oauth/revoke`,
       revocation_endpoint_auth_methods_supported: ["none"],
@@ -419,6 +421,65 @@ describe("AT Protocol OAuth authorization server", () => {
       replay: { error: "invalid_grant", status: 400 },
       revokedSession: { error: "invalid_grant", status: 400 },
     });
+  });
+
+  it("returns authorization results in the requested fragment", async () => {
+    const cookie = await loginActiveUser();
+    const key = await createDpopKey();
+    const verifier = "i".repeat(64);
+    const parameters = new URLSearchParams(
+      parBody(
+        await pkceChallenge(verifier),
+        "fragment-response-state",
+        "fragment"
+      )
+    );
+    const nonceChallenge = await postOAuthJson("/oauth/par", parameters, key);
+    const nonce = nonceChallenge.headers.get("DPoP-Nonce") ?? "";
+    expect(nonceChallenge.status).toBe(400);
+    const parResponse = await postOAuthJson(
+      "/oauth/par",
+      parameters,
+      key,
+      nonce
+    );
+    expect(parResponse.status).toBe(201);
+    const pushed = parResponseSchema.parse(await parResponse.json());
+
+    const authorization = await authorizePar(pushed.request_uri, cookie);
+    const location = new URL(authorization.headers.get("location") ?? "");
+    const fragment = new URLSearchParams(location.hash.slice(1));
+
+    expect({
+      hasCode: Boolean(fragment.get("code")),
+      issuer: fragment.get("iss"),
+      query: location.search,
+      state: fragment.get("state"),
+      status: authorization.status,
+    }).toStrictEqual({
+      hasCode: true,
+      issuer: origin,
+      query: "",
+      state: "fragment-response-state",
+      status: 302,
+    });
+
+    const tokenResponse = await postOAuthJson(
+      "/oauth/token",
+      new URLSearchParams({
+        client_id: clientId,
+        code: fragment.get("code") ?? "",
+        code_verifier: verifier,
+        grant_type: "authorization_code",
+        redirect_uri: redirectUri,
+      }),
+      key,
+      parResponse.headers.get("DPoP-Nonce") ?? nonce
+    );
+    expect({
+      status: tokenResponse.status,
+      sub: tokenResponseSchema.parse(await tokenResponse.json()).sub,
+    }).toStrictEqual({ status: 200, sub: accountDid });
   });
 
   it("requires the session DPoP key for revocation", async () => {

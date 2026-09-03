@@ -22,6 +22,7 @@ Handle requests ──▶ Handle Registry  private PLC Directory
 - [`apps/pds`](./apps/pds/README.md) — PDS XRPC, account, authentication, and repository routing Worker
 - [`apps/control-plane`](./apps/control-plane/README.md) — Cloudflare Access-protected account dashboard and API
 - [`apps/handle-registry`](./apps/handle-registry/README.md) — stateless AT Protocol HTTPS handle verification wrapper
+- [`apps/town`](./apps/town/README.md) — minimal AT Protocol OAuth browser client
 
 ### Packages
 
@@ -60,6 +61,7 @@ pnpm dev:control      # Run the Control Plane and its dependencies
 pnpm dev:pds          # Run the PDS and Directory
 pnpm dev:directory    # Run only the Directory
 pnpm dev:handle-registry # Run the Handle Registry and its dependencies
+pnpm dev:town         # Run Town and the Directory
 pnpm check            # Run all repository checks through Turbo
 pnpm test             # Test all workspace projects
 pnpm typecheck        # Type-check all workspace projects

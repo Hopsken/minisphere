@@ -85,10 +85,17 @@ const addAuthorizationResponseParameters = (
   parameters: Record<string, string>
 ) => {
   const redirect = new URL(request.redirectUri);
-  redirect.searchParams.set("iss", issuer);
-  redirect.searchParams.set("state", request.state);
+  const responseParameters =
+    request.responseMode === "fragment"
+      ? new URLSearchParams(redirect.hash.slice(1))
+      : redirect.searchParams;
+  responseParameters.set("iss", issuer);
+  responseParameters.set("state", request.state);
   for (const [name, value] of Object.entries(parameters)) {
-    redirect.searchParams.set(name, value);
+    responseParameters.set(name, value);
+  }
+  if (request.responseMode === "fragment") {
+    redirect.hash = responseParameters.toString();
   }
   return redirect.href;
 };

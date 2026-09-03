@@ -9,7 +9,7 @@ export const redirectUri = "http://127.0.0.1:3000/callback";
 export const clientId = `http://localhost?redirect_uri=${encodeURIComponent("http://127.0.0.1/callback")}&scope=atproto`;
 export const accountDid = "did:plc:aaaaaaaaaaaaaaaaaaaaaaaa";
 
-const parResponseSchema = z.object({
+export const parResponseSchema = z.object({
   expires_in: z.number(),
   request_uri: z.string(),
 });
@@ -96,8 +96,12 @@ export const pkceChallenge = async (verifier: string) => {
     .replace(/=+$/u, "");
 };
 
-export const parBody = (challenge: string, state: string) =>
-  new URLSearchParams({
+export const parBody = (
+  challenge: string,
+  state: string,
+  responseMode?: "fragment" | "query"
+) => {
+  const parameters = new URLSearchParams({
     client_id: clientId,
     code_challenge: challenge,
     code_challenge_method: "S256",
@@ -105,7 +109,12 @@ export const parBody = (challenge: string, state: string) =>
     response_type: "code",
     scope: "atproto",
     state,
-  }).toString();
+  });
+  if (responseMode) {
+    parameters.set("response_mode", responseMode);
+  }
+  return parameters.toString();
+};
 
 export const postOAuth = async (
   path: string,
@@ -123,17 +132,33 @@ export const postOAuth = async (
     method: "POST",
   });
 
+export const postOAuthJson = async (
+  path: string,
+  parameters: URLSearchParams,
+  key: DpopKey,
+  nonce?: string
+) =>
+  request(path, {
+    body: JSON.stringify(Object.fromEntries(parameters)),
+    headers: {
+      "Content-Type": "application/json",
+      DPoP: await createDpopProof(key, path, nonce),
+    },
+    method: "POST",
+  });
+
 export const createPar = async (
   key: DpopKey,
   challenge: string,
   state: string,
-  nonce?: string
+  nonce?: string,
+  responseMode?: "fragment" | "query"
 ) => {
   let serverNonce = nonce;
   if (!serverNonce) {
     const challengeResponse = await postOAuth(
       "/oauth/par",
-      parBody(challenge, state),
+      parBody(challenge, state, responseMode),
       key
     );
     expect(challengeResponse.status).toBe(400);
@@ -146,7 +171,7 @@ export const createPar = async (
 
   const response = await postOAuth(
     "/oauth/par",
-    parBody(challenge, state),
+    parBody(challenge, state, responseMode),
     key,
     serverNonce
   );

@@ -11,7 +11,8 @@ The package uses the runtime schemas from `@atcute/oauth-types` at protocol boun
 The first milestone supports public clients only:
 
 - HTTPS Client ID Metadata Documents and the `http://localhost` development client convention;
-- mandatory PAR, state, S256 PKCE, authorization code, refresh token, DPoP, nonce, and revocation flows;
+- mandatory PAR, state, S256 PKCE, authorization code, refresh token, DPoP, nonce, and revocation flows with query or fragment authorization responses;
+- JSON and form-encoded PAR, token, and revocation requests;
 - durable single-use and replay state through the Better Auth adapter;
 - one server-resolved DID in the OAuth session and top-level token-response `sub`.
 

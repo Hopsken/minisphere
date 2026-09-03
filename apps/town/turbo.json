@@ -1,0 +1,12 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "typegen": {
+      "dependsOn": ["@minisphere/directory#typegen"]
+    },
+    "dev": {
+      "with": ["@minisphere/directory#dev"]
+    }
+  }
+}
