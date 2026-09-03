@@ -1,6 +1,6 @@
 # Handle Registry
 
-The Handle Registry is a stateless Hono Cloudflare Worker that serves AT Protocol HTTPS handle verification. Accounts owns hosted handles and their DID mappings.
+The Handle Registry is a stateless Hono Cloudflare Worker that serves AT Protocol HTTPS handle verification. Accounts owns hosted handles and their DID mappings. The Worker also exposes the same mapping through `com.atproto.identity.resolveHandle` so browser clients can resolve local handles without wildcard local DNS.
 
 ## Protocol role
 
@@ -28,3 +28,5 @@ pnpm turbo test typecheck build --filter=@minisphere/handle-registry
 ```
 
 The local Handle Registry listens on port `8789`. Its inspector port is assigned dynamically. Turbo starts Accounts and its PDS dependency with the Handle Registry.
+
+Town uses the local XRPC endpoint only to map a handle to a DID. It then reads the DID document from PLC and discovers the user's PDS from that document.

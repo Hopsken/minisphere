@@ -11,7 +11,7 @@ const getOAuthConfiguration = (env: Env) => {
   const publicOrigin = new URL(env.PUBLIC_URL).origin;
   return {
     clientId: `${publicOrigin}/oauth-client-metadata.json`,
-    pdsOrigin: new URL(env.PDS_ORIGIN).origin,
+    handleResolverOrigin: new URL(env.HANDLE_RESOLVER_ORIGIN).origin,
     redirectUri: `${publicOrigin}/oauth/callback`,
     scope,
   };

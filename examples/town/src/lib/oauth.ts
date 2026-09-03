@@ -44,7 +44,7 @@ export const configureTownOAuth = (
         },
       }),
       handleResolver: new XrpcHandleResolver({
-        serviceUrl: browserConfiguration.pdsOrigin,
+        serviceUrl: browserConfiguration.handleResolverOrigin,
       }),
     }),
     metadata: {

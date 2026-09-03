@@ -35,7 +35,7 @@ describe("Town server", () => {
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toStrictEqual({
       clientId: "https://town.hopsken.dev/oauth-client-metadata.json",
-      pdsOrigin: "https://pds.hopsken.dev",
+      handleResolverOrigin: "https://pds.hopsken.dev",
       redirectUri: "https://town.hopsken.dev/oauth/callback",
       scope: "atproto",
     });

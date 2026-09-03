@@ -22,7 +22,10 @@ Handle requests ──▶ Handle Registry  private PLC Directory
 - [`apps/pds`](./apps/pds/README.md) — PDS XRPC, account, authentication, and repository routing Worker
 - [`apps/control-plane`](./apps/control-plane/README.md) — Cloudflare Access-protected account dashboard and API
 - [`apps/handle-registry`](./apps/handle-registry/README.md) — stateless AT Protocol HTTPS handle verification wrapper
-- [`apps/town`](./apps/town/README.md) — minimal AT Protocol OAuth browser client
+
+### Examples
+
+- [`examples/town`](./examples/town/README.md) — minimal external AT Protocol OAuth browser client
 
 ### Packages
 
@@ -46,6 +49,7 @@ cp apps/accounts/.dev.vars.example apps/accounts/.dev.vars
 cp apps/control-plane/.env.example apps/control-plane/.env
 cp apps/control-plane/.dev.vars.example apps/control-plane/.dev.vars
 cp apps/pds/.dev.vars.example apps/pds/.dev.vars
+cp examples/town/.dev.vars.example examples/town/.dev.vars
 pnpm setup:local
 ```
 
@@ -94,6 +98,7 @@ GitHub Actions runs `pnpm check` for pull requests, merge queue entries, and pus
 ## Documentation
 
 - [Accounts Entryway product requirements](./docs/product/accounts-entryway.md)
+- [Local development environment](./docs/LOCAL_DEVELOPMENT.md)
 - [Development status and decision log](./DEVELOPMENT.md)
 - [Coding style](./docs/CODING_STYLE.md)
 - [Architecture Decision Records](./docs/adr/README.md)

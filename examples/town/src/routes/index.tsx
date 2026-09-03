@@ -1,3 +1,4 @@
+import { isHandle } from "@atcute/lexicons/syntax";
 /* oxlint-disable eslint/func-style, eslint/no-use-before-define -- TanStack file routes export Route before their component declarations. */
 import {
   createAuthorizationUrl,
@@ -7,6 +8,7 @@ import {
 import { createFileRoute } from "@tanstack/react-router";
 import { CheckIcon, LogInIcon } from "lucide-react";
 import { useState } from "react";
+import type { FormEvent } from "react";
 
 import { api } from "@/lib/api";
 
@@ -33,15 +35,23 @@ function TownPage() {
   const { configuration } = Route.useRouteContext();
   const { identity } = Route.useLoaderData();
   const [error, setError] = useState<string | null>(null);
+  const [handle, setHandle] = useState("");
   const [isPending, setIsPending] = useState(false);
 
-  const login = async () => {
+  const login = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
     setError(null);
+    const identifier = handle.trim().toLowerCase().replace(/^@/u, "");
+    if (!isHandle(identifier)) {
+      setError("Enter a valid handle");
+      return;
+    }
+
     setIsPending(true);
     try {
       const authorizationUrl = await createAuthorizationUrl({
         scope: configuration.scope,
-        target: { serviceUrl: configuration.pdsOrigin, type: "pds" },
+        target: { identifier, type: "account" },
       });
       window.location.assign(authorizationUrl);
     } catch (loginError) {
@@ -76,15 +86,36 @@ function TownPage() {
             </div>
           </div>
         ) : (
-          <button
-            className="mt-8 inline-flex h-11 w-full items-center justify-center gap-2 rounded-full bg-stone-950 px-5 text-sm font-semibold text-white transition hover:bg-stone-800 focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-emerald-600 disabled:cursor-wait disabled:opacity-60"
-            disabled={isPending}
-            onClick={login}
-            type="button"
-          >
-            <LogInIcon className="size-4" aria-hidden="true" />
-            {isPending ? "Opening login…" : "Log in with AT Protocol"}
-          </button>
+          <form className="mt-8" onSubmit={login}>
+            <label
+              className="text-sm font-medium text-stone-800"
+              htmlFor="handle"
+            >
+              Handle
+            </label>
+            <input
+              autoCapitalize="none"
+              autoComplete="username"
+              className="mt-2 h-11 w-full rounded-xl border border-stone-300 bg-white px-4 text-sm transition outline-none placeholder:text-stone-400 focus:border-emerald-600 focus:ring-3 focus:ring-emerald-100 disabled:cursor-wait disabled:opacity-60"
+              disabled={isPending}
+              id="handle"
+              name="handle"
+              onChange={(event) => setHandle(event.target.value)}
+              placeholder="alice.r2d2.party"
+              required
+              spellCheck={false}
+              type="text"
+              value={handle}
+            />
+            <button
+              className="mt-4 inline-flex h-11 w-full items-center justify-center gap-2 rounded-full bg-stone-950 px-5 text-sm font-semibold text-white transition hover:bg-stone-800 focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-emerald-600 disabled:cursor-wait disabled:opacity-60"
+              disabled={isPending}
+              type="submit"
+            >
+              <LogInIcon className="size-4" aria-hidden="true" />
+              {isPending ? "Opening login…" : "Continue"}
+            </button>
+          </form>
         )}
 
         {error ? (

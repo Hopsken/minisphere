@@ -675,6 +675,9 @@ importers:
 
   apps/handle-registry:
     dependencies:
+      '@atcute/lexicons':
+        specifier: 'catalog:'
+        version: 2.1.0
       hono:
         specifier: 'catalog:'
         version: 4.13.3
@@ -759,7 +762,7 @@ importers:
         specifier: 'catalog:'
         version: 4.1.11(@types/node@26.2.0)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0))
 
-  apps/town:
+  examples/town:
     dependencies:
       '@atcute/did-plc':
         specifier: 'catalog:'

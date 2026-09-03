@@ -8,7 +8,7 @@
     },
     "types": [
       "./worker-configuration.d.ts",
-      "../directory/worker-configuration.d.ts",
+      "../../apps/directory/worker-configuration.d.ts",
       "vite/client"
     ]
   },

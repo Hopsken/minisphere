@@ -23,7 +23,7 @@
     },
   ],
   "vars": {
-    "PDS_ORIGIN": "https://pds.hopsken.dev",
+    "HANDLE_RESOLVER_ORIGIN": "https://pds.hopsken.dev",
     "PUBLIC_URL": "https://town.hopsken.dev",
   },
   "services": [

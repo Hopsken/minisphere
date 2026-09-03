@@ -31,10 +31,10 @@ This file records the current implementation state and important architecture de
 - Wildcard HTTPS routes send the request hostname to `AccountsEntrypoint` through a trusted service binding.
 - `/.well-known/atproto-did` returns the DID supplied by Accounts; unknown handles return `404`.
 
-### Town
+### Town example
 
-- Town is a minimal public AT Protocol OAuth browser client on React, TanStack Router, Atcute, Vite, and a Hono Worker.
-- It targets the configured public PDS, completes PAR, PKCE, DPoP, authorization-code, refresh, and identity verification through `@atcute/oauth-browser-client`, and displays the active user's handle.
+- Town is a minimal external AT Protocol OAuth browser client on React, TanStack Router, Atcute, Vite, and a Hono Worker.
+- It accepts a handle, resolves the DID, reads the PDS from the PLC DID document, discovers that PDS's authorization server, completes the OAuth flow through `@atcute/oauth-browser-client`, and displays the active user's handle.
 - Its only service binding is `DIRECTORY`. Town exposes PLC DID documents to its browser resolver and reads `alsoKnownAs` for the displayed handle. It does not bind to Accounts or the PDS and has no database or durable storage.
 
 ### PDS
