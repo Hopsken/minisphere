@@ -8,7 +8,7 @@ This file records the current implementation state and important architecture de
 
 - The Accounts app is the account and primary authentication authority on a Hono Worker, Better Auth, and D1.
 - Its frontend uses Vite, TanStack Router, TanStack Query, Tailwind CSS, and Base UI shadcn conventions.
-- It authenticates users through one deployment-configured generic OIDC provider. Local registration and primary passwords are disabled.
+- It can authenticate users through one deployment-configured generic OIDC provider. The provider is disabled when its client ID, client secret, and discovery URL are absent. Local registration and primary passwords are disabled.
 - Each Better Auth user has zero or one `atproto_account`. That record reserves one permanent normalized username and becomes active with one immutable DID. Hosted handles are derived from usernames and `PUBLIC_HANDLE_DOMAIN`.
 - Account completion uses `needs_username`, `provisioning`, and `active` states. A transport failure keeps the pre-derived DID and signed PLC operation for status checks and retry. A confirmed PDS response failure releases the provisional username claim.
 - Accounts gets one-time account invites from `PdsControlPlane.generateInviteCode()` and provisions through standard `com.atproto.server.reserveSigningKey` and `com.atproto.server.createAccount` XRPC methods exposed by `PdsControlPlane.fetch()`. It exposes active-only handle resolution through `AccountsEntrypoint`.

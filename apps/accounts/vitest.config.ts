@@ -53,10 +53,6 @@ export default defineConfig(async () => {
             ACCOUNTS_PLC_ROTATION_KEY: entrywayRotationKeyMultikey,
             BETTER_AUTH_SECRET:
               "local-test-better-auth-secret-at-least-32-characters",
-            OIDC_CLIENT_ID: "accounts-test-client",
-            OIDC_CLIENT_SECRET: "accounts-test-client-secret",
-            OIDC_DISCOVERY_URL:
-              "https://oidc.test/.well-known/openid-configuration",
             OIDC_PROVIDER_NAME: "Test Identity",
             PDS_ORIGIN: "https://pds.test",
             PUBLIC_HANDLE_DOMAIN: "r2d2.party",

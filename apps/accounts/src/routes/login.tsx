@@ -71,7 +71,9 @@ function LoginPage() {
           Welcome
         </h1>
         <p className="text-muted-foreground mt-3 text-sm">
-          Sign in to continue to minisphere.
+          {configuration.oidcProviderName
+            ? "Sign in to continue to minisphere."
+            : "Sign-in is not available."}
         </p>
         {error || signIn.error ? (
           <p className="text-destructive mt-5 text-sm">
@@ -79,17 +81,19 @@ function LoginPage() {
               "Sign-in could not be completed. Try again."}
           </p>
         ) : null}
-        <Button
-          className="mt-7 min-w-56"
-          disabled={signIn.isPending}
-          onClick={() => signIn.mutate()}
-          size="lg"
-        >
-          {signIn.isPending ? <Spinner /> : <LogInIcon />}
-          {signIn.isPending
-            ? "Opening sign-in"
-            : `Continue with ${configuration.oidcProviderName}`}
-        </Button>
+        {configuration.oidcProviderName ? (
+          <Button
+            className="mt-7 min-w-56"
+            disabled={signIn.isPending}
+            onClick={() => signIn.mutate()}
+            size="lg"
+          >
+            {signIn.isPending ? <Spinner /> : <LogInIcon />}
+            {signIn.isPending
+              ? "Opening sign-in"
+              : `Continue with ${configuration.oidcProviderName}`}
+          </Button>
+        ) : null}
       </section>
       {import.meta.env.DEV ? <DevLoginForm returnTo={returnTo} /> : null}
     </AppShell>

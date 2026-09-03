@@ -1,15 +1,70 @@
 import { env, exports } from "cloudflare:workers";
 import { describe, expect, it } from "vitest";
 
+import { configSchema } from "../worker/config";
+import { createDatabase } from "../worker/db";
+import { createAuth } from "../worker/lib/better-auth";
+
 const request = (path: string): Promise<Response> =>
   exports.default.fetch(new Request(`https://accounts.test${path}`));
 
 describe("accounts server", () => {
+  it("reports valid configuration health", async () => {
+    const response = await request("/health");
+
+    expect(response.status).toBe(204);
+    await expect(response.text()).resolves.toBe("");
+  });
+
+  it("reports that OIDC sign-in is unavailable", async () => {
+    const response = await request("/api/configuration");
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toStrictEqual({
+      oidcProviderName: null,
+    });
+  });
+
   it("mounts Better Auth", async () => {
     const response = await request("/api/auth/ok");
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toStrictEqual({ ok: true });
+  });
+
+  it("mounts the OIDC provider when it is configured", async () => {
+    const auth = createAuth(
+      configSchema.parse({
+        ACCOUNTS_OAUTH_SIGNING_KEY: env.ACCOUNTS_OAUTH_SIGNING_KEY,
+        ACCOUNTS_PLC_ROTATION_KEY: env.ACCOUNTS_PLC_ROTATION_KEY,
+        BETTER_AUTH_SECRET: env.BETTER_AUTH_SECRET,
+        OIDC_CLIENT_ID: "accounts-test-client",
+        "OIDC_CLIENT_SE\u0043RET": "accounts-test-client-secret",
+        OIDC_DISCOVERY_URL:
+          "https://oidc.test/.well-known/openid-configuration",
+        OIDC_PROVIDER_NAME: env.OIDC_PROVIDER_NAME,
+        PDS_ORIGIN: env.PDS_ORIGIN,
+        PUBLIC_HANDLE_DOMAIN: env.PUBLIC_HANDLE_DOMAIN,
+        PUBLIC_URL: env.PUBLIC_URL,
+      }),
+      createDatabase(env.DB)
+    );
+    const response = await auth.handler(
+      new Request("https://accounts.test/api/auth/sign-in/social", {
+        body: JSON.stringify({ callbackURL: "/", provider: "oidc" }),
+        headers: {
+          "content-type": "application/json",
+          origin: "https://accounts.test",
+        },
+        method: "POST",
+      })
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      redirect: true,
+      url: expect.stringMatching(/^https:\/\/oidc\.test\/authorize\?/u),
+    });
   });
 
   it("applies the Better Auth schema migration", async () => {

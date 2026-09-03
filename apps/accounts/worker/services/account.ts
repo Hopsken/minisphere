@@ -3,6 +3,7 @@ import { HTTPException } from "hono/http-exception";
 import { PdsClient } from "../clients/pds-client";
 import { PdsResponseError } from "../clients/pds-response-error";
 import { PlcDirectoryClient } from "../clients/plc-directory-client";
+import type { Config } from "../config";
 import { createHostedHandle } from "../lib/hosted-handle";
 import { createPlcAccountMaterial } from "../lib/plc-account";
 import type { PlcAccountMaterial } from "../lib/plc-account";
@@ -40,21 +41,21 @@ const accountView = (
 };
 
 export class AccountService {
+  private readonly config: Config;
   private readonly directory: PlcDirectoryClient;
-  private readonly env: Env;
   private readonly pds: PdsClient;
   private readonly users: UserRepository;
 
-  constructor(users: UserRepository, env: Env) {
+  constructor(users: UserRepository, env: Env, config: Config) {
     this.users = users;
-    this.env = env;
+    this.config = config;
     this.pds = new PdsClient(env.PDS);
     this.directory = new PlcDirectoryClient(env.DIRECTORY);
   }
 
   async getAccount(userId: string) {
     const account = await this.users.findAccountByUserId(userId);
-    return accountView(account, this.env.PUBLIC_HANDLE_DOMAIN);
+    return accountView(account, this.config.publicHandleDomain);
   }
 
   async createAccount(userId: string, username: string) {
@@ -68,20 +69,20 @@ export class AccountService {
       });
     }
     if (account.status === "active") {
-      return accountView(account, this.env.PUBLIC_HANDLE_DOMAIN);
+      return accountView(account, this.config.publicHandleDomain);
     }
 
     const handle = createHostedHandle(
       account.username,
-      this.env.PUBLIC_HANDLE_DOMAIN
+      this.config.publicHandleDomain
     );
     if (!account.did && !account.signingKey) {
       try {
         const signingKey = await this.pds.reserveSigningKey();
         const prepared = await createPlcAccountMaterial(
-          this.env.ACCOUNTS_PLC_ROTATION_KEY,
+          this.config.accountsPlcRotationKey,
           handle,
-          this.env.PDS_ORIGIN,
+          this.config.pdsOrigin,
           signingKey
         );
         account = await this.users.saveProvisioningIdentity(
@@ -106,9 +107,9 @@ export class AccountService {
     }
 
     const material = await createPlcAccountMaterial(
-      this.env.ACCOUNTS_PLC_ROTATION_KEY,
+      this.config.accountsPlcRotationKey,
       handle,
-      this.env.PDS_ORIGIN,
+      this.config.pdsOrigin,
       account.signingKey
     );
     if (material.did !== account.did) {
@@ -120,7 +121,7 @@ export class AccountService {
       return this.activateAccount(userId, material.did);
     }
     if (status === "pending") {
-      return accountView(account, this.env.PUBLIC_HANDLE_DOMAIN);
+      return accountView(account, this.config.publicHandleDomain);
     }
 
     try {
@@ -149,12 +150,12 @@ export class AccountService {
 
     return (await this.getProvisioningStatus(material, handle)) === "ready"
       ? this.activateAccount(userId, material.did)
-      : accountView(account, this.env.PUBLIC_HANDLE_DOMAIN);
+      : accountView(account, this.config.publicHandleDomain);
   }
 
   private async activateAccount(userId: string, did: string) {
     const active = await this.users.activateAccount(userId, did);
-    return accountView(active, this.env.PUBLIC_HANDLE_DOMAIN);
+    return accountView(active, this.config.publicHandleDomain);
   }
 
   private async getProvisioningStatus(
@@ -188,7 +189,7 @@ export class AccountService {
         ) &&
         plc.verificationMethods.atproto === material.signingKey &&
         pdsService?.type === "AtprotoPersonalDataServer" &&
-        pdsService.endpoint === new URL(this.env.PDS_ORIGIN).origin
+        pdsService.endpoint === this.config.pdsOrigin
         ? "ready"
         : "pending";
     } catch (error) {

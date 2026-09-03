@@ -16,7 +16,7 @@ const app = new Hono<WorkerEnv>()
   .use(withSession({ required: true }))
   .get("/", async (ctx) => {
     const users = new UserRepository(ctx.var.database);
-    const service = new AccountService(users, ctx.env);
+    const service = new AccountService(users, ctx.env, ctx.var.config);
     return ctx.json(await service.getAccount(ctx.var.session.user.id));
   })
   .get(
@@ -27,14 +27,14 @@ const app = new Hono<WorkerEnv>()
       const users = new UserRepository(ctx.var.database);
       return ctx.json({
         available: await users.isUsernameAvailable(username),
-        handle: createHostedHandle(username, ctx.env.PUBLIC_HANDLE_DOMAIN),
+        handle: createHostedHandle(username, ctx.var.config.publicHandleDomain),
         username,
       });
     }
   )
   .post("/", zValidator("json", createAccountSchema), async (ctx) => {
     const users = new UserRepository(ctx.var.database);
-    const service = new AccountService(users, ctx.env);
+    const service = new AccountService(users, ctx.env, ctx.var.config);
     const result = await service.createAccount(
       ctx.var.session.user.id,
       ctx.req.valid("json").username

@@ -1,6 +1,8 @@
 import { genericOAuth } from "better-auth/plugins/generic-oauth";
 import { z } from "zod";
 
+import type { OidcConfig } from "../../config";
+
 const oidcProfileSchema = z.looseObject({
   name: z.string().trim().optional(),
   preferred_username: z.string().trim().optional(),
@@ -30,25 +32,25 @@ const profileName = (profile: OidcProfile) => {
   return "Member";
 };
 
-export const createOidcProvider = (env: Env) =>
+export const createOidcProvider = (config: OidcConfig) =>
   genericOAuth({
     config: [
       {
-        clientId: env.OIDC_CLIENT_ID,
-        clientSecret: env.OIDC_CLIENT_SECRET,
-        discoveryUrl: env.OIDC_DISCOVERY_URL,
+        clientId: config.clientId,
+        clientSecret: config.clientSecret,
+        discoveryUrl: config.discoveryUrl,
         mapProfileToUser: async (untrustedProfile) => {
           const profile = oidcProfileSchema.parse(untrustedProfile);
           return {
             email: await syntheticEmail(
-              env.OIDC_DISCOVERY_URL,
+              config.discoveryUrl,
               String(profile.sub)
             ),
             emailVerified: false,
             name: profileName(profile),
           };
         },
-        name: env.OIDC_PROVIDER_NAME,
+        name: config.providerName,
         providerId: "oidc",
         requireIdTokenVerification: true,
         scopes: ["email", "profile"],
