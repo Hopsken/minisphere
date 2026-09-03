@@ -10,7 +10,6 @@
     "dev": "turbo run dev:town:local:stack",
     "dev:accounts": "turbo dev --filter=@minisphere/accounts",
     "dev:atproto": "turbo run dev:atproto:stack",
-    "dev:control": "turbo dev --filter=@minisphere/control-plane",
     "dev:directory": "turbo dev --filter=@minisphere/directory",
     "dev:handle-registry": "turbo dev --filter=@minisphere/handle-registry",
     "dev:pds": "turbo dev --filter=@minisphere/pds",

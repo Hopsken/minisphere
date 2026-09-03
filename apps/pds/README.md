@@ -18,10 +18,10 @@ Entryway provisioning uses the standard AT Protocol methods:
 
 1. `com.atproto.server.reserveSigningKey` generates a repository signing key. The PDS stores the private multikey encrypted in D1 and returns only its public `did:key`. The reservation has no independent time-to-live.
 2. Accounts creates and signs the genesis PLC operation with its own rotation key and derives the expected `did:plc` before account creation.
-3. Accounts gets a one-time invite through `PdsControlPlane.generateInviteCode()`. `com.atproto.server.createAccount` receives that invite, DID, handle, and PLC operation. The PDS verifies the DID derivation, operation signature, PDS endpoint, handle claim, and reserved repository key, then atomically claims the unexpired invite in D1 and binds the signing-key reservation to the derived DID.
+3. Accounts gets a one-time invite through `PdsControlPlane.generateInviteCode()`. `com.atproto.server.createAccount` receives that invite, DID, handle, and PLC operation. The PDS validates the standard lexicon input and required Entryway material shape, then trusts the Accounts-supplied identity material. It atomically claims the unexpired invite in D1 and binds the requested signing-key reservation to the supplied DID.
 4. The PDS atomically initializes the DID-named repository, submits the PLC operation, and records the local account. The signing-key reservation remains available to the same DID after a downstream failure. After success, its deletion is in the same D1 batch as the account and refresh token. Accounts independently verifies PDS repository and PLC state before activation.
 
-An invitation is a bearer credential that proves authorization through the trusted control-plane binding. It is not bound to a DID. Its D1 row contains the code and expiry time. A claimed invitation remains spent if a later account-creation side effect fails; Accounts requests a new invitation for a retry. New invitation generation opportunistically removes expired rows.
+An invitation is a bearer credential that proves authorization through the trusted provisioning binding. It is not bound to a DID. Its D1 row contains the code and expiry time. A claimed invitation remains spent if a later account-creation side effect fails; Accounts requests a new invitation for a retry. New invitation generation opportunistically removes expired rows.
 
 The PDS does not allocate or enforce hosted-handle uniqueness. Accounts owns that policy. A retry after an unknown response uses the same pre-derived DID and signed PLC operation. Repository reservation and PLC submission tolerate already-completed side effects, while Accounts checks `com.atproto.sync.getRepoStatus` and resolved PLC state before sending another create request.
 
@@ -59,7 +59,6 @@ pnpm --filter @minisphere/pds db:migrate:remote
 ## Secrets
 
 - `PDS_JWT_SECRET` — at least 32 random bytes used for account-session JWTs
-- `PDS_ROTATION_KEY` — stable secp256k1 private multikey used to sign PLC operations for standalone invite-based account creation
 - `PDS_SIGNING_KEY_ENCRYPTION_KEY` — stable secret of at least 32 random characters used to encrypt unclaimed repository private keys in D1; changing it makes existing reservations unreadable
 
 Variables:
@@ -69,7 +68,6 @@ Variables:
 
 ```sh
 pnpm --filter @minisphere/pds exec wrangler secret put PDS_JWT_SECRET
-pnpm --filter @minisphere/pds exec wrangler secret put PDS_ROTATION_KEY
 pnpm --filter @minisphere/pds exec wrangler secret put PDS_SIGNING_KEY_ENCRYPTION_KEY
 ```
 

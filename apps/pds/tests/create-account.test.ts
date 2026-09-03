@@ -40,7 +40,6 @@ interface CreateAccountOverrides {
   inviteCode?: string;
   password?: string;
   plcOp?: Operation;
-  recoveryKey?: string;
 }
 
 const createInviteCode = (): Promise<string> =>
@@ -49,24 +48,6 @@ const createInviteCode = (): Promise<string> =>
 const normalizeDidKey = (value: string): DidKeyString => {
   parseDidKey(value);
   return `did:key:${value.slice("did:key:".length)}`;
-};
-
-const postAccount = async (
-  overrides: CreateAccountOverrides = {}
-): Promise<Response> => {
-  const recoveryKey = await Secp256k1PrivateKeyExportable.createKeypair();
-  const recoveryKeyDid = await recoveryKey.exportPublicKey("did");
-  const inviteCode = overrides.inviteCode ?? (await createInviteCode());
-  return request("/xrpc/com.atproto.server.createAccount", {
-    body: JSON.stringify({
-      handle: "agent.pds.test",
-      inviteCode,
-      recoveryKey: recoveryKeyDid,
-      ...overrides,
-    }),
-    headers: { "Content-Type": "application/json" },
-    method: "POST",
-  });
 };
 
 const prepareEntrywayAccount = async (handle: string) => {
@@ -100,12 +81,26 @@ const prepareEntrywayAccount = async (handle: string) => {
   return { did: await deriveDidFromGenesisOp(plcOp), handle, plcOp };
 };
 
+const postAccount = async (
+  overrides: CreateAccountOverrides = {}
+): Promise<Response> => {
+  const input = await prepareEntrywayAccount(
+    overrides.handle ?? "agent.pds.test"
+  );
+  const inviteCode = overrides.inviteCode ?? (await createInviteCode());
+  return request("/xrpc/com.atproto.server.createAccount", {
+    body: JSON.stringify({ ...input, inviteCode, ...overrides }),
+    headers: { "Content-Type": "application/json" },
+    method: "POST",
+  });
+};
+
 describe("com.atproto.server.createAccount", () => {
   afterEach(() => {
     vi.restoreAllMocks();
   });
 
-  it("uses a control-plane invite and creates a passwordless account", async () => {
+  it("uses a trusted provisioning invite and creates a passwordless account", async () => {
     const inviteCode = await createInviteCode();
     const response = await postAccount({ inviteCode });
     expect(response.status).toBe(200);
@@ -287,47 +282,15 @@ describe("com.atproto.server.createAccount", () => {
     });
   });
 
-  it("requires an invite for a valid externally signed PLC operation", async () => {
+  it("requires a non-empty invite", async () => {
     const input = await prepareEntrywayAccount("uninvited.pds.test");
     const response = await request("/xrpc/com.atproto.server.createAccount", {
-      body: JSON.stringify(input),
+      body: JSON.stringify({ ...input, inviteCode: "" }),
       headers: { "Content-Type": "application/json" },
       method: "POST",
     });
 
     expect(response.status).toBe(400);
-    await expect(response.text()).resolves.toBe("Invite code is required");
-  });
-
-  it("rejects an invalid PLC operation even with an invite", async () => {
-    const input = await prepareEntrywayAccount("invalid-operation.pds.test");
-    const inviteCode = await createInviteCode();
-    const replacement = input.plcOp.sig.startsWith("A") ? "B" : "A";
-    const plcOp = {
-      ...input.plcOp,
-      sig: `${replacement}${input.plcOp.sig.slice(1)}`,
-    };
-    const response = await request("/xrpc/com.atproto.server.createAccount", {
-      body: JSON.stringify({
-        ...input,
-        did: await deriveDidFromGenesisOp(plcOp),
-        inviteCode,
-        plcOp,
-      }),
-      headers: { "Content-Type": "application/json" },
-      method: "POST",
-    });
-
-    expect(response.status).toBe(400);
-    await expect(response.text()).resolves.toBe(
-      "DID and PLC operation do not match"
-    );
-
-    const retry = await postAccount({
-      handle: "valid-after-invalid.pds.test",
-      inviteCode,
-    });
-    expect(retry.status).toBe(200);
   });
 
   it("stores invite codes with a two-hour expiry", async () => {
@@ -401,13 +364,13 @@ describe("com.atproto.server.createAccount", () => {
     expect(firstAccount.did).not.toBe(secondAccount.did);
   });
 
-  it("rejects an invite not issued by the control plane", async () => {
+  it("rejects an invite not issued by the provisioning entrypoint", async () => {
     const input = await prepareEntrywayAccount("unsigned.pds.test");
     const signingKey = input.plcOp.verificationMethods.atproto;
     const response = await request("/xrpc/com.atproto.server.createAccount", {
       body: JSON.stringify({
         ...input,
-        inviteCode: "not-issued-by-the-control-plane",
+        inviteCode: "not-issued-by-the-provisioning-entrypoint",
       }),
       headers: { "Content-Type": "application/json" },
       method: "POST",
@@ -486,21 +449,12 @@ describe("com.atproto.server.createAccount", () => {
     await expect(retry.text()).resolves.toBe("Invalid invite code");
   });
 
-  it("rejects account imports and primary passwords", async () => {
-    const importedAccount = await postAccount({ did: "did:plc:alice" });
-    expect(importedAccount.status).toBe(400);
-
-    const primaryPassword = await postAccount({
+  it("ignores standard account fields unused by Entryway", async () => {
+    const response = await postAccount({
       handle: "password.pds.test",
       password: "primary-password-is-not-supported",
     });
-    expect(primaryPassword.status).toBe(400);
-
-    const invalidRecoveryKey = await postAccount({
-      handle: "recovery.pds.test",
-      recoveryKey: "not-a-key",
-    });
-    expect(invalidRecoveryKey.status).toBe(400);
+    expect(response.status).toBe(200);
   });
 
   it("accepts a valid handle outside the PDS domain", async () => {
@@ -512,23 +466,9 @@ describe("com.atproto.server.createAccount", () => {
     ).toMatchObject({ handle: "agent.example.com" });
   });
 
-  it("requires a 2-63 character account name", async () => {
-    const shortAccountName = await postAccount({ handle: "a.pds.test" });
-    expect(shortAccountName.status).toBe(400);
-
-    const longAccountName = await postAccount({
-      handle: `${"a".repeat(64)}.pds.test`,
-    });
-    expect(longAccountName.status).toBe(400);
-  });
-
-  it("removes the former custom admin registration endpoint", async () => {
-    const response = await request("/admin/register", {
-      body: JSON.stringify({}),
-      headers: { "Content-Type": "application/json" },
-      method: "POST",
-    });
-    expect(response.status).toBe(404);
+  it("accepts account names allowed by the handle lexicon", async () => {
+    const response = await postAccount({ handle: "a.pds.test" });
+    expect(response.status).toBe(200);
   });
 
   it("does not publish handle mappings", async () => {

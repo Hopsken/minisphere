@@ -512,127 +512,6 @@ importers:
         specifier: 'catalog:'
         version: 4.1.11(@types/node@26.2.0)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0))
 
-  apps/control-plane:
-    dependencies:
-      '@atcute/atproto':
-        specifier: 'catalog:'
-        version: 4.0.4(@atcute/lexicons@2.1.0)
-      '@atcute/client':
-        specifier: 'catalog:'
-        version: 5.1.1(@atcute/lexicons@2.1.0)(typescript@7.0.2)
-      '@atcute/crypto':
-        specifier: 'catalog:'
-        version: 2.4.4
-      '@atcute/did-plc':
-        specifier: 'catalog:'
-        version: 1.0.1(@atcute/cbor@2.3.6(@atcute/cid@2.4.2))(@atcute/cid@2.4.2)(@atcute/identity@2.0.2(@atcute/lexicons@2.1.0)(typescript@7.0.2))(@atcute/lexicons@2.1.0)(typescript@7.0.2)
-      '@atcute/identity-resolver':
-        specifier: 'catalog:'
-        version: 2.0.1(@atcute/identity@2.0.2(@atcute/lexicons@2.1.0)(typescript@7.0.2))(@atcute/lexicons@2.1.0)(typescript@7.0.2)
-      '@atcute/lexicons':
-        specifier: 'catalog:'
-        version: 2.1.0
-      '@base-ui/react':
-        specifier: ^1.7.0
-        version: 1.7.0(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      '@blobatar/react':
-        specifier: ^2.3.1
-        version: 2.3.1(blobatar@2.3.1(react@19.2.8))(react@19.2.8)
-      '@fontsource-variable/inter':
-        specifier: 'catalog:'
-        version: 5.3.0
-      '@hono/zod-validator':
-        specifier: 'catalog:'
-        version: 0.9.0(hono@4.13.3)(zod@4.4.3)
-      '@minisphere/hono-utils':
-        specifier: workspace:*
-        version: link:../../packages/hono-utils
-      '@tanstack/react-query':
-        specifier: 'catalog:'
-        version: 5.101.4(react@19.2.8)
-      '@tanstack/react-router':
-        specifier: 'catalog:'
-        version: 1.170.31(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      blobatar:
-        specifier: ^2.3.1
-        version: 2.3.1(react@19.2.8)
-      class-variance-authority:
-        specifier: ^0.7.1
-        version: 0.7.1
-      clsx:
-        specifier: 'catalog:'
-        version: 2.1.1
-      drizzle-orm:
-        specifier: 'catalog:'
-        version: 1.0.0-rc.4(@cloudflare/workers-types@5.20260821.1)(valibot@1.4.2(typescript@7.0.2))(zod@4.4.3)
-      hono:
-        specifier: 'catalog:'
-        version: 4.13.3
-      lucide-react:
-        specifier: 'catalog:'
-        version: 1.33.0(react@19.2.8)
-      next-themes:
-        specifier: 'catalog:'
-        version: 0.4.6(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      react:
-        specifier: 'catalog:'
-        version: 19.2.8
-      react-dom:
-        specifier: 'catalog:'
-        version: 19.2.8(react@19.2.8)
-      shadcn:
-        specifier: 'catalog:'
-        version: 4.18.0(supports-color@10.2.2)(typescript@7.0.2)
-      sonner:
-        specifier: 'catalog:'
-        version: 2.0.8(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      tailwind-merge:
-        specifier: 'catalog:'
-        version: 3.6.0
-      tw-animate-css:
-        specifier: 'catalog:'
-        version: 1.4.0
-      zod:
-        specifier: 'catalog:'
-        version: 4.4.3
-    devDependencies:
-      '@cloudflare/vite-plugin':
-        specifier: 'catalog:'
-        version: 1.52.0(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0))(wrangler@4.124.0(@cloudflare/workers-types@5.20260821.1))
-      '@cloudflare/vitest-pool-workers':
-        specifier: 'catalog:'
-        version: 0.22.0(@cloudflare/workers-types@5.20260821.1)(@vitest/runner@4.1.11)(@vitest/snapshot@4.1.11)(vitest@4.1.11(@types/node@26.2.0)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0)))
-      '@tailwindcss/vite':
-        specifier: 'catalog:'
-        version: 4.3.3(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0))
-      '@tanstack/router-plugin':
-        specifier: 'catalog:'
-        version: 1.168.34(@tanstack/react-router@1.170.31(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(esbuild@0.28.1)(rolldown@1.2.4)(supports-color@10.2.2)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0))
-      '@types/node':
-        specifier: 'catalog:'
-        version: 26.2.0
-      '@types/react':
-        specifier: 'catalog:'
-        version: 19.2.18
-      '@types/react-dom':
-        specifier: 'catalog:'
-        version: 19.2.4(@types/react@19.2.18)
-      '@vitejs/plugin-react':
-        specifier: 'catalog:'
-        version: 6.1.0(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0))
-      drizzle-kit:
-        specifier: 'catalog:'
-        version: 1.0.0-rc.5-ab785fc
-      tailwindcss:
-        specifier: 'catalog:'
-        version: 4.3.3
-      vite:
-        specifier: 'catalog:'
-        version: 8.2.2(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0)
-      vitest:
-        specifier: 'catalog:'
-        version: 4.1.11(@types/node@26.2.0)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0))
-
   apps/directory:
     dependencies:
       '@atproto/common':
@@ -1280,12 +1159,6 @@ packages:
 
   '@better-fetch/fetch@1.3.1':
     resolution: {integrity: sha512-ABkD1WhyfPZprKRQI3bhATjeiFuNWC9PXhfGWqL+sg/gKrM977oFrYkdb4msM3hgUGonr7KlOsOFT5TU2rht9g==}
-
-  '@blobatar/react@2.3.1':
-    resolution: {integrity: sha512-Xessznso5qjidUEuy/wujRTEzBNZYDwlYOVpeRPK5ORvB4ONgnXWsl7epa9t3fslNkhPhyVFz4HmSNH/qNQjog==}
-    peerDependencies:
-      blobatar: 2.x
-      react: '>=18'
 
   '@clack/core@1.4.3':
     resolution: {integrity: sha512-/kr3UWNtdJfxZtPgDqUOmG2pvwlmcLGheex5yiZKdwbzZJxhV+HMNR9QNmyY5cGwTNV6LrR7Jtp+KjhUAP1qBQ==}
@@ -2908,17 +2781,6 @@ packages:
 
   blake3-wasm@2.1.5:
     resolution: {integrity: sha512-F1+K8EbfOZE49dtoPtmxUQrpXaBIl3ICvasLh+nJta0xkz+9kF/7uet9fLnwKqhDrmj6g+6K3Tw9yQPUg2ka5g==}
-
-  blobatar@2.3.1:
-    resolution: {integrity: sha512-2gySQ2v0HvsHtI0O3jkasaepAOCl6RKrhRymVQKrGZt5Cnhpr8diKNR+bDDPckFMl6ybu6YTGN7e+lSoPrMxaA==}
-    peerDependencies:
-      react: '>=18'
-      vue: '>=3'
-    peerDependenciesMeta:
-      react:
-        optional: true
-      vue:
-        optional: true
 
   body-parser@2.3.0:
     resolution: {integrity: sha512-2cGmJupaNgg+QUwVLAucDuWuoMZ6EX9iHDRswZ5lsNYEmwPaRknMPCLZz07yTzVq/83p4o/wzbDZbBrTvGGTIw==}
@@ -5447,11 +5309,6 @@ snapshots:
 
   '@better-fetch/fetch@1.3.1': {}
 
-  '@blobatar/react@2.3.1(blobatar@2.3.1(react@19.2.8))(react@19.2.8)':
-    dependencies:
-      blobatar: 2.3.1(react@19.2.8)
-      react: 19.2.8
-
   '@clack/core@1.4.3':
     dependencies:
       fast-wrap-ansi: 0.2.2
@@ -6573,10 +6430,6 @@ snapshots:
   big-integer@1.6.52: {}
 
   blake3-wasm@2.1.5: {}
-
-  blobatar@2.3.1(react@19.2.8):
-    optionalDependencies:
-      react: 19.2.8
 
   body-parser@2.3.0(supports-color@10.2.2):
     dependencies:

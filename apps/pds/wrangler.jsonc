@@ -26,11 +26,7 @@
     "PDS_ORIGIN": "https://pds.hopsken.dev",
   },
   "secrets": {
-    "required": [
-      "PDS_JWT_SECRET",
-      "PDS_ROTATION_KEY",
-      "PDS_SIGNING_KEY_ENCRYPTION_KEY",
-    ],
+    "required": ["PDS_JWT_SECRET", "PDS_SIGNING_KEY_ENCRYPTION_KEY"],
   },
   "services": [
     {

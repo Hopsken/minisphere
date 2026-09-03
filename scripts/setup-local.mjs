@@ -21,10 +21,6 @@ const contracts = new Map([
     ],
   ],
   [
-    "apps/control-plane/.dev.vars.example",
-    ["HANDLE_DOMAIN=r2d2.test", "PDS_ORIGIN=http://localhost:8787"],
-  ],
-  [
     "examples/town/.dev.vars.example",
     [
       "DEV_HANDLE_RESOLVER_ORIGIN=http://localhost:8789",
@@ -33,7 +29,6 @@ const contracts = new Map([
     ],
   ],
   ["apps/accounts/vite.config.ts", ["port: 8790,", "strictPort: true,"]],
-  ["apps/control-plane/vite.config.ts", ["port: 5175,", "strictPort: true,"]],
   ["apps/directory/wrangler.jsonc", ['"port": 8788,']],
   ["apps/handle-registry/wrangler.jsonc", ['"port": 8789,']],
   ["apps/pds/wrangler.jsonc", ['"port": 8787,']],

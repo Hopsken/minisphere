@@ -25,9 +25,7 @@ Do not rewrite an accepted ADR when a decision changes. Add a new ADR and mark t
 The current decision log contains these ADR candidates:
 
 - one account model for all AT Protocol identities;
-- PLC Directory, PDS, and Control Plane data ownership;
+- PLC Directory and PDS data ownership;
 - one DID repository per SQLite Durable Object;
 - the split between PDS D1 and `@minisphere/repo-do`;
-- Cloudflare Access as the Control Plane authorization boundary;
 - Accounts ownership of users, primary authentication, usernames, handles, and DIDs, with stateless HTTPS handle verification;
-- simple account creation without durable reservation or reconciliation.
