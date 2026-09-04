@@ -3,43 +3,21 @@ import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { logger } from "hono/logger";
 
-import { configResult, getConfig } from "./config";
-import type { Config } from "./config";
+import { getConfig } from "./config";
 import { createDatabase } from "./db";
 import { withBetterAuth } from "./middlewares/with-better-auth";
 import { withDBAccess } from "./middlewares/with-db-access";
 import { UserRepository } from "./repositories/user-repository";
 import api from "./routes";
+import healthRoutes from "./routes/health";
 
 declare global {
   interface WorkerEnv {
     Bindings: Env;
-    Variables: {
-      config: Config;
-    };
   }
 }
 
-const app = new Hono<WorkerEnv>().use(logger()).use((ctx, next) => {
-  if (ctx.req.path !== "/health") {
-    ctx.set("config", getConfig());
-  }
-  return next();
-});
-
-app.get("/health", (ctx) => {
-  if (!configResult.success) {
-    console.error(
-      "Accounts configuration is invalid",
-      configResult.error.issues.map((issue) => ({
-        message: issue.message,
-        path: issue.path.join("."),
-      }))
-    );
-    return ctx.json({ status: "unavailable" }, 503);
-  }
-  return ctx.body(null, 204);
-});
+const app = new Hono<WorkerEnv>().use(logger()).route("/health", healthRoutes);
 
 if (import.meta.env.DEV) {
   const { default: dev } = await import("./routes/dev");

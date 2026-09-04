@@ -1,7 +1,7 @@
 import { genericOAuth } from "better-auth/plugins/generic-oauth";
 import { z } from "zod";
 
-import type { OidcConfig } from "../../config";
+import type { Config } from "../../config";
 
 const oidcProfileSchema = z.looseObject({
   name: z.string().trim().optional(),
@@ -32,7 +32,7 @@ const profileName = (profile: OidcProfile) => {
   return "Member";
 };
 
-export const createOidcProvider = (config: OidcConfig) =>
+export const createOidcProvider = (config: NonNullable<Config["oidc"]>) =>
   genericOAuth({
     config: [
       {

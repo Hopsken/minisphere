@@ -22,7 +22,7 @@ const privateSecp256k1MultikeySchema = z.string().refine(
 
 const optionalOidcValueSchema = z.string().min(1).optional();
 
-const rawConfigSchema = z
+export const configSchema = z
   .object({
     ACCOUNTS_OAUTH_SIGNING_KEY: privateSecp256k1MultikeySchema,
     ACCOUNTS_PLC_ROTATION_KEY: privateSecp256k1MultikeySchema,
@@ -58,28 +58,28 @@ const rawConfigSchema = z
         });
       }
     }
-  });
-
-export const configSchema = rawConfigSchema.transform((value) => ({
-  accountsOAuthSigningKey: value.ACCOUNTS_OAUTH_SIGNING_KEY,
-  accountsPlcRotationKey: value.ACCOUNTS_PLC_ROTATION_KEY,
-  betterAuthSecret: value.BETTER_AUTH_SECRET,
-  oidc:
-    value.OIDC_CLIENT_ID && value.OIDC_CLIENT_SECRET && value.OIDC_DISCOVERY_URL
-      ? {
-          clientId: value.OIDC_CLIENT_ID,
-          clientSecret: value.OIDC_CLIENT_SECRET,
-          discoveryUrl: value.OIDC_DISCOVERY_URL,
-          providerName: value.OIDC_PROVIDER_NAME,
-        }
-      : null,
-  pdsOrigin: value.PDS_ORIGIN,
-  publicHandleDomain: value.PUBLIC_HANDLE_DOMAIN,
-  publicUrl: value.PUBLIC_URL,
-}));
+  })
+  .transform((value) => ({
+    accountsOAuthSigningKey: value.ACCOUNTS_OAUTH_SIGNING_KEY,
+    accountsPlcRotationKey: value.ACCOUNTS_PLC_ROTATION_KEY,
+    betterAuthSecret: value.BETTER_AUTH_SECRET,
+    oidc:
+      value.OIDC_CLIENT_ID &&
+      value.OIDC_CLIENT_SECRET &&
+      value.OIDC_DISCOVERY_URL
+        ? {
+            clientId: value.OIDC_CLIENT_ID,
+            clientSecret: value.OIDC_CLIENT_SECRET,
+            discoveryUrl: value.OIDC_DISCOVERY_URL,
+            providerName: value.OIDC_PROVIDER_NAME,
+          }
+        : null,
+    pdsOrigin: value.PDS_ORIGIN,
+    publicHandleDomain: value.PUBLIC_HANDLE_DOMAIN,
+    publicUrl: value.PUBLIC_URL,
+  }));
 
 export type Config = z.infer<typeof configSchema>;
-export type OidcConfig = NonNullable<Config["oidc"]>;
 
 export const configResult = configSchema.safeParse(env);
 

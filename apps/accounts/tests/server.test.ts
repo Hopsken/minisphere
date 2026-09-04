@@ -1,7 +1,7 @@
 import { env, exports } from "cloudflare:workers";
 import { describe, expect, it } from "vitest";
 
-import { configSchema } from "../worker/config";
+import { getConfig } from "../worker/config";
 import { createDatabase } from "../worker/db";
 import { createAuth } from "../worker/lib/better-auth";
 
@@ -34,19 +34,15 @@ describe("accounts server", () => {
 
   it("mounts the OIDC provider when it is configured", async () => {
     const auth = createAuth(
-      configSchema.parse({
-        ACCOUNTS_OAUTH_SIGNING_KEY: env.ACCOUNTS_OAUTH_SIGNING_KEY,
-        ACCOUNTS_PLC_ROTATION_KEY: env.ACCOUNTS_PLC_ROTATION_KEY,
-        BETTER_AUTH_SECRET: env.BETTER_AUTH_SECRET,
-        OIDC_CLIENT_ID: "accounts-test-client",
-        "OIDC_CLIENT_SE\u0043RET": "accounts-test-client-secret",
-        OIDC_DISCOVERY_URL:
-          "https://oidc.test/.well-known/openid-configuration",
-        OIDC_PROVIDER_NAME: env.OIDC_PROVIDER_NAME,
-        PDS_ORIGIN: env.PDS_ORIGIN,
-        PUBLIC_HANDLE_DOMAIN: env.PUBLIC_HANDLE_DOMAIN,
-        PUBLIC_URL: env.PUBLIC_URL,
-      }),
+      {
+        ...getConfig(),
+        oidc: {
+          clientId: "accounts-test-client",
+          clientSecret: "accounts-test-client-secret",
+          discoveryUrl: "https://oidc.test/.well-known/openid-configuration",
+          providerName: "Test Identity",
+        },
+      },
       createDatabase(env.DB)
     );
     const response = await auth.handler(
