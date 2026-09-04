@@ -2,9 +2,11 @@
 BETTER_AUTH_SECRET=local-development-better-auth-secret-change-me
 PUBLIC_URL=http://localhost:8790
 PUBLIC_HANDLE_DOMAIN=r2d2.test
-OIDC_CLIENT_ID=minisphere-accounts-local
-OIDC_CLIENT_SECRET=replace-with-local-oidc-client-secret
-OIDC_DISCOVERY_URL=https://identity.example.com/.well-known/openid-configuration
 PDS_ORIGIN=http://localhost:8787
 ACCOUNTS_PLC_ROTATION_KEY=z3vLkg9CfGbLKz4hVw59gaeakjfwZZ1mzG6VFpiCnXuGUXFe
 ACCOUNTS_OAUTH_SIGNING_KEY=z3vLgutAnqAMEebBpzwLH6XXgsbGAfj7EM4xtwdikAXkDirW
+
+# Set all three values to enable upstream OIDC login.
+# OIDC_CLIENT_ID=minisphere-accounts-local
+# OIDC_CLIENT_SECRET=replace-with-local-oidc-client-secret
+# OIDC_DISCOVERY_URL=https://identity.example.com/.well-known/openid-configuration

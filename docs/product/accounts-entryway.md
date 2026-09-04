@@ -114,8 +114,8 @@ This is one account aggregate. The internal user ID and DID do not represent an 
 
 ### Upstream authentication
 
-- The first release supports one generic OIDC provider.
-- The deployment environment supplies its OIDC discovery URL and client configuration.
+- The first release supports up to one generic OIDC provider.
+- A deployment that enables upstream sign-in supplies its OIDC discovery URL and client configuration. A deployment may omit all three values and expose no upstream sign-in method.
 - Accounts uses OIDC discovery rather than provider-specific integration code.
 - The OIDC issuer and subject identify the upstream login. Multiple providers and cross-provider account linking are out of scope.
 

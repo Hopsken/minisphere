@@ -1,25 +1,26 @@
 import { drizzleAdapter } from "@better-auth/drizzle-adapter/relations-v2";
 import { betterAuth } from "better-auth/minimal";
 
+import type { Config } from "../../config";
 import type { Database } from "../../db";
 import * as schema from "../../db/schema/better-auth";
 import { createAtprotoOAuthProvider } from "../atproto-oauth";
 import { createOidcProvider } from "./oidc";
 import { betterAuthOptions } from "./options";
 
-export const createAuth = (env: Env, database: Database) =>
+export const createAuth = (config: Config, database: Database) =>
   betterAuth({
     ...betterAuthOptions,
-    baseURL: env.PUBLIC_URL,
+    baseURL: config.publicUrl,
     database: drizzleAdapter(database, {
       provider: "sqlite",
       schema,
     }),
     plugins: [
-      createOidcProvider(env),
-      createAtprotoOAuthProvider(env, database),
+      ...(config.oidc ? [createOidcProvider(config.oidc)] : []),
+      createAtprotoOAuthProvider(config, database),
     ],
-    secret: env.BETTER_AUTH_SECRET,
+    secret: config.betterAuthSecret,
   });
 
 export type Auth = ReturnType<typeof createAuth>;

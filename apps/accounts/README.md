@@ -2,15 +2,15 @@
 
 Accounts is the Entryway authentication and account server. It combines a React SPA and a Hono Cloudflare Worker with Better Auth, D1, and Drizzle.
 
-It mounts the Better Auth handler at `/api/auth/*`, authenticates users through one configured OIDC provider, and provisions one local AT Protocol identity per user. Accounts is the authority for permanent usernames, hosted handle claims, and the user-to-DID reference. It also runs the public-client AT Protocol OAuth authorization server. Local passwords, multiple identity providers, external DID import, and app passwords are not implemented.
+It mounts the Better Auth handler at `/api/auth/*`, optionally authenticates users through one configured OIDC provider, and provisions one local AT Protocol identity per user. Accounts is the authority for permanent usernames, hosted handle claims, and the user-to-DID reference. It also runs the public-client AT Protocol OAuth authorization server. Local passwords, multiple identity providers, external DID import, and app passwords are not implemented.
 
 ## Architecture
 
 ```text
-OIDC provider ──▶ Better Auth ──▶ React onboarding
+[OIDC provider] ──▶ Better Auth ──▶ React onboarding
                                       │
                                       ▼
-React SPA ────────▶ Hono routes ──▶ Accounts D1
+React SPA ───────────▶ Hono routes ──▶ Accounts D1
                          │                  │
                          │ standard XRPC    │ submits genesis operation
                          ▼                  ▼
@@ -48,15 +48,15 @@ Account routes are:
 - `GET /api/account` — current account state;
 - `POST /api/account` — reserve a username or safely retry its existing operation;
 - `GET /api/account/usernames/:username` — normalized username availability;
-- `GET /api/configuration` — public UI configuration, including the OIDC provider label.
+- `GET /api/configuration` — public UI configuration, including OIDC provider availability and its label.
 
 `AccountsEntrypoint.resolveHandle(handle)` is available only through a trusted Worker service binding. It accepts one hosted handle under `PUBLIC_HANDLE_DOMAIN` and returns the DID from a matching active account. It returns `null` for incomplete, unknown, or external handles.
 
 ## Upstream OIDC login
 
-Better Auth uses one generic provider with OIDC discovery and required ID-token verification. The discovered issuer and `sub` identify the upstream account. Accounts uses a stable internal synthetic email only to satisfy Better Auth storage; an OIDC email, profile name, username, hosted handle, and DID remain separate concepts.
+When `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, and `OIDC_DISCOVERY_URL` are all set, Better Auth uses one generic provider with OIDC discovery and required ID-token verification. The discovered issuer and `sub` identify the upstream account. Accounts uses a stable internal synthetic email only to satisfy Better Auth storage; an OIDC email, profile name, username, hosted handle, and DID remain separate concepts.
 
-The login page has one `Continue with <OIDC_PROVIDER_NAME>` action. An authenticated user without an active account goes to `/onboarding/username`. The development login route remains available only in local Vite development.
+When the three OIDC values are absent, Accounts does not mount an upstream login provider and the login page reports `Sign-in is not available.` A partial OIDC configuration is invalid. When OIDC is available, the login page has one `Continue with <OIDC_PROVIDER_NAME>` action. An authenticated user without an active account goes to `/onboarding/username`. The development login route remains available only in local Vite development.
 
 ## AT Protocol OAuth
 
@@ -76,6 +76,12 @@ OAuth request, replay, code, session, and refresh state uses the database-backed
 The Worker enables Cloudflare's `global_fetch_strictly_public` compatibility flag for Client ID Metadata Document fetches. Keep this flag enabled to prevent same-zone and private-network routing during client discovery.
 
 The AT Protocol authorization server accepts URL-based public clients only. Confidential `private_key_jwt` clients and client signing-key continuity are deferred and are not advertised. Dynamic registration, OAuth client secrets, client credentials, and implicit grants are not supported. This restriction is separate from Accounts using OIDC for upstream login.
+
+## Health
+
+`GET /health` validates all Accounts text and secret environment variables. It returns `204` when configuration is valid and `503` without configuration details when it is invalid. Future continuous deployment must check this endpoint on an uploaded Worker version before it sends production traffic to that version.
+
+The Worker validates the configuration once when its module loads. Dynamic request paths and `/health` use that result. D1 and Worker service bindings remain Wrangler-typed and are not part of the Zod environment-variable schema.
 
 ## Database
 
@@ -117,26 +123,31 @@ Variables:
 
 - `PUBLIC_URL` — public Accounts origin used by Better Auth
 - `PUBLIC_HANDLE_DOMAIN` — suffix for hosted handles
-- `OIDC_PROVIDER_NAME` — user-facing name on the login button
+- `OIDC_PROVIDER_NAME` — user-facing name used when OIDC login is enabled
 
 Secrets:
 
 - `BETTER_AUTH_SECRET` — signs and encrypts Better Auth data; it must contain at least 32 high-entropy characters
-- `OIDC_CLIENT_ID` — client ID registered with the configured OIDC provider
-- `OIDC_CLIENT_SECRET` — client secret registered with the configured OIDC provider
-- `OIDC_DISCOVERY_URL` — configured provider's OpenID discovery document URL
+- `OIDC_CLIENT_ID` — optional client ID registered with the configured OIDC provider
+- `OIDC_CLIENT_SECRET` — optional client secret registered with the configured OIDC provider
+- `OIDC_DISCOVERY_URL` — optional configured provider's OpenID discovery document URL
 - `PDS_ORIGIN` — canonical PDS OAuth resource origin
 - `ACCOUNTS_OAUTH_SIGNING_KEY` — secp256k1 private multikey used only to sign OAuth access JWTs; Accounts publishes its public JWK
 - `ACCOUNTS_PLC_ROTATION_KEY` — secp256k1 private multikey used by Accounts to sign genesis PLC operations
 
 ```sh
 pnpm --filter @minisphere/accounts exec wrangler secret put BETTER_AUTH_SECRET
-pnpm --filter @minisphere/accounts exec wrangler secret put OIDC_CLIENT_ID
-pnpm --filter @minisphere/accounts exec wrangler secret put OIDC_CLIENT_SECRET
-pnpm --filter @minisphere/accounts exec wrangler secret put OIDC_DISCOVERY_URL
 pnpm --filter @minisphere/accounts exec wrangler secret put PDS_ORIGIN
 pnpm --filter @minisphere/accounts exec wrangler secret put ACCOUNTS_OAUTH_SIGNING_KEY
 pnpm --filter @minisphere/accounts exec wrangler secret put ACCOUNTS_PLC_ROTATION_KEY
+```
+
+To enable OIDC, set all three optional secrets:
+
+```sh
+pnpm --filter @minisphere/accounts exec wrangler secret put OIDC_CLIENT_ID
+pnpm --filter @minisphere/accounts exec wrangler secret put OIDC_CLIENT_SECRET
+pnpm --filter @minisphere/accounts exec wrangler secret put OIDC_DISCOVERY_URL
 ```
 
 ## Development
@@ -154,7 +165,7 @@ pnpm dev:accounts
 pnpm turbo test typecheck build --filter=@minisphere/accounts
 ```
 
-The Vite development server uses `http://localhost:8790`. The local `.dev.vars` file sets `PUBLIC_URL`, `PUBLIC_HANDLE_DOMAIN=r2d2.test`, and `PDS_ORIGIN` so handles, OAuth metadata, and issued tokens refer to the local service group. Production uses the canonical values configured through Wrangler.
+The Vite development server uses `http://localhost:8790`. The local `.dev.vars` file sets `PUBLIC_URL`, `PUBLIC_HANDLE_DOMAIN=r2d2.test`, and `PDS_ORIGIN` so handles, OAuth metadata, and issued tokens refer to the local service group. Its OIDC values are commented out by default. Production uses the canonical values configured through Wrangler.
 
 For local browser tests, open `/__dev/log-me-in/<email>?returnTo=<path>` on the Accounts development origin. For example, `/__dev/log-me-in/dev@example.com?returnTo=/` creates the user when needed, creates a normal Better Auth session, and redirects to `/`. This route returns 404 outside Vite development. Open it in the browser session used for tests; a `curl` request does not sign that browser in.
 
