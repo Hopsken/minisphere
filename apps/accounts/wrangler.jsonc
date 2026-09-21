@@ -28,16 +28,15 @@
     },
   ],
   "vars": {
-    "OIDC_PROVIDER_NAME": "Identity provider",
+    "EMAIL_ALLOWLIST": "",
+    "EMAIL_FROM": "Minisphere <login@notify.hopsken.dev>",
     "PUBLIC_URL": "https://accounts.hopsken.dev",
     "PUBLIC_HANDLE_DOMAIN": "r2d2.party",
   },
   "secrets": {
     "required": [
       "BETTER_AUTH_SECRET",
-      "OIDC_CLIENT_ID",
-      "OIDC_CLIENT_SECRET",
-      "OIDC_DISCOVERY_URL",
+      "RESEND_API_KEY",
       "PDS_ORIGIN",
       "ACCOUNTS_PLC_ROTATION_KEY",
       "ACCOUNTS_OAUTH_SIGNING_KEY",

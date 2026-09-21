@@ -2,12 +2,12 @@
 
 Accounts is the Entryway authentication and account server. It combines a React SPA and a Hono Cloudflare Worker with Better Auth, D1, and Drizzle.
 
-It mounts the Better Auth handler at `/api/auth/*`, authenticates users through one configured OIDC provider, and provisions one local AT Protocol identity per user. Accounts is the authority for permanent usernames, hosted handle claims, and the user-to-DID reference. It also runs the public-client AT Protocol OAuth authorization server. Local passwords, multiple identity providers, external DID import, and app passwords are not implemented.
+It mounts the Better Auth handler at `/api/auth/*`, authenticates users through email login codes sent with Resend, and provisions one local AT Protocol identity per user. Accounts is the authority for permanent usernames, hosted handle claims, and the user-to-DID reference. It also runs the public-client AT Protocol OAuth authorization server. Passwords, email changes, account recovery, external DID import, and app passwords are not implemented.
 
 ## Architecture
 
 ```text
-OIDC provider ──▶ Better Auth ──▶ React onboarding
+Email code ─────▶ Better Auth ──▶ React onboarding
                                       │
                                       ▼
 React SPA ────────▶ Hono routes ──▶ Accounts D1
@@ -48,15 +48,20 @@ Account routes are:
 - `GET /api/account` — current account state;
 - `POST /api/account` — reserve a username or safely retry its existing operation;
 - `GET /api/account/usernames/:username` — normalized username availability;
-- `GET /api/configuration` — public UI configuration, including the OIDC provider label.
 
 `AccountsEntrypoint.resolveHandle(handle)` is available only through a trusted Worker service binding. It accepts one hosted handle under `PUBLIC_HANDLE_DOMAIN` and returns the DID from a matching active account. It returns `null` for incomplete, unknown, or external handles.
 
-## Upstream OIDC login
+## Email login
 
-Better Auth uses one generic provider with OIDC discovery and required ID-token verification. The discovered issuer and `sub` identify the upstream account. Accounts uses a stable internal synthetic email only to satisfy Better Auth storage; an OIDC email, profile name, username, hosted handle, and DID remain separate concepts.
+The login page uses one email/code flow for both registration and login. Better Auth's Email OTP plugin verifies the code before creating a user or session. The internal user ID, not the email, binds the username and DID. There is no transition or account-linking flow for former OIDC users.
 
-The login page has one `Continue with <OIDC_PROVIDER_NAME>` action. An authenticated user without an active account goes to `/onboarding/username`. The development login route remains available only in local Vite development.
+Codes contain six digits, expire after ten minutes, allow five attempts, and are stored as hashes in the verification table. Successful verification consumes the code. Resending replaces the previous code, with a database-backed 60-second cooldown per email. Better Auth additionally limits each OTP endpoint to ten requests per minute per IP, using `cf-connecting-ip` and the D1 `rate_limit` table. This is basic abuse protection, not a distributed fraud prevention system.
+
+`EMAIL_ALLOWLIST` controls both code requests and sign-in. It is a comma-separated list: `*` permits all emails, `x.com` permits that exact domain (not subdomains), and `e@e.com` permits that address only. Any match permits access; an empty value denies access. Values are trimmed and compared case-insensitively; dots and `+tags` are not removed. Changing the list does not revoke existing sessions.
+
+An authenticated user without an active account goes to `/onboarding/username`. Login preserves the local return path for existing users, including OAuth authorization. A new user completing onboarding still needs to restart client authorization. The development login route remains available only in local Vite development and bypasses email delivery and eligibility checks.
+
+Resend delivery uses `POST https://api.resend.com/emails`. Configure a verified sender domain and `EMAIL_FROM` before use. Sending failures return a retry message; provider acceptance is not proof of inbox delivery. Tests use a fake Resend service and do not send real email.
 
 ## AT Protocol OAuth
 
@@ -75,7 +80,7 @@ OAuth request, replay, code, session, and refresh state uses the database-backed
 
 The Worker enables Cloudflare's `global_fetch_strictly_public` compatibility flag for Client ID Metadata Document fetches. Keep this flag enabled to prevent same-zone and private-network routing during client discovery.
 
-The AT Protocol authorization server accepts URL-based public clients only. Confidential `private_key_jwt` clients and client signing-key continuity are deferred and are not advertised. Dynamic registration, OAuth client secrets, client credentials, and implicit grants are not supported. This restriction is separate from Accounts using OIDC for upstream login.
+The AT Protocol authorization server accepts URL-based public clients only. Confidential `private_key_jwt` clients and client signing-key continuity are deferred and are not advertised. Dynamic registration, OAuth client secrets, client credentials, and implicit grants are not supported. This protocol is separate from email login and remains enabled.
 
 ## Database
 
@@ -117,23 +122,20 @@ Variables:
 
 - `PUBLIC_URL` — public Accounts origin used by Better Auth
 - `PUBLIC_HANDLE_DOMAIN` — suffix for hosted handles
-- `OIDC_PROVIDER_NAME` — user-facing name on the login button
+- `EMAIL_ALLOWLIST` — comma-separated permitted domains/addresses, or `*`; defaults to denying access
+- `EMAIL_FROM` — Resend sender, for example `Minisphere <login@notify.example.com>`; use a verified domain
 
 Secrets:
 
 - `BETTER_AUTH_SECRET` — signs and encrypts Better Auth data; it must contain at least 32 high-entropy characters
-- `OIDC_CLIENT_ID` — client ID registered with the configured OIDC provider
-- `OIDC_CLIENT_SECRET` — client secret registered with the configured OIDC provider
-- `OIDC_DISCOVERY_URL` — configured provider's OpenID discovery document URL
+- `RESEND_API_KEY` — Resend API key with email sending permission
 - `PDS_ORIGIN` — canonical PDS OAuth resource origin
 - `ACCOUNTS_OAUTH_SIGNING_KEY` — secp256k1 private multikey used only to sign OAuth access JWTs; Accounts publishes its public JWK
 - `ACCOUNTS_PLC_ROTATION_KEY` — secp256k1 private multikey used by Accounts to sign genesis PLC operations
 
 ```sh
 pnpm --filter @minisphere/accounts exec wrangler secret put BETTER_AUTH_SECRET
-pnpm --filter @minisphere/accounts exec wrangler secret put OIDC_CLIENT_ID
-pnpm --filter @minisphere/accounts exec wrangler secret put OIDC_CLIENT_SECRET
-pnpm --filter @minisphere/accounts exec wrangler secret put OIDC_DISCOVERY_URL
+pnpm --filter @minisphere/accounts exec wrangler secret put RESEND_API_KEY
 pnpm --filter @minisphere/accounts exec wrangler secret put PDS_ORIGIN
 pnpm --filter @minisphere/accounts exec wrangler secret put ACCOUNTS_OAUTH_SIGNING_KEY
 pnpm --filter @minisphere/accounts exec wrangler secret put ACCOUNTS_PLC_ROTATION_KEY
@@ -158,4 +160,10 @@ The Vite development server uses `http://localhost:8790`. The local `.dev.vars` 
 
 For local browser tests, open `/__dev/log-me-in/<email>?returnTo=<path>` on the Accounts development origin. For example, `/__dev/log-me-in/dev@example.com?returnTo=/` creates the user when needed, creates a normal Better Auth session, and redirects to `/`. This route returns 404 outside Vite development. Open it in the browser session used for tests; a `curl` request does not sign that browser in.
 
-For Amp orb previews, set `VITE_ALLOWED_HOSTS` in `.env` to a comma-separated host list. A leading dot permits that domain and its subdomains.
+For Amp orb previews, start Accounts as a portal service:
+
+```sh
+amp orb service start accounts --command 'pnpm --filter @minisphere/accounts dev' --port 8790 --portal
+```
+
+Amp supplies `PUBLIC_URL` to the service process. Vite permits that URL's exact hostname in addition to its default local hosts; no separate host-list variable is needed. This process variable controls preview host access, not the Worker's canonical `PUBLIC_URL` binding in `.dev.vars` or Wrangler.

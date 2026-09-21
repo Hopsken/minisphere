@@ -22,8 +22,10 @@ export const DevLoginForm = ({ returnTo }: DevLoginFormProps) => {
   };
 
   return (
-    <section className="mt-8 max-w-md">
-      <h2 className="font-heading text-lg font-semibold">Development login</h2>
+    <details className="border-border border-t pt-3">
+      <summary className="text-muted-foreground focus-visible:outline-ring cursor-pointer py-3 text-xs">
+        Development tools
+      </summary>
       <form
         className="mt-3 flex flex-col gap-3 sm:flex-row"
         onSubmit={handleSubmit}
@@ -43,8 +45,10 @@ export const DevLoginForm = ({ returnTo }: DevLoginFormProps) => {
           spellCheck={false}
           required
         />
-        <Button type="submit">Log in</Button>
+        <Button type="submit" variant="outline">
+          Dev login
+        </Button>
       </form>
-    </section>
+    </details>
   );
 };
