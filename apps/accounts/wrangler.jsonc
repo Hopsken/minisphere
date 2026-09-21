@@ -28,7 +28,7 @@
     },
   ],
   "vars": {
-    "EMAIL_ALLOWLIST": "",
+    "EMAIL_ALLOWLIST": "hopsken.com",
     "EMAIL_FROM": "Minisphere <login@notify.hopsken.dev>",
     "PUBLIC_URL": "https://accounts.hopsken.dev",
     "PUBLIC_HANDLE_DOMAIN": "r2d2.party",

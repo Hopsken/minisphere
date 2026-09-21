@@ -122,7 +122,7 @@ Variables:
 
 - `PUBLIC_URL` — public Accounts origin used by Better Auth
 - `PUBLIC_HANDLE_DOMAIN` — suffix for hosted handles
-- `EMAIL_ALLOWLIST` — comma-separated permitted domains/addresses, or `*`; defaults to denying access
+- `EMAIL_ALLOWLIST` — comma-separated permitted domains/addresses, or `*`; configured as `hopsken.com`; an empty value denies access
 - `EMAIL_FROM` — Resend sender, for example `Minisphere <login@notify.example.com>`; use a verified domain
 
 Secrets:
