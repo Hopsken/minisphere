@@ -36,7 +36,7 @@ const decodeBase64 = (value: string) =>
 const importEncryptionKey = async (secret: string) => {
   if (secret.length < 32) {
     throw new Error(
-      "ACCOUNTS_KEY_ENCRYPTION_KEY must contain at least 32 high-entropy characters"
+      "ACCOUNTS_ENCRYPTION_KEY must contain at least 32 high-entropy characters"
     );
   }
   const bytes = await crypto.subtle.digest("SHA-256", encoder.encode(secret));

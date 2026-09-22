@@ -83,7 +83,7 @@ export class AccountService {
         const signingKey = await this.pds.reserveSigningKey();
         const prepared = await createPlcAccountMaterial(
           userId,
-          this.env.ACCOUNTS_KEY_ENCRYPTION_KEY,
+          this.env.ACCOUNTS_ENCRYPTION_KEY,
           handle,
           this.env.PDS_ORIGIN,
           signingKey
@@ -110,7 +110,7 @@ export class AccountService {
     }
     const material = await restorePlcAccountMaterial(
       userId,
-      this.env.ACCOUNTS_KEY_ENCRYPTION_KEY,
+      this.env.ACCOUNTS_ENCRYPTION_KEY,
       account
     );
     if (material.operation.alsoKnownAs[0] !== `at://${handle}`) {

@@ -1,14 +1,14 @@
-ALTER TABLE `atproto_account` ADD `operation` text;--> statement-breakpoint
 ALTER TABLE `atproto_account` ADD `encrypted_rotation_key` text;--> statement-breakpoint
+ALTER TABLE `atproto_account` ADD `operation` text;--> statement-breakpoint
 ALTER TABLE `atproto_account` ADD `rotation_key_iv` text;--> statement-breakpoint
 PRAGMA foreign_keys=OFF;--> statement-breakpoint
 CREATE TABLE `__new_atproto_account` (
 	`created_at` integer DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,
 	`did` text UNIQUE,
-	`signing_key` text,
-	`operation` text,
 	`encrypted_rotation_key` text,
+	`operation` text,
 	`rotation_key_iv` text,
+	`signing_key` text,
 	`status` text DEFAULT 'provisioning' NOT NULL,
 	`updated_at` integer DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,
 	`user_id` text PRIMARY KEY,

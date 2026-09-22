@@ -22,7 +22,7 @@ const candidate = async (userId: string, username: string) => {
   const key = await Secp256k1PrivateKeyExportable.createKeypair();
   return createPlcAccountMaterial(
     userId,
-    env.ACCOUNTS_KEY_ENCRYPTION_KEY,
+    env.ACCOUNTS_ENCRYPTION_KEY,
     `${username}.r2d2.party`,
     "https://pds.test",
     await key.exportPublicKey("did")
@@ -61,11 +61,7 @@ describe("durable per-account PLC identity", () => {
           )
         ).resolves.toBe(material.operation.rotationKeys[0]);
         await expect(
-          restorePlcAccountMaterial(
-            id,
-            env.ACCOUNTS_KEY_ENCRYPTION_KEY,
-            material
-          )
+          restorePlcAccountMaterial(id, env.ACCOUNTS_ENCRYPTION_KEY, material)
         ).resolves.toStrictEqual({
           did: material.did,
           operation: material.operation,
@@ -95,7 +91,7 @@ describe("durable per-account PLC identity", () => {
         await expect(
           restorePlcAccountMaterial(
             "tamper",
-            env.ACCOUNTS_KEY_ENCRYPTION_KEY,
+            env.ACCOUNTS_ENCRYPTION_KEY,
             changed
           )
         ).rejects.toThrow(/./u);
@@ -104,7 +100,7 @@ describe("durable per-account PLC identity", () => {
     await expect(
       restorePlcAccountMaterial(
         "another-account",
-        env.ACCOUNTS_KEY_ENCRYPTION_KEY,
+        env.ACCOUNTS_ENCRYPTION_KEY,
         material
       )
     ).rejects.toThrow(/./u);

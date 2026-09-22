@@ -68,7 +68,7 @@ This file records the current implementation state and important architecture de
 - PDS D1 stores repository signing-key reservations encrypted under `PDS_SIGNING_KEY_ENCRYPTION_KEY`. A reservation is identified by its public key and atomically bound to one DID during account creation; it remains available to that DID until the local account is recorded.
 - Entryway account creation follows the AT Protocol reference flow: PDS reserves the repository signing key, Accounts signs the genesis PLC operation and derives the DID, and PDS trusts and registers that material through standard XRPC.
 - Identity-result retry is anchored by the DID and signed PLC operation stored during `provisioning`, not by a private operation ID. All failures after material persistence retain it to protect concurrent external creation. D1 sessions start on the primary and provide read-after-write consistency.
-- `ACCOUNTS_KEY_ENCRYPTION_KEY` encrypts per-account PLC rotation keys with AES-GCM and purpose/account-bound authenticated data. This is server-managed custody, not protection from service administrators. Invitation codes authorize account creation, and Accounts owns the correctness of the submitted genesis operation.
+- `ACCOUNTS_ENCRYPTION_KEY` encrypts per-account PLC rotation keys with AES-GCM and purpose/account-bound authenticated data. This is server-managed custody, not protection from service administrators. Invitation codes authorize account creation, and Accounts owns the correctness of the submitted genesis operation.
 - Migration generation commands require an explicit, readable migration name.
 
 ## Next

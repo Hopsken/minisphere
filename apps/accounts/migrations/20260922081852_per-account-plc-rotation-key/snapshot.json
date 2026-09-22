@@ -1,9 +1,9 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "d33f08b0-ac5c-4c06-b82c-9ba8f45a3182",
+  "id": "06ccc568-cd38-4370-952a-805ae72cc44f",
   "prevIds": [
-    "82bfab1c-3686-43c0-a71c-a16105d9376d"
+    "4b83d668-1ceb-4de7-889a-33395d1d8b56"
   ],
   "ddl": [
     {
@@ -28,6 +28,10 @@
     },
     {
       "name": "verification",
+      "entityType": "tables"
+    },
+    {
+      "name": "oauth_signing_key",
       "entityType": "tables"
     },
     {
@@ -56,7 +60,7 @@
       "autoincrement": false,
       "default": null,
       "generated": null,
-      "name": "signing_key",
+      "name": "encrypted_rotation_key",
       "entityType": "columns",
       "table": "atproto_account"
     },
@@ -76,7 +80,7 @@
       "autoincrement": false,
       "default": null,
       "generated": null,
-      "name": "encrypted_rotation_key",
+      "name": "rotation_key_iv",
       "entityType": "columns",
       "table": "atproto_account"
     },
@@ -86,7 +90,7 @@
       "autoincrement": false,
       "default": null,
       "generated": null,
-      "name": "rotation_key_iv",
+      "name": "signing_key",
       "entityType": "columns",
       "table": "atproto_account"
     },
@@ -521,6 +525,76 @@
       "table": "verification"
     },
     {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "(cast(unixepoch('subsecond') * 1000 as integer))",
+      "generated": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "table": "oauth_signing_key"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "encrypted_private_key",
+      "entityType": "columns",
+      "table": "oauth_signing_key"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "encryption_iv",
+      "entityType": "columns",
+      "table": "oauth_signing_key"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "kid",
+      "entityType": "columns",
+      "table": "oauth_signing_key"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "public_x",
+      "entityType": "columns",
+      "table": "oauth_signing_key"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "public_y",
+      "entityType": "columns",
+      "table": "oauth_signing_key"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "status",
+      "entityType": "columns",
+      "table": "oauth_signing_key"
+    },
+    {
       "columns": [
         "user_id"
       ],
@@ -606,6 +680,15 @@
     },
     {
       "columns": [
+        "kid"
+      ],
+      "nameExplicit": false,
+      "name": "oauth_signing_key_pk",
+      "table": "oauth_signing_key",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
         {
           "value": "issuer",
           "isExpression": false
@@ -663,6 +746,20 @@
       "name": "verification_identifier_idx",
       "entityType": "indexes",
       "table": "verification"
+    },
+    {
+      "columns": [
+        {
+          "value": "status",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": "\"oauth_signing_key\".\"status\" = 'current'",
+      "origin": "manual",
+      "name": "oauth_signing_key_one_current",
+      "entityType": "indexes",
+      "table": "oauth_signing_key"
     },
     {
       "columns": [
@@ -726,6 +823,12 @@
       "name": "atproto_account_identity_material_check",
       "entityType": "checks",
       "table": "atproto_account"
+    },
+    {
+      "value": "\"status\" IN ('current', 'retired', 'disabled')",
+      "name": "oauth_signing_key_status_check",
+      "entityType": "checks",
+      "table": "oauth_signing_key"
     }
   ],
   "renames": []

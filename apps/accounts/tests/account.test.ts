@@ -117,7 +117,7 @@ describe("Entryway account API", () => {
     }
     const material = await restorePlcAccountMaterial(
       user.id,
-      env.ACCOUNTS_KEY_ENCRYPTION_KEY,
+      env.ACCOUNTS_ENCRYPTION_KEY,
       stored
     );
     await expect(
