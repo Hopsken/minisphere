@@ -39,7 +39,7 @@
       "RESEND_API_KEY",
       "PDS_ORIGIN",
       "ACCOUNTS_PLC_ROTATION_KEY",
-      "ACCOUNTS_OAUTH_SIGNING_KEY",
+      "ACCOUNTS_KEY_ENCRYPTION_KEY",
     ],
   },
   "services": [

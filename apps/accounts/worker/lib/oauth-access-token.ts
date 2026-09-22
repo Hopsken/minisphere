@@ -1,4 +1,4 @@
-import { parsePrivateMultikey, Secp256k1PrivateKey } from "@atcute/crypto";
+import type { Secp256k1PrivateKey } from "@atcute/crypto";
 import type { AtprotoAccessTokenInput } from "@minisphere/atproto-oauth-provider";
 import { z } from "zod";
 
@@ -20,16 +20,6 @@ const accessTokenInputSchema = z.strictObject({
 
 const encoder = new TextEncoder();
 
-const importSigningKey = (signingKeyMultikey: string) => {
-  const parsedSigningKey = parsePrivateMultikey(signingKeyMultikey);
-  if (parsedSigningKey.type !== "secp256k1") {
-    throw new Error(
-      "ACCOUNTS_OAUTH_SIGNING_KEY must be a secp256k1 private multikey"
-    );
-  }
-  return Secp256k1PrivateKey.importRaw(parsedSigningKey.privateKeyBytes);
-};
-
 const encodeBase64Url = (value: Uint8Array) => {
   let binary = "";
   for (const byte of value) {
@@ -43,11 +33,10 @@ const encodeBase64Url = (value: Uint8Array) => {
 
 export const createOAuthAccessToken = async (
   input: AtprotoAccessTokenInput,
-  signingKeyMultikey: string,
+  signingKey: Secp256k1PrivateKey,
   now = Math.floor(Date.now() / 1000)
 ) => {
   const value = accessTokenInputSchema.parse(input);
-  const signingKey = await importSigningKey(signingKeyMultikey);
   const protectedHeader = encodeBase64Url(
     encoder.encode(
       JSON.stringify({
@@ -75,15 +64,4 @@ export const createOAuthAccessToken = async (
   const signingInput = `${protectedHeader}.${payload}`;
   const signature = await signingKey.sign(encoder.encode(signingInput));
   return `${signingInput}.${encodeBase64Url(signature)}`;
-};
-
-export const createOAuthJwks = async (signingKeyMultikey: string) => {
-  const signingKey = await importSigningKey(signingKeyMultikey);
-  const [jwk, kid] = await Promise.all([
-    signingKey.exportPublicKey("jwk"),
-    signingKey.exportPublicKey("did"),
-  ]);
-  return {
-    keys: [{ ...jwk, alg: "ES256K", key_ops: ["verify"], kid, use: "sig" }],
-  };
 };

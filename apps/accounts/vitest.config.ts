@@ -28,19 +28,12 @@ export default defineConfig(async () => {
       return { ...migration, name: `${directory}/migration.sql` };
     })
   );
-  const [entrywayRotationKey, oauthSigningKey, repoSigningKey] =
-    await Promise.all([
-      Secp256k1PrivateKeyExportable.createKeypair(),
-      Secp256k1PrivateKeyExportable.createKeypair(),
-      Secp256k1PrivateKeyExportable.createKeypair(),
-    ]);
-  const [
-    entrywayRotationKeyMultikey,
-    oauthSigningKeyMultikey,
-    repoSigningKeyDid,
-  ] = await Promise.all([
+  const [entrywayRotationKey, repoSigningKey] = await Promise.all([
+    Secp256k1PrivateKeyExportable.createKeypair(),
+    Secp256k1PrivateKeyExportable.createKeypair(),
+  ]);
+  const [entrywayRotationKeyMultikey, repoSigningKeyDid] = await Promise.all([
     entrywayRotationKey.exportPrivateKey("multikey"),
-    oauthSigningKey.exportPrivateKey("multikey"),
     repoSigningKey.exportPublicKey("did"),
   ]);
 
@@ -49,7 +42,8 @@ export default defineConfig(async () => {
       cloudflareTest({
         miniflare: {
           bindings: {
-            ACCOUNTS_OAUTH_SIGNING_KEY: oauthSigningKeyMultikey,
+            ACCOUNTS_KEY_ENCRYPTION_KEY:
+              "local-test-key-encryption-secret-at-least-32-characters",
             ACCOUNTS_PLC_ROTATION_KEY: entrywayRotationKeyMultikey,
             BETTER_AUTH_SECRET:
               "local-test-better-auth-secret-at-least-32-characters",

@@ -4,10 +4,7 @@ import {
 } from "@atcute/crypto";
 import { describe, expect, it } from "vitest";
 
-import {
-  createOAuthAccessToken,
-  createOAuthJwks,
-} from "../worker/lib/oauth-access-token";
+import { createOAuthAccessToken } from "../worker/lib/oauth-access-token";
 
 const input = {
   audience: "https://pds.test",
@@ -27,11 +24,7 @@ const decodeBase64Url = (value: string) => {
 describe("Accounts OAuth access-token signer", () => {
   it("signs a short-lived ES256K resource token", async () => {
     const signingKey = await Secp256k1PrivateKeyExportable.createKeypair();
-    const token = await createOAuthAccessToken(
-      input,
-      await signingKey.exportPrivateKey("multikey"),
-      1000
-    );
+    const token = await createOAuthAccessToken(input, signingKey, 1000);
     const parts = token.split(".");
     const [header, payload, signature = ""] = parts;
     const publicKey = await signingKey.exportPublicKey("did");
@@ -64,36 +57,10 @@ describe("Accounts OAuth access-token signer", () => {
     ).resolves.toBeTruthy();
   });
 
-  it("publishes only the corresponding public verification key", async () => {
-    const signingKey = await Secp256k1PrivateKeyExportable.createKeypair();
-    const jwks = await createOAuthJwks(
-      await signingKey.exportPrivateKey("multikey")
-    );
-
-    expect(jwks).toStrictEqual({
-      keys: [
-        {
-          alg: "ES256K",
-          crv: "secp256k1",
-          key_ops: ["verify"],
-          kid: await signingKey.exportPublicKey("did"),
-          kty: "EC",
-          use: "sig",
-          x: expect.stringMatching(/^[A-Za-z\d_-]{43}$/u),
-          y: expect.stringMatching(/^[A-Za-z\d_-]{43}$/u),
-        },
-      ],
-    });
-    expect("d" in (jwks.keys[0] ?? {})).toBeFalsy();
-  });
-
   it("does not sign a token longer than five minutes", async () => {
     const signingKey = await Secp256k1PrivateKeyExportable.createKeypair();
     await expect(
-      createOAuthAccessToken(
-        { ...input, expiresIn: 301 },
-        await signingKey.exportPrivateKey("multikey")
-      )
+      createOAuthAccessToken({ ...input, expiresIn: 301 }, signingKey)
     ).rejects.toThrow(/300/u);
   });
 });
