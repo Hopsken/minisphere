@@ -48,9 +48,11 @@ export default defineConfig(async () => {
             PDS_ENCRYPTION_KEY: signingKeyEncryptionKey,
             PDS_JWT_SECRET: jwtSecret,
             PDS_ORIGIN: pdsOrigin,
+            PLC_DIRECTORY: "https://directory.test",
             TEST_ACCOUNTS_OAUTH_SIGNING_KEY: oauthSigningKeyMultikey,
             TEST_MIGRATIONS: migrations,
           },
+          outboundService: "minisphere-directory",
           workers: [
             {
               modules: true,
@@ -60,6 +62,9 @@ export default defineConfig(async () => {
               export default {
                 async fetch(request) {
                   const url = new URL(request.url);
+                  if (url.origin !== "https://directory.test") {
+                    return new Response("Unexpected PLC origin", { status: 400 });
+                  }
                   const parts = url.pathname.split("/").filter(Boolean);
                   const did = decodeURIComponent(parts[0] ?? "");
                   if (request.method === "GET" && parts[1] === "log") {

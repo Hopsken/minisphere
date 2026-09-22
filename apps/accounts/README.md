@@ -27,7 +27,7 @@ The frontend uses Vite, React, TanStack Router, TanStack Query, Tailwind CSS, an
 
 Accounts D1 contains the ordinary Better Auth tables and one optional `atproto_account` row per Better Auth user. That row owns the normalized username, status, immutable DID, public repository signing key, signed genesis PLC operation, and encrypted per-account PLC rotation private key with its random IV. A hosted handle is derived as `<username>.<PUBLIC_HANDLE_DOMAIN>`. Accounts is the source of truth for the active handle-to-DID mapping.
 
-The PDS owns its account, session, repository state, and repository private signing keys. The PLC Directory owns DID documents. Accounts binds to both services: it creates accounts through standard PDS XRPC methods and reads PDS and PLC state before activation. The PDS remains responsible for submitting the PLC operation. Handle Registry publication is derived from the active Accounts mapping and is not an activation input.
+The PDS owns its account, session, repository state, and repository private signing keys. The PLC Directory owns DID documents. Accounts creates accounts through the PDS binding and reads PDS and PLC state before activation. PLC reads use HTTP at `PLC_DIRECTORY`. The PDS remains responsible for submitting the PLC operation. Handle Registry publication is derived from the active Accounts mapping and is not an activation input.
 
 ## AT Protocol accounts
 
@@ -125,7 +125,6 @@ pnpm --filter @minisphere/accounts db:migrate:remote
 Bindings:
 
 - `DB` — authoritative Accounts D1 database
-- `DIRECTORY` — PLC Directory service used to verify resolved DID state
 - `PDS` — the PDS `PdsControlPlane` named entrypoint; it issues account invites and its `fetch` handler exposes standard XRPC
 
 Variables:
@@ -135,6 +134,7 @@ Variables:
 - `EMAIL_ALLOWLIST` — comma-separated permitted domains/addresses, or `*`; an empty value denies access
 - `EMAIL_FROM` — Resend sender, for example `Minisphere <login@notify.example.com>`; use a verified domain
 - `PDS_ORIGIN` — canonical PDS OAuth resource origin; an existing Secret binding can remain as-is
+- `PLC_DIRECTORY` — required PLC HTTP URL, either `https://plc.directory` or your private Directory; Accounts, PDS, and Town must use the same value
 
 Secrets:
 

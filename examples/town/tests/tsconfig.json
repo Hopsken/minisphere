@@ -5,8 +5,7 @@
       "@cloudflare/vitest-pool-workers/types",
       "node",
       "vite/client",
-      "../worker-configuration.d.ts",
-      "../../../apps/directory/worker-configuration.d.ts"
+      "../worker-configuration.d.ts"
     ]
   },
   "include": ["./**/*.ts", "../vitest.config.ts"]

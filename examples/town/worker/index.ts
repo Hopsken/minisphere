@@ -59,7 +59,7 @@ const api = new Hono<{ Bindings: TownEnv }>()
     const did = parseDid(context.req.param("did"));
     try {
       const document = await createPlcClient(
-        context.env.PLC_DIRECTORY_ORIGIN
+        context.env.PLC_DIRECTORY
       ).getDocument(did);
       return context.json(document, 200, {
         "Content-Type": "application/did+ld+json",
@@ -75,9 +75,7 @@ const api = new Hono<{ Bindings: TownEnv }>()
     const did = parseDid(context.req.param("did"));
     let state;
     try {
-      state = await createPlcClient(context.env.PLC_DIRECTORY_ORIGIN).getState(
-        did
-      );
+      state = await createPlcClient(context.env.PLC_DIRECTORY).getState(did);
     } catch (error) {
       if (error instanceof PlcClientError && error.status === 404) {
         throw new HTTPException(404, { message: "DID not found" });

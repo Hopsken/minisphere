@@ -7,7 +7,7 @@ export default defineConfig({
       miniflare: {
         bindings: {
           DEV_HANDLE_RESOLVER_ORIGIN: "https://handle-registry.test",
-          PLC_DIRECTORY_ORIGIN: "https://plc.test",
+          PLC_DIRECTORY: "https://plc.test",
           PUBLIC_URL: "https://town.hopsken.dev",
         },
         outboundService: "minisphere-town-test-services",

@@ -20,10 +20,11 @@ This file records the current implementation state and important architecture de
 
 ### PLC Directory
 
+- Accounts, PDS, and Town select a PLC Directory through `PLC_DIRECTORY` and use HTTP, without Directory service bindings. Deployments can use `https://plc.directory`; local templates use `http://localhost:8788`. Missing configuration or request failures never trigger public fallback.
 - The private PLC Directory supports DID registration, resolution, updates, recovery, and audit logs.
 - D1 stores the append-only PLC operation log and derived DID state.
-- The PDS submits genesis operations through its private `DIRECTORY` service binding.
-- Accounts reads resolved PLC state through its own `DIRECTORY` binding before activation. It does not submit operations.
+- The PDS submits genesis operations to the configured Directory.
+- Accounts reads resolved PLC state from that Directory before activation. It does not submit operations.
 
 ### Handle Registry
 

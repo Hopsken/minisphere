@@ -1,11 +1,7 @@
 {
   "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "types": [
-      "./worker-configuration.d.ts",
-      "../directory/worker-configuration.d.ts",
-      "node"
-    ]
+    "types": ["./worker-configuration.d.ts", "node"]
   },
   "include": ["src/**/*.ts", "worker-configuration.d.ts"]
 }

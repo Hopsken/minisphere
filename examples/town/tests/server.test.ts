@@ -69,7 +69,7 @@ describe("Town server", () => {
       "https://town.hopsken.dev/xrpc/com.atproto.identity.resolveHandle?handle=alice.r2d2.test",
       undefined,
       {
-        PLC_DIRECTORY_ORIGIN: "https://plc.test",
+        PLC_DIRECTORY: "https://plc.test",
         PUBLIC_URL: "https://town.hopsken.dev",
       }
     );

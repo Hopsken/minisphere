@@ -18,7 +18,7 @@ Handle requests ──▶ Handle Registry  private PLC Directory
 ### Apps
 
 - [`apps/accounts`](./apps/accounts/README.md) — system authentication server and React SPA on Better Auth, Hono, and D1
-- [`apps/directory`](./apps/directory/README.md) — private PLC Directory on a Hono Worker and D1
+- [`apps/directory`](./apps/directory/README.md) — optional private PLC Directory on a Hono Worker and D1; deployments can use `https://plc.directory` instead
 - [`apps/pds`](./apps/pds/README.md) — PDS XRPC, account, authentication, and repository routing Worker
 - [`apps/handle-registry`](./apps/handle-registry/README.md) — stateless AT Protocol HTTPS handle verification wrapper
 

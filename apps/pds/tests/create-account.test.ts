@@ -226,9 +226,9 @@ describe("com.atproto.server.createAccount", () => {
       request(
         `/xrpc/com.atproto.sync.getRepoStatus?did=${encodeURIComponent(input.did)}`
       ),
-      env.DIRECTORY.fetch(
+      fetch(
         new Request(
-          `https://minisphere-directory.service/${encodeURIComponent(input.did)}/data`
+          `${env.PLC_DIRECTORY}/${encodeURIComponent(input.did)}/data`
         )
       ),
       env.PDS_DB.prepare("SELECT did FROM accounts WHERE did = ?")

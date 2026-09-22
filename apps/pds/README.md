@@ -6,7 +6,7 @@ The PDS is a Hono Cloudflare Worker that exposes AT Protocol XRPC routes. It own
 
 - PDS D1 stores active account DIDs, refresh-token records, short-lived account invitation codes and expiry times, and encrypted repository signing-key reservations. It does not store OIDC identities, usernames, or primary account passwords.
 - [`@minisphere/repo-do`](../../packages/repo-do/README.md) owns repository data and repository signing keys.
-- The private `DIRECTORY` service binding receives PLC genesis operations.
+- PLC genesis operations and recovery reads use HTTP at `PLC_DIRECTORY`. Accounts and Town must use the same directory. Failed requests do not switch to another directory.
 - `PdsControlPlane.generateInviteCode()` is a named RPC entrypoint for Accounts.
 - `PdsControlPlane.fetch()` exposes the standard PDS XRPC routes to trusted service bindings.
 
@@ -65,6 +65,7 @@ Variables:
 
 - `ACCOUNTS_ORIGIN` — canonical Accounts OAuth issuer origin
 - `PDS_ORIGIN` — canonical OAuth resource and PDS service origin
+- `PLC_DIRECTORY` — required PLC HTTP URL, either `https://plc.directory` or your private Directory
 
 Set production variables and secrets in the Worker's **Settings → Variables and Secrets**, and its custom domain in **Settings → Domains & Routes**. Deployments preserve these settings. Type generation reads `.dev.vars.example`, not private local values. See [Workers Builds configuration](../../docs/LOCAL_DEVELOPMENT.md#production-and-workers-builds). Alternatively, set secrets with Wrangler:
 
@@ -90,4 +91,4 @@ pnpm turbo test typecheck build --filter=@minisphere/pds
 
 The local PDS listens on `http://localhost:8787`. Its Directory dependency listens on port `8788`. The local `.dev.vars` file makes protected-resource metadata refer to this PDS and to Accounts on `http://localhost:8790`. Inspector ports remain dynamic so the Workers can run together.
 
-Turbo regenerates PDS Worker types before type-checking when its Wrangler configuration or Directory dependency changes.
+Turbo regenerates PDS Worker types before type-checking when its configuration changes.

@@ -65,12 +65,6 @@ const entrywayAccountSchema = z.object({
   }),
 });
 
-const directoryClient = (env: Env) =>
-  new PlcClient({
-    fetch: (request, init) => env.DIRECTORY.fetch(new Request(request, init)),
-    serviceUrl: "https://minisphere-directory.service",
-  });
-
 const signingKeyReservations = (env: Env) =>
   new SigningKeyReservationRepository(
     createPdsDatabase(env.PDS_DB),
@@ -82,7 +76,9 @@ const ensureDirectoryOperation = async (
   did: DidPlcString,
   operation: Operation
 ) => {
-  const directory = directoryClient(env);
+  const directory = new PlcClient({
+    serviceUrl: new URL(env.PLC_DIRECTORY).href,
+  });
   try {
     await directory.submitOperation(did, operation);
   } catch (submitError) {

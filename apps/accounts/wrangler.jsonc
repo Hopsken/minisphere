@@ -24,10 +24,6 @@
   "keep_vars": true,
   "services": [
     {
-      "binding": "DIRECTORY",
-      "service": "minisphere-directory",
-    },
-    {
       "binding": "PDS",
       "service": "minisphere-pds",
       "entrypoint": "PdsControlPlane",

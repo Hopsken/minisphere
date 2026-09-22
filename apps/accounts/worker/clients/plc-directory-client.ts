@@ -4,11 +4,8 @@ import type { DidPlcString } from "@atcute/did-plc";
 export class PlcDirectoryClient {
   private readonly client: PlcClient;
 
-  constructor(directory: Fetcher) {
-    this.client = new PlcClient({
-      fetch: (request, init) => directory.fetch(new Request(request, init)),
-      serviceUrl: "https://minisphere-directory.service",
-    });
+  constructor(origin: string) {
+    this.client = new PlcClient({ serviceUrl: new URL(origin).href });
   }
 
   getState(did: DidPlcString) {

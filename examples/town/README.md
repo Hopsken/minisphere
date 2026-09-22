@@ -16,10 +16,10 @@ Town runs as an external client with a Worker, static assets, and configuration 
 ## Variables
 
 - `PUBLIC_URL` — canonical Town origin used by the OAuth Client ID Metadata Document and redirect URI.
-- `PLC_DIRECTORY_ORIGIN` — selected `did:plc` directory. The DID document selects the PDS, and PDS metadata selects the authorization server.
+- `PLC_DIRECTORY` — selected `did:plc` directory. The DID document selects the PDS, and PDS metadata selects the authorization server.
 - `DEV_HANDLE_RESOLVER_ORIGIN` — optional local XRPC transport for `.test` handles.
 
-Set production `PUBLIC_URL` and `PLC_DIRECTORY_ORIGIN` in the Worker's **Settings → Variables and Secrets**, and its custom domain in **Settings → Domains & Routes**. Do not set the development resolver in production. Deployments preserve these settings. Type generation reads `.dev.vars.example`, not private local values. See [Workers Builds configuration](../../docs/LOCAL_DEVELOPMENT.md#production-and-workers-builds).
+Set production `PUBLIC_URL` and `PLC_DIRECTORY` in the Worker's **Settings → Variables and Secrets**, and its custom domain in **Settings → Domains & Routes**. Do not set the development resolver in production. Deployments preserve these settings. Type generation reads `.dev.vars.example`, not private local values. See [Workers Builds configuration](../../docs/LOCAL_DEVELOPMENT.md#production-and-workers-builds).
 
 `/oauth-client-metadata.json` is Town's public client metadata document. Town requests the `atproto` scope. The Worker exposes same-origin handle resolution and PLC reads to the browser.
 
@@ -33,4 +33,4 @@ pnpm turbo test typecheck build --filter=@minisphere/town
 
 The Vite server uses `http://127.0.0.1:5174`. On loopback, Town uses the AT Protocol `http://localhost` development Client ID convention. The default local variables select PLC Directory port `8788` and Handle Registry port `8789`; discovery then reaches PDS port `8787` and Accounts port `8790`.
 
-Use `pnpm dev:town` to run Town independently. Set `PLC_DIRECTORY_ORIGIN=https://plc.directory` in Town's `.dev.vars` to verify public handles and infrastructure.
+Use `pnpm dev:town` to run Town independently. Set `PLC_DIRECTORY=https://plc.directory` in Town's `.dev.vars` to verify public handles and infrastructure.

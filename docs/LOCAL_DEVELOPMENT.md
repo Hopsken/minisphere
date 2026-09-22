@@ -6,7 +6,7 @@ This document defines the target local-development architecture for Minisphere a
 
 - PDS, PLC Directory, Handle Registry, and Accounts form one local AT Protocol service group.
 - Town is an external client of that group and can also connect to public AT Protocol infrastructure.
-- Town selects its AT Protocol topology through one `PLC_DIRECTORY_ORIGIN`.
+- Town selects its AT Protocol topology through one `PLC_DIRECTORY`.
 - Stable local origins keep protocol metadata, DID documents, and OAuth redirects consistent.
 - Minisphere services use Cloudflare service bindings for internal discovery.
 - Project-local templates make setup reproducible while preserving developer-owned values.
@@ -44,16 +44,18 @@ Each server uses its assigned port in strict mode. A port conflict stops startup
 
 ## Service discovery
 
-Minisphere infrastructure uses service bindings for internal calls:
+Accounts and Handle Registry use service bindings; PLC clients use HTTP:
 
 ```text
 Handle Registry ──binding──▶ Accounts
 Accounts ─────────binding──▶ PDS
-Accounts ─────────binding──▶ PLC Directory
-PDS ──────────────binding──▶ PLC Directory
+Accounts ─────────HTTP─────▶ PLC Directory
+PDS ──────────────HTTP─────▶ PLC Directory
 ```
 
 These bindings provide internal Worker discovery. The fixed HTTP origins represent the same services in protocol documents and browser navigation.
+
+Accounts, PDS, and Town must set `PLC_DIRECTORY` to the same Directory. Local templates use `http://localhost:8788`; production can use `https://plc.directory` or a private Directory. Add this variable to existing Accounts and PDS `.dev.vars` files and rename Town's old PLC variable to `PLC_DIRECTORY`; setup preserves existing files. Apply the same changes to Cloudflare runtime variables before deployment.
 
 Town crosses the infrastructure boundary through HTTP. Its Worker provides same-origin endpoints to the browser and fetches the selected PLC Directory and discovered protocol services by origin.
 
@@ -62,13 +64,13 @@ Town crosses the infrastructure boundary through HTTP. Its Worker provides same-
 Town has two protocol configuration values:
 
 - `PUBLIC_URL` — Town's canonical origin for OAuth client metadata and redirect URIs.
-- `PLC_DIRECTORY_ORIGIN` — the selected `did:plc` directory.
+- `PLC_DIRECTORY` — the selected `did:plc` directory.
 
 Town also supports one local-development transport value:
 
 - `DEV_HANDLE_RESOLVER_ORIGIN` — an XRPC resolver for handles ending in `.test`.
 
-`PLC_DIRECTORY_ORIGIN` is Town's AT Protocol topology selector. The resolved DID document supplies the PDS service endpoint, and the PDS protected-resource metadata supplies the authorization server. `DEV_HANDLE_RESOLVER_ORIGIN` only maps the reserved `.test` namespace onto the local Handle Registry transport.
+`PLC_DIRECTORY` is Town's AT Protocol topology selector. The resolved DID document supplies the PDS service endpoint, and the PDS protected-resource metadata supplies the authorization server. `DEV_HANDLE_RESOLVER_ORIGIN` only maps the reserved `.test` namespace onto the local Handle Registry transport.
 
 Town's runtime resources are its Worker, static assets, and configuration variables. All identity and repository state stays with the selected AT Protocol services.
 
@@ -86,7 +88,7 @@ handle resolution
 did:plc identifier
     │
     ▼
-PLC_DIRECTORY_ORIGIN
+PLC_DIRECTORY
     │
     ▼
 DID document
@@ -112,7 +114,7 @@ The browser calls Town's same-origin `com.atproto.identity.resolveHandle` endpoi
 
 A `.test` lookup requires the development resolver value. An absent value produces an immediate local configuration error before resolver traffic. The suffix match uses the `.test` label boundary.
 
-After handle resolution returns a DID, Town reads its DID document through `PLC_DIRECTORY_ORIGIN` and verifies that `alsoKnownAs` links the DID back to the entered handle. The same-origin Worker endpoint also gives the browser a consistent CORS boundary for PLC reads.
+After handle resolution returns a DID, Town reads its DID document through `PLC_DIRECTORY` and verifies that `alsoKnownAs` links the DID back to the entered handle. The same-origin Worker endpoint also gives the browser a consistent CORS boundary for PLC reads.
 
 ## Local handles
 
@@ -140,7 +142,7 @@ Town uses these values:
 
 ```text
 PUBLIC_URL=http://127.0.0.1:5174
-PLC_DIRECTORY_ORIGIN=http://localhost:8788
+PLC_DIRECTORY=http://localhost:8788
 DEV_HANDLE_RESOLVER_ORIGIN=http://localhost:8789
 ```
 
@@ -160,7 +162,7 @@ Town can run locally with a public PLC Directory:
 
 ```text
 PUBLIC_URL=http://127.0.0.1:5174
-PLC_DIRECTORY_ORIGIN=https://plc.directory
+PLC_DIRECTORY=https://plc.directory
 ```
 
 Normal public handles use standard DNS or HTTPS resolution. Their DID documents select the public PDS, and PDS metadata selects its authorization server. This workflow verifies Town's client implementation against public protocol infrastructure.
@@ -218,10 +220,12 @@ The local service group aligns these values:
 | Accounts        | `PUBLIC_URL=http://localhost:8790`                 |
 | Accounts        | `PUBLIC_HANDLE_DOMAIN=r2d2.test`                   |
 | Accounts        | `PDS_ORIGIN=http://localhost:8787`                 |
+| Accounts        | `PLC_DIRECTORY=http://localhost:8788`              |
 | PDS             | `PDS_ORIGIN=http://localhost:8787`                 |
 | PDS             | `ACCOUNTS_ORIGIN=http://localhost:8790`            |
+| PDS             | `PLC_DIRECTORY=http://localhost:8788`              |
 | Handle Registry | Accounts service binding                           |
-| Town            | `PLC_DIRECTORY_ORIGIN=http://localhost:8788`       |
+| Town            | `PLC_DIRECTORY=http://localhost:8788`              |
 | Town            | `DEV_HANDLE_RESOLVER_ORIGIN=http://localhost:8789` |
 
 The PLC documents created for local accounts use the same PDS origin. OAuth metadata emitted by the PDS uses the same Accounts origin.

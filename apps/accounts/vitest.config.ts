@@ -43,6 +43,7 @@ export default defineConfig(async () => {
             EMAIL_ALLOWLIST: "example.com,member@other.test",
             EMAIL_FROM: "Minisphere <login@example.com>",
             PDS_ORIGIN: "https://pds.test",
+            PLC_DIRECTORY: "https://directory.test",
             PUBLIC_HANDLE_DOMAIN: "r2d2.party",
             PUBLIC_URL: "https://accounts.test",
             RESEND_API_KEY: "test-resend-key",
@@ -123,7 +124,7 @@ export default defineConfig(async () => {
                   accounts.add(input.did);
                   inviteCodes.delete(input.inviteCode);
                   if (!input.handle.startsWith("pds-only.")) {
-                    await env.DIRECTORY.fetch(
+                    await env.PLC_TEST_BACKEND.fetch(
                       new Request(\`https://directory.test/\${encodeURIComponent(input.did)}\`, {
                         body: JSON.stringify(input.plcOp),
                         headers: { "Content-Type": "application/json" },
@@ -160,7 +161,7 @@ export default defineConfig(async () => {
                   }
                 }
               `,
-              serviceBindings: { DIRECTORY: "minisphere-directory" },
+              serviceBindings: { PLC_TEST_BACKEND: "minisphere-directory" },
             },
             {
               modules: true,
@@ -169,8 +170,11 @@ export default defineConfig(async () => {
               script: `const emails = new Map();
               const deliveryCounts = new Map();
               export default {
-                async fetch(request) {
+                async fetch(request, env) {
                   const url = new URL(request.url);
+                  if (url.hostname === "directory.test") {
+                    return env.PLC_TEST_BACKEND.fetch(request);
+                  }
                   if (url.pathname === "/emails" && request.method === "POST") {
                     if (request.headers.get("authorization") !== "Bearer test-resend-key") {
                       return new Response(null, { status: 401 });
@@ -192,6 +196,7 @@ export default defineConfig(async () => {
                   return new Response("Not Found", { status: 404 });
                 }
               }`,
+              serviceBindings: { PLC_TEST_BACKEND: "minisphere-directory" },
             },
           ],
         },

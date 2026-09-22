@@ -16,12 +16,6 @@
   },
   "workers_dev": false,
   "keep_vars": true,
-  "services": [
-    {
-      "binding": "DIRECTORY",
-      "service": "minisphere-directory",
-    },
-  ],
   "d1_databases": [
     {
       "binding": "PDS_DB",
