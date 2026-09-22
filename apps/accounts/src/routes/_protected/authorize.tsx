@@ -3,8 +3,8 @@ import { queryOptions } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { UserAvatar } from "@/components/user-avatar";
 
 const authorizationSearchSchema = z.object({
   consent_token: z.string().min(1),
@@ -47,7 +47,7 @@ export const Route = createFileRoute("/_protected/authorize")({
 });
 
 function AuthorizationPage() {
-  const { authorization } = Route.useRouteContext();
+  const { authorization, user } = Route.useRouteContext();
   const { consent_token: consentToken } = Route.useSearch();
   const { clientId, scope, subject } = authorization;
   const label = subject.handle ?? subject.displayName ?? subject.did;
@@ -69,11 +69,7 @@ function AuthorizationPage() {
         {clientLabel}
       </p>
 
-      <Avatar className="mt-9 size-18">
-        <AvatarFallback className="text-primary bg-primary/10 text-xl font-semibold">
-          {label.charAt(0).toUpperCase()}
-        </AvatarFallback>
-      </Avatar>
+      <UserAvatar className="mt-9 size-18" user={user} />
       <p className="text-primary mt-4 font-semibold">@{label}</p>
       <p className="text-muted-foreground mt-1 max-w-full text-xs [overflow-wrap:anywhere]">
         {subject.did}
