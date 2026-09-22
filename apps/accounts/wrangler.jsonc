@@ -38,7 +38,6 @@
       "BETTER_AUTH_SECRET",
       "RESEND_API_KEY",
       "PDS_ORIGIN",
-      "ACCOUNTS_PLC_ROTATION_KEY",
       "ACCOUNTS_ENCRYPTION_KEY",
     ],
   },

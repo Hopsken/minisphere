@@ -1,9 +1,13 @@
 import {
   parseDidKey,
-  parsePrivateMultikey,
   Secp256k1PrivateKey,
+  Secp256k1PrivateKeyExportable,
 } from "@atcute/crypto";
-import { deriveDidFromGenesisOp, signOperation } from "@atcute/did-plc";
+import {
+  deriveDidFromGenesisOp,
+  isSignedOperationValid,
+  signOperation,
+} from "@atcute/did-plc";
 import type {
   DidKeyString,
   Operation,
@@ -21,21 +25,40 @@ export interface PlcAccountMaterial {
   signingKey: DidKeyString;
 }
 
+const encoder = new TextEncoder();
+const rotationKeyAad = (userId: string) =>
+  encoder.encode(JSON.stringify(["accounts:plc-rotation-key:v1", userId]));
+const encodeBase64 = (bytes: Uint8Array) =>
+  btoa(String.fromCodePoint(...bytes));
+const decodeBase64 = (value: string) =>
+  Uint8Array.from(atob(value), (character) => character.codePointAt(0) ?? 0);
+
+const importEncryptionKey = async (secret: string) => {
+  if (secret.length < 32) {
+    throw new Error(
+      "ACCOUNTS_KEY_ENCRYPTION_KEY must contain at least 32 high-entropy characters"
+    );
+  }
+  const bytes = await crypto.subtle.digest("SHA-256", encoder.encode(secret));
+  return crypto.subtle.importKey("raw", bytes, "AES-GCM", false, [
+    "encrypt",
+    "decrypt",
+  ]);
+};
+
 export const createPlcAccountMaterial = async (
-  rotationKeyMultikey: string,
+  userId: string,
+  encryptionSecret: string,
   handle: string,
   pdsOrigin: string,
   signingKeyInput: string
-): Promise<PlcAccountMaterial> => {
-  const parsedRotationKey = parsePrivateMultikey(rotationKeyMultikey);
-  if (parsedRotationKey.type !== "secp256k1") {
-    throw new Error(
-      "ACCOUNTS_PLC_ROTATION_KEY must be a secp256k1 private multikey"
-    );
-  }
-
-  const rotationKey = await Secp256k1PrivateKey.importRaw(
-    parsedRotationKey.privateKeyBytes
+) => {
+  const rotationKey = await Secp256k1PrivateKeyExportable.createKeypair();
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const encrypted = await crypto.subtle.encrypt(
+    { additionalData: rotationKeyAad(userId), iv, name: "AES-GCM" },
+    await importEncryptionKey(encryptionSecret),
+    await rotationKey.exportPrivateKey("raw")
   );
   const [rotationKeyDid, signingKey] = await Promise.all([
     rotationKey.exportPublicKey("did"),
@@ -57,7 +80,62 @@ export const createPlcAccountMaterial = async (
   const operation = await signOperation(unsignedOperation, rotationKey);
   return {
     did: await deriveDidFromGenesisOp(operation),
+    encryptedRotationKey: encodeBase64(new Uint8Array(encrypted)),
     operation,
+    rotationKeyIv: encodeBase64(iv),
     signingKey,
+  };
+};
+
+export const restorePlcAccountMaterial = async (
+  userId: string,
+  encryptionSecret: string,
+  stored: {
+    did: string | null;
+    signingKey: string | null;
+    operation: Operation | null;
+    encryptedRotationKey: string | null;
+    rotationKeyIv: string | null;
+  }
+): Promise<PlcAccountMaterial> => {
+  if (
+    !stored.did ||
+    !stored.signingKey ||
+    !stored.operation ||
+    !stored.encryptedRotationKey ||
+    !stored.rotationKeyIv
+  ) {
+    throw new Error(
+      "Provisioning account is missing its PLC identity material"
+    );
+  }
+  const bytes = await crypto.subtle.decrypt(
+    {
+      additionalData: rotationKeyAad(userId),
+      iv: decodeBase64(stored.rotationKeyIv),
+      name: "AES-GCM",
+    },
+    await importEncryptionKey(encryptionSecret),
+    decodeBase64(stored.encryptedRotationKey)
+  );
+  const key = await Secp256k1PrivateKey.importRaw(new Uint8Array(bytes));
+  const publicKey = await key.exportPublicKey("did");
+  const did = await deriveDidFromGenesisOp(stored.operation);
+  if (
+    did !== stored.did ||
+    stored.operation.prev !== null ||
+    stored.operation.rotationKeys.length !== 1 ||
+    stored.operation.rotationKeys[0] !== publicKey ||
+    stored.operation.verificationMethods.atproto !== stored.signingKey ||
+    !(await isSignedOperationValid([publicKey], stored.operation))
+  ) {
+    throw new Error(
+      "Stored PLC identity material does not match its genesis operation"
+    );
+  }
+  return {
+    did,
+    operation: stored.operation,
+    signingKey: normalizeDidKey(stored.signingKey),
   };
 };

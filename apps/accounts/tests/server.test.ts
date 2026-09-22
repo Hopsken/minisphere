@@ -35,8 +35,8 @@ describe("accounts server", () => {
       ).bind("alice-id", "alice", "alice@example.com", true),
       env.DB.prepare(
         `INSERT INTO atproto_account
-          (user_id, username, did, signing_key, status)
-         VALUES (?, ?, ?, ?, 'active')`
+          (user_id, username, did, signing_key, operation, encrypted_rotation_key, rotation_key_iv, status)
+         VALUES (?, ?, ?, ?, '{}', 'fixture-ciphertext', 'fixture-iv', 'active')`
       ).bind("alice-id", "alice", did, "did:key:zQ3shAliceSigningKey"),
     ]);
 

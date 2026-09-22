@@ -1,3 +1,4 @@
+import type { Operation } from "@atcute/did-plc";
 import { defineRelationsPart, sql } from "drizzle-orm";
 import { check, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
@@ -12,6 +13,9 @@ export const atprotoAccount = sqliteTable(
       .default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`)
       .notNull(),
     did: text("did").unique(),
+    encryptedRotationKey: text("encrypted_rotation_key"),
+    operation: text("operation", { mode: "json" }).$type<Operation>(),
+    rotationKeyIv: text("rotation_key_iv"),
     signingKey: text("signing_key"),
     status: text("status")
       .$type<AtprotoAccountStatus>()
@@ -35,7 +39,7 @@ export const atprotoAccount = sqliteTable(
     ),
     check(
       "atproto_account_identity_material_check",
-      sql`(${table.did} IS NULL AND ${table.signingKey} IS NULL) OR (${table.did} IS NOT NULL AND ${table.signingKey} IS NOT NULL)`
+      sql`(${table.did} IS NULL AND ${table.signingKey} IS NULL AND ${table.operation} IS NULL AND ${table.encryptedRotationKey} IS NULL AND ${table.rotationKeyIv} IS NULL) OR (${table.did} IS NOT NULL AND ${table.signingKey} IS NOT NULL AND ${table.operation} IS NOT NULL AND ${table.encryptedRotationKey} IS NOT NULL AND ${table.rotationKeyIv} IS NOT NULL)`
     ),
   ]
 );
