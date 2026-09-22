@@ -4,6 +4,7 @@ import {
   Secp256k1PrivateKeyExportable,
 } from "@atcute/crypto";
 import type { AtprotoAccessTokenInput } from "@minisphere/atproto-oauth-provider";
+import { env } from "cloudflare:workers";
 import { z } from "zod";
 
 import { createOAuthAccessToken } from "../lib/oauth-access-token";
@@ -16,13 +17,7 @@ import { OAuthSigningKeyRepository } from "../repositories/oauth-signing-key-rep
 const purpose = "oauth-access-token";
 
 export class OAuthSigningKeys {
-  private readonly repository: OAuthSigningKeyRepository;
-  private readonly encryptionSecret: string;
-
-  constructor(database: D1Database, encryptionSecret: string) {
-    this.repository = new OAuthSigningKeyRepository(database);
-    this.encryptionSecret = encryptionSecret;
-  }
+  private readonly repository = new OAuthSigningKeyRepository(env.DB);
 
   private async getKeys() {
     const existing = await this.repository.list();
@@ -43,7 +38,7 @@ export class OAuthSigningKeys {
         await key.exportPrivateKey("multikey"),
         purpose,
         kid,
-        this.encryptionSecret
+        env.ACCOUNTS_KEY_ENCRYPTION_KEY
       )),
     });
   }
@@ -58,7 +53,7 @@ export class OAuthSigningKeys {
       current,
       purpose,
       current.kid,
-      this.encryptionSecret
+      env.ACCOUNTS_KEY_ENCRYPTION_KEY
     );
     const parsed = parsePrivateMultikey(privateKey);
     if (parsed.type !== "secp256k1") {

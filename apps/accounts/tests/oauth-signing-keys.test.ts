@@ -1,5 +1,5 @@
 import { Secp256k1PrivateKeyExportable } from "@atcute/crypto";
-import { env } from "cloudflare:workers";
+import { env, withEnv } from "cloudflare:workers";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { verifyOAuthAccessToken } from "../../pds/src/auth/oauth";
@@ -22,8 +22,7 @@ const input = {
   subject: "did:plc:aaaaaaaaaaaaaaaaaaaaaaaa",
 };
 const secret = env.ACCOUNTS_KEY_ENCRYPTION_KEY;
-const createKeys = (encryptionSecret = secret) =>
-  new OAuthSigningKeys(env.DB, encryptionSecret);
+const createKeys = () => new OAuthSigningKeys();
 const records = () => new OAuthSigningKeyRepository(env.DB).list();
 const requestJwks = () =>
   createAuth(env, createDatabase(env.DB)).handler(
@@ -136,7 +135,14 @@ describe("persisted OAuth signing keys", () => {
       "UPDATE oauth_signing_key SET status = 'retired'"
     ).run();
     await expect(
-      createKeys("wrong-secret-but-at-least-32-characters").getJwks()
+      withEnv(
+        {
+          ...env,
+          ACCOUNTS_KEY_ENCRYPTION_KEY:
+            "wrong-secret-but-at-least-32-characters",
+        },
+        () => createKeys().getJwks()
+      )
     ).resolves.toStrictEqual(jwks);
     await expect(createKeys().issueAccessToken(input)).rejects.toThrow(
       "No current OAuth signing key"
@@ -190,11 +196,16 @@ describe("persisted OAuth signing keys", () => {
       }
       const saved = await records();
       await expect(
-        createKeys(
-          failure === "secret"
-            ? "wrong-secret-but-at-least-32-characters"
-            : secret
-        ).issueAccessToken(input)
+        withEnv(
+          {
+            ...env,
+            ACCOUNTS_KEY_ENCRYPTION_KEY:
+              failure === "secret"
+                ? "wrong-secret-but-at-least-32-characters"
+                : secret,
+          },
+          () => createKeys().issueAccessToken(input)
+        )
       ).rejects.toThrow(/private-key encryption IV|public key|Decrypt/u);
       await expect(records()).resolves.toStrictEqual(saved);
     }

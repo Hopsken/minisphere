@@ -78,7 +78,7 @@ Better Auth authenticates the user. Accounts resolves no more than one active DI
 
 OAuth request, replay, code, session, and refresh state uses the database-backed Better Auth `verification` table. As the authorization server, Accounts signs each five-minute, DPoP-bound access JWT with its dedicated secp256k1 key and publishes public keys at the `jwks_uri` in its authorization-server metadata. The PDS discovers that JWKS from the configured Accounts origin.
 
-The OAuth provider uses `OAuthSigningKeys`, passing the D1 binding and encryption secret. The service creates and owns its signing-key repository; callers do not construct the persistence layer.
+The OAuth provider uses `new OAuthSigningKeys()` without configuration arguments. The service reads its D1 binding and encryption secret directly from `cloudflare:workers` `env` and creates its signing-key repository internally.
 
 Accounts creates its first OAuth signing key when signing or JWKS publication first needs it. The `oauth_signing_key` D1 table stores each key by `kid`, with public coordinates, encrypted private material, creation time, and `current`, `retired`, or `disabled` status. An atomic conditional insert into an empty table selects the initialization winner; a partial unique index allows only one current key. Repository reads use a `first-primary` D1 session and preserve read-after-write consistency. Worker instances read the stored winner and do not cache keys.
 

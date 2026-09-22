@@ -7,10 +7,7 @@ import { createHostedHandle } from "./hosted-handle";
 
 export const createAtprotoOAuthProvider = (env: Env, database: Database) => {
   const users = new UserRepository(database);
-  const signingKeys = new OAuthSigningKeys(
-    env.DB,
-    env.ACCOUNTS_KEY_ENCRYPTION_KEY
-  );
+  const signingKeys = new OAuthSigningKeys();
 
   return atprotoOAuthProvider({
     getAccountCompletionUrl: () => "/onboarding/username?oauth=true",
