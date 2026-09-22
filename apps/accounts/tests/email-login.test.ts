@@ -163,6 +163,28 @@ describe("email login", () => {
     await expectStatus(signIn(email, await readCode(email)), 200);
   });
 
+  it("allows only one concurrent send for the same email", async () => {
+    const email = "concurrent@example.com";
+    const responses = await Promise.all([
+      send(email, "192.0.2.40"),
+      send(" CONCURRENT@EXAMPLE.COM ", "192.0.2.41"),
+    ]);
+    expect(
+      responses.map((response) => response.status).toSorted()
+    ).toStrictEqual([200, 429]);
+    const deliveries = await fetch(
+      `https://api.resend.com/__test/delivery-count?email=${encodeURIComponent(email)}`
+    );
+    await expect(deliveries.json()).resolves.toBe(1);
+    const records = await env.DB.prepare(
+      "SELECT id FROM verification WHERE identifier = ?"
+    )
+      .bind(`sign-in-otp-${email}`)
+      .all();
+    expect(records.results).toHaveLength(1);
+    await expectStatus(signIn(email, await readCode(email)), 200);
+  });
+
   it.each([
     ["fifth@example.com", 4, 200],
     ["exhausted@example.com", 5, 403],

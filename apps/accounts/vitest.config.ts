@@ -180,6 +180,7 @@ export default defineConfig(async () => {
               name: "minisphere-test-email",
               routes: ["https://api.resend.com/*"],
               script: `const emails = new Map();
+              const deliveryCounts = new Map();
               export default {
                 async fetch(request) {
                   const url = new URL(request.url);
@@ -192,7 +193,11 @@ export default defineConfig(async () => {
                       return new Response(null, { status: 503 });
                     }
                     emails.set(body.to[0], body);
+                    deliveryCounts.set(body.to[0], (deliveryCounts.get(body.to[0]) ?? 0) + 1);
                     return Response.json({ id: crypto.randomUUID() });
+                  }
+                  if (url.pathname === "/__test/delivery-count") {
+                    return Response.json(deliveryCounts.get(url.searchParams.get("email")) ?? 0);
                   }
                   if (url.pathname === "/__test/email") {
                     return Response.json(emails.get(url.searchParams.get("email")) ?? null);

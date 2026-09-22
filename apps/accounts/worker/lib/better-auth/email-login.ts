@@ -36,17 +36,18 @@ export const emailLoginGuard = (env: Env) =>
       const adapter = ctx.context.internalAdapter;
       const identifier = `email-login-cooldown:${email}`;
       const previous = await adapter.findVerificationValue(identifier);
-      if (previous && previous.expiresAt.getTime() > Date.now()) {
+      if (
+        (previous && previous.expiresAt.getTime() > Date.now()) ||
+        !(await adapter.reserveVerificationValue({
+          expiresAt: new Date(Date.now() + 60_000),
+          identifier,
+          value: "cooldown",
+        }))
+      ) {
         throw new APIError("TOO_MANY_REQUESTS", {
           message: "Wait 60 seconds before requesting another code.",
         });
       }
-      await adapter.deleteVerificationByIdentifier(identifier);
-      await adapter.createVerificationValue({
-        expiresAt: new Date(Date.now() + 60_000),
-        identifier,
-        value: "cooldown",
-      });
       // The verification table has no unique identifier constraint. Explicitly rotate.
       await adapter.deleteVerificationByIdentifier(`sign-in-otp-${email}`);
     }
