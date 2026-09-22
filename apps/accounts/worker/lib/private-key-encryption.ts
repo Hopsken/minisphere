@@ -1,5 +1,5 @@
 const encoder = new TextEncoder();
-const decoder = new TextDecoder("utf-8", { fatal: true });
+const decoder = new TextDecoder("utf-8", { fatal: true, ignoreBOM: false });
 
 const importEncryptionKey = async (secret: string) => {
   if (secret.length < 32) {
