@@ -82,7 +82,7 @@ The OAuth provider uses `new OAuthSigningKeys()` without configuration arguments
 
 Accounts creates its first OAuth signing key when signing or JWKS publication first needs it. The `oauth_signing_key` D1 table stores each key by `kid`, with public coordinates, encrypted private material, creation time, and `current`, `retired`, or `disabled` status. An atomic conditional insert into an empty table selects the initialization winner; a partial unique index allows only one current key. Repository reads use a `first-primary` D1 session and preserve read-after-write consistency. Worker instances read the stored winner and do not cache keys.
 
-Private multikeys use AES-256-GCM under `ACCOUNTS_KEY_ENCRYPTION_KEY`, with a random 96-bit IV and additional authenticated data binding the OAuth purpose and `kid`. Public JWKS publication does not decrypt stored keys. It includes current and retired public keys and excludes disabled keys. Signing requires a current key and fails on database, decryption, or key-integrity errors; it never replaces an existing key automatically. The table supports future rotation, but this version has no rotation scheduler or administrative key-management endpoint. A future rotation must retain retired public keys for token validity and JWKS cache windows. Disabling a key does not invalidate JWKS copies already cached by clients.
+Private multikeys use AES-256-GCM under `ACCOUNTS_ENCRYPTION_KEY`, with a random 96-bit IV and additional authenticated data binding the OAuth purpose and `kid`. Public JWKS publication does not decrypt stored keys. It includes current and retired public keys and excludes disabled keys. Signing requires a current key and fails on database, decryption, or key-integrity errors; it never replaces an existing key automatically. The table supports future rotation, but this version has no rotation scheduler or administrative key-management endpoint. A future rotation must retain retired public keys for token validity and JWKS cache windows. Disabling a key does not invalidate JWKS copies already cached by clients.
 
 The Worker enables Cloudflare's `global_fetch_strictly_public` compatibility flag for Client ID Metadata Document fetches. Keep this flag enabled to prevent same-zone and private-network routing during client discovery.
 
@@ -136,14 +136,14 @@ Secrets:
 - `BETTER_AUTH_SECRET` — signs and encrypts Better Auth data; it must contain at least 32 high-entropy characters
 - `RESEND_API_KEY` — Resend API key with email sending permission
 - `PDS_ORIGIN` — canonical PDS OAuth resource origin
-- `ACCOUNTS_KEY_ENCRYPTION_KEY` — stable, independent secret with at least 32 high-entropy characters; encrypts Accounts private key material in D1 and must not reuse `BETTER_AUTH_SECRET`
+- `ACCOUNTS_ENCRYPTION_KEY` — stable, independent secret with at least 32 high-entropy characters; encrypts Accounts private key material in D1 and must not reuse `BETTER_AUTH_SECRET`
 - `ACCOUNTS_PLC_ROTATION_KEY` — secp256k1 private multikey used by Accounts to sign genesis PLC operations
 
 ```sh
 pnpm --filter @minisphere/accounts exec wrangler secret put BETTER_AUTH_SECRET
 pnpm --filter @minisphere/accounts exec wrangler secret put RESEND_API_KEY
 pnpm --filter @minisphere/accounts exec wrangler secret put PDS_ORIGIN
-pnpm --filter @minisphere/accounts exec wrangler secret put ACCOUNTS_KEY_ENCRYPTION_KEY
+pnpm --filter @minisphere/accounts exec wrangler secret put ACCOUNTS_ENCRYPTION_KEY
 pnpm --filter @minisphere/accounts exec wrangler secret put ACCOUNTS_PLC_ROTATION_KEY
 ```
 

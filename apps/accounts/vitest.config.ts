@@ -42,7 +42,7 @@ export default defineConfig(async () => {
       cloudflareTest({
         miniflare: {
           bindings: {
-            ACCOUNTS_KEY_ENCRYPTION_KEY:
+            ACCOUNTS_ENCRYPTION_KEY:
               "local-test-key-encryption-secret-at-least-32-characters",
             ACCOUNTS_PLC_ROTATION_KEY: entrywayRotationKeyMultikey,
             BETTER_AUTH_SECRET:

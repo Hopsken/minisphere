@@ -21,7 +21,7 @@ const input = {
   scope: "atproto",
   subject: "did:plc:aaaaaaaaaaaaaaaaaaaaaaaa",
 };
-const secret = env.ACCOUNTS_KEY_ENCRYPTION_KEY;
+const secret = env.ACCOUNTS_ENCRYPTION_KEY;
 const createKeys = () => new OAuthSigningKeys();
 const records = () => new OAuthSigningKeyRepository(env.DB).list();
 const requestJwks = () =>
@@ -138,8 +138,7 @@ describe("persisted OAuth signing keys", () => {
       withEnv(
         {
           ...env,
-          ACCOUNTS_KEY_ENCRYPTION_KEY:
-            "wrong-secret-but-at-least-32-characters",
+          ACCOUNTS_ENCRYPTION_KEY: "wrong-secret-but-at-least-32-characters",
         },
         () => createKeys().getJwks()
       )
@@ -199,7 +198,7 @@ describe("persisted OAuth signing keys", () => {
         withEnv(
           {
             ...env,
-            ACCOUNTS_KEY_ENCRYPTION_KEY:
+            ACCOUNTS_ENCRYPTION_KEY:
               failure === "secret"
                 ? "wrong-secret-but-at-least-32-characters"
                 : secret,
@@ -277,6 +276,6 @@ describe("private-key encryption", () => {
         "key-a",
         "short"
       )
-    ).rejects.toThrow("ACCOUNTS_KEY_ENCRYPTION_KEY");
+    ).rejects.toThrow("ACCOUNTS_ENCRYPTION_KEY");
   });
 });

@@ -38,7 +38,7 @@ export class OAuthSigningKeys {
         await key.exportPrivateKey("multikey"),
         purpose,
         kid,
-        env.ACCOUNTS_KEY_ENCRYPTION_KEY
+        env.ACCOUNTS_ENCRYPTION_KEY
       )),
     });
   }
@@ -53,7 +53,7 @@ export class OAuthSigningKeys {
       current,
       purpose,
       current.kid,
-      env.ACCOUNTS_KEY_ENCRYPTION_KEY
+      env.ACCOUNTS_ENCRYPTION_KEY
     );
     const parsed = parsePrivateMultikey(privateKey);
     if (parsed.type !== "secp256k1") {
