@@ -59,7 +59,7 @@ pnpm --filter @minisphere/pds db:migrate:remote
 ## Secrets
 
 - `PDS_JWT_SECRET` — at least 32 random bytes used for account-session JWTs
-- `PDS_SIGNING_KEY_ENCRYPTION_KEY` — stable secret of at least 32 random characters used to encrypt unclaimed repository private keys in D1; changing it makes existing reservations unreadable
+- `PDS_ENCRYPTION_KEY` — stable secret of at least 32 random characters used to encrypt unclaimed repository private keys in D1; changing it makes existing reservations unreadable
 
 Variables:
 
@@ -68,7 +68,7 @@ Variables:
 
 ```sh
 pnpm --filter @minisphere/pds exec wrangler secret put PDS_JWT_SECRET
-pnpm --filter @minisphere/pds exec wrangler secret put PDS_SIGNING_KEY_ENCRYPTION_KEY
+pnpm --filter @minisphere/pds exec wrangler secret put PDS_ENCRYPTION_KEY
 ```
 
 ## Development

@@ -9,7 +9,7 @@ import { SigningKeyReservationRepository } from "../src/repositories/signing-key
 const createRepository = () =>
   new SigningKeyReservationRepository(
     createPdsDatabase(env.PDS_DB),
-    env.PDS_SIGNING_KEY_ENCRYPTION_KEY
+    env.PDS_ENCRYPTION_KEY
   );
 
 type RepoTestInstance = DurableObject & {
