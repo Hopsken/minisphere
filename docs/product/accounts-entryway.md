@@ -7,6 +7,17 @@
 
 This is a living product document. It records the target, settled product decisions, unresolved risks, and release criteria. It does not replace product discovery, interaction prototypes, or technical design.
 
+## Primary login revision — 2026-09-21
+
+This revision supersedes the OIDC login requirements below; the username, DID provisioning, and AT Protocol OAuth requirements remain unchanged.
+
+- Use email login codes delivered by Resend, with one registration/login entry point. Create a new user only after successful verification.
+- Use `EMAIL_ALLOWLIST` in Wrangler vars: comma-separated `*`, exact domains, or exact email addresses; any match permits login. Trim values and compare case-insensitively. Do not include subdomains implicitly or fold dots or `+tags`. An empty list denies login. Enforce at both sending and sign-in; existing sessions are not revoked on configuration changes.
+- Codes have six digits, a ten-minute lifetime, five verification attempts, and a 60-second resend cooldown. Only the latest code works, and success consumes it.
+- Keep the internal user ID and DID independent from the login email. Do not implement OIDC user transition, email changes, or account recovery in this development-stage release.
+- Keep basic server-side request limits and hashed code storage. Do not add CAPTCHA, complex risk scoring, delivery queues, or multi-level quotas in this release.
+- The remaining OIDC references describe the original discovery baseline, not the current login implementation. See the Accounts README for current setup and behavior.
+
 ## Product purpose
 
 Minisphere needs an Accounts service that behaves like an AT Protocol Entryway. In the first release, a person authenticates through one configured OIDC provider. After authentication, the person chooses one local username and creates one DID account on the paired PDS. Successful account creation commits the username, its hosted handle, and the DID as one product outcome.

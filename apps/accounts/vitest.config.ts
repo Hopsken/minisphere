@@ -53,17 +53,15 @@ export default defineConfig(async () => {
             ACCOUNTS_PLC_ROTATION_KEY: entrywayRotationKeyMultikey,
             BETTER_AUTH_SECRET:
               "local-test-better-auth-secret-at-least-32-characters",
-            OIDC_CLIENT_ID: "accounts-test-client",
-            OIDC_CLIENT_SECRET: "accounts-test-client-secret",
-            OIDC_DISCOVERY_URL:
-              "https://oidc.test/.well-known/openid-configuration",
-            OIDC_PROVIDER_NAME: "Test Identity",
+            EMAIL_ALLOWLIST: "example.com,member@other.test",
+            EMAIL_FROM: "Minisphere <login@example.com>",
             PDS_ORIGIN: "https://pds.test",
             PUBLIC_HANDLE_DOMAIN: "r2d2.party",
             PUBLIC_URL: "https://accounts.test",
+            RESEND_API_KEY: "test-resend-key",
             TEST_MIGRATIONS: migrations,
           },
-          outboundService: "minisphere-test-oidc",
+          outboundService: "minisphere-test-email",
           workers: [
             {
               modules: true,
@@ -179,23 +177,30 @@ export default defineConfig(async () => {
             },
             {
               modules: true,
-              name: "minisphere-test-oidc",
-              routes: ["https://oidc.test/*"],
-              script: `export default {
-                fetch(request) {
+              name: "minisphere-test-email",
+              routes: ["https://api.resend.com/*"],
+              script: `const emails = new Map();
+              const deliveryCounts = new Map();
+              export default {
+                async fetch(request) {
                   const url = new URL(request.url);
-                  if (url.pathname === "/.well-known/openid-configuration") {
-                    return Response.json({
-                      authorization_endpoint: "https://oidc.test/authorize",
-                      id_token_signing_alg_values_supported: ["RS256"],
-                      issuer: "https://oidc.test",
-                      jwks_uri: "https://oidc.test/jwks",
-                      token_endpoint: "https://oidc.test/token",
-                      userinfo_endpoint: "https://oidc.test/userinfo"
-                    });
+                  if (url.pathname === "/emails" && request.method === "POST") {
+                    if (request.headers.get("authorization") !== "Bearer test-resend-key") {
+                      return new Response(null, { status: 401 });
+                    }
+                    const body = await request.json();
+                    if (body.to[0] === "failure@example.com") {
+                      return new Response(null, { status: 503 });
+                    }
+                    emails.set(body.to[0], body);
+                    deliveryCounts.set(body.to[0], (deliveryCounts.get(body.to[0]) ?? 0) + 1);
+                    return Response.json({ id: crypto.randomUUID() });
                   }
-                  if (url.pathname === "/jwks") {
-                    return Response.json({ keys: [] });
+                  if (url.pathname === "/__test/delivery-count") {
+                    return Response.json(deliveryCounts.get(url.searchParams.get("email")) ?? 0);
+                  }
+                  if (url.pathname === "/__test/email") {
+                    return Response.json(emails.get(url.searchParams.get("email")) ?? null);
                   }
                   return new Response("Not Found", { status: 404 });
                 }
