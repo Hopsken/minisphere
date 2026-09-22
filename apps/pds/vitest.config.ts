@@ -45,9 +45,9 @@ export default defineConfig(async () => {
         miniflare: {
           bindings: {
             ACCOUNTS_ORIGIN: "https://accounts.test",
+            PDS_ENCRYPTION_KEY: signingKeyEncryptionKey,
             PDS_JWT_SECRET: jwtSecret,
             PDS_ORIGIN: pdsOrigin,
-            PDS_ENCRYPTION_KEY: signingKeyEncryptionKey,
             TEST_ACCOUNTS_OAUTH_SIGNING_KEY: oauthSigningKeyMultikey,
             TEST_MIGRATIONS: migrations,
           },
