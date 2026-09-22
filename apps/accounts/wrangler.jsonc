@@ -29,7 +29,7 @@
   ],
   "vars": {
     "EMAIL_ALLOWLIST": "hopsken.com",
-    "EMAIL_FROM": "Minisphere <login@notify.hopsken.dev>",
+    "EMAIL_FROM": "Minisphere <notify@r2d2.party>",
     "PUBLIC_URL": "https://accounts.hopsken.dev",
     "PUBLIC_HANDLE_DOMAIN": "r2d2.party",
   },

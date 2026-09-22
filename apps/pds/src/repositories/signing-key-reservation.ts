@@ -44,7 +44,7 @@ const decodeBase64Url = (value: string) => {
 const importEncryptionKey = async (secret: string) => {
   if (secret.length < MINIMUM_ENCRYPTION_SECRET_LENGTH) {
     throw new Error(
-      `PDS_SIGNING_KEY_ENCRYPTION_KEY must contain at least ${MINIMUM_ENCRYPTION_SECRET_LENGTH} characters`
+      `PDS_ENCRYPTION_KEY must contain at least ${MINIMUM_ENCRYPTION_SECRET_LENGTH} characters`
     );
   }
   const keyBytes = await crypto.subtle.digest(

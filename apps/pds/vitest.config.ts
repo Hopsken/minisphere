@@ -37,7 +37,7 @@ export default defineConfig(async () => {
     "test-signing-key-encryption-secret-at-least-32-bytes";
   const pdsOrigin = "https://pds.test";
   process.env.PDS_JWT_SECRET = jwtSecret;
-  process.env.PDS_SIGNING_KEY_ENCRYPTION_KEY = signingKeyEncryptionKey;
+  process.env.PDS_ENCRYPTION_KEY = signingKeyEncryptionKey;
 
   return {
     plugins: [
@@ -45,9 +45,9 @@ export default defineConfig(async () => {
         miniflare: {
           bindings: {
             ACCOUNTS_ORIGIN: "https://accounts.test",
+            PDS_ENCRYPTION_KEY: signingKeyEncryptionKey,
             PDS_JWT_SECRET: jwtSecret,
             PDS_ORIGIN: pdsOrigin,
-            PDS_SIGNING_KEY_ENCRYPTION_KEY: signingKeyEncryptionKey,
             TEST_ACCOUNTS_OAUTH_SIGNING_KEY: oauthSigningKeyMultikey,
             TEST_MIGRATIONS: migrations,
           },

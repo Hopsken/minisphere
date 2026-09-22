@@ -74,7 +74,7 @@ const directoryClient = (env: Env) =>
 const signingKeyReservations = (env: Env) =>
   new SigningKeyReservationRepository(
     createPdsDatabase(env.PDS_DB),
-    env.PDS_SIGNING_KEY_ENCRYPTION_KEY
+    env.PDS_ENCRYPTION_KEY
   );
 
 const ensureDirectoryOperation = async (
