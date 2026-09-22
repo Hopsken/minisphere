@@ -18,7 +18,7 @@ The Handle Registry has no database and no registration API. It trusts Accounts 
 
 ## Configuration
 
-The `Accounts` service binding targets `AccountsEntrypoint`. The production Wrangler configuration routes `*.r2d2.party/*` to this Worker. Keep this wildcard route synchronized with Accounts `PUBLIC_HANDLE_DOMAIN`.
+The `Accounts` service binding targets `AccountsEntrypoint`. Configure `*.<PUBLIC_HANDLE_DOMAIN>/*` in the Worker's Cloudflare **Settings → Domains & Routes**. Keep this wildcard route synchronized with Accounts `PUBLIC_HANDLE_DOMAIN`. Wrangler leaves Dashboard-managed routes in place. See [Workers Builds configuration](../../docs/LOCAL_DEVELOPMENT.md#production-and-workers-builds).
 
 ## Development
 

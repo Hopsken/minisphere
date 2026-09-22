@@ -66,6 +66,8 @@ Variables:
 - `ACCOUNTS_ORIGIN` — canonical Accounts OAuth issuer origin
 - `PDS_ORIGIN` — canonical OAuth resource and PDS service origin
 
+Set production variables and secrets in the Worker's **Settings → Variables and Secrets**, and its custom domain in **Settings → Domains & Routes**. Deployments preserve these settings. Type generation reads `.dev.vars.example`, not private local values. See [Workers Builds configuration](../../docs/LOCAL_DEVELOPMENT.md#production-and-workers-builds). Alternatively, set secrets with Wrangler:
+
 ```sh
 pnpm --filter @minisphere/pds exec wrangler secret put PDS_JWT_SECRET
 pnpm --filter @minisphere/pds exec wrangler secret put PDS_ENCRYPTION_KEY

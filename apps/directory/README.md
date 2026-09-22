@@ -29,6 +29,8 @@ pnpm --filter @minisphere/directory db:migrate:remote
 
 The remote migration command changes deployed data and requires Cloudflare credentials.
 
+Configure the production custom domain in the Worker's Cloudflare **Settings → Domains & Routes**. Wrangler leaves Dashboard-managed routes in place. See [Workers Builds configuration](../../docs/LOCAL_DEVELOPMENT.md#production-and-workers-builds).
+
 ## Development
 
 ```sh

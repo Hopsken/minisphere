@@ -14,12 +14,7 @@
     },
   },
   "workers_dev": false,
-  "routes": [
-    {
-      "pattern": "*.r2d2.party/*",
-      "zone_name": "r2d2.party",
-    },
-  ],
+  "keep_vars": true,
   "services": [
     {
       "binding": "Accounts",

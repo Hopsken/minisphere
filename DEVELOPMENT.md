@@ -57,6 +57,7 @@ This file records the current implementation state and important architecture de
 
 ## Decisions
 
+- Cloudflare Dashboard owns production runtime variables, secrets, and routes; Wrangler preserves them with `keep_vars` and no route declarations. Project-local `.dev.vars.example` files define local defaults and variable names for type generation. D1 and service bindings remain in Wrangler configuration. See [configuration ownership](./docs/LOCAL_DEVELOPMENT.md#configuration-ownership).
 - Every AT Protocol identity uses the same account model. The system does not store an account type or classification.
 - The PLC Directory is the source of truth for DID documents. The PDS is the source of truth for its account and session state. Accounts owns users, primary authentication, usernames, and hosted handle-to-DID mappings.
 - A PLC `alsoKnownAs` value is a handle claim, not proof of the reverse mapping. The stateless Handle Registry completes reverse verification with the DID supplied by Accounts.

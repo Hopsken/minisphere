@@ -16,14 +16,5 @@
     },
   },
   "workers_dev": false,
-  "routes": [
-    {
-      "custom_domain": true,
-      "pattern": "town.hopsken.dev",
-    },
-  ],
-  "vars": {
-    "PLC_DIRECTORY_ORIGIN": "https://plc.hopsken.dev",
-    "PUBLIC_URL": "https://town.hopsken.dev",
-  },
+  "keep_vars": true,
 }
