@@ -2,8 +2,9 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { UserAvatar } from "@/components/user-avatar";
 import { authKeys } from "@/features/auth/queries";
 import { authClient } from "@/lib/auth-client";
 import type { Session } from "@/lib/auth-client";
@@ -38,14 +39,7 @@ export const AppShell = ({ children, user }: AppShellProps) => {
             {user ? (
               <details className="group relative">
                 <summary className="focus-visible:ring-ring/30 cursor-pointer list-none rounded-full outline-none focus-visible:ring-3 [&::-webkit-details-marker]:hidden">
-                  <Avatar>
-                    {user.image ? (
-                      <AvatarImage src={user.image} alt="" />
-                    ) : null}
-                    <AvatarFallback>
-                      {user.name.charAt(0).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
+                  <UserAvatar user={user} />
                   <span className="sr-only">Account menu</span>
                 </summary>
                 <div className="border-border bg-popover absolute top-11 right-0 z-20 min-w-36 rounded-xl border p-1 shadow-md">

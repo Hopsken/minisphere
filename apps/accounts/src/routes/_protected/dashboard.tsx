@@ -2,7 +2,7 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { z } from "zod";
 
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/user-avatar";
 import { accountQuery } from "@/features/account/queries";
 
 const dashboardSearchSchema = z.object({
@@ -36,12 +36,7 @@ function DashboardPage() {
           Your account is ready. Return to your app and start sign-in again.
         </div>
       ) : null}
-      <Avatar className="size-20">
-        {user.image ? <AvatarImage src={user.image} alt="" /> : null}
-        <AvatarFallback className="text-xl">
-          {account.username.charAt(0).toUpperCase()}
-        </AvatarFallback>
-      </Avatar>
+      <UserAvatar className="size-20" user={user} />
       <h1 className="text-primary mt-5 text-lg font-semibold">
         @{account.handle}
       </h1>
