@@ -23,7 +23,7 @@ const input = {
 };
 const secret = env.ACCOUNTS_KEY_ENCRYPTION_KEY;
 const createKeys = (encryptionSecret = secret) =>
-  new OAuthSigningKeys(new OAuthSigningKeyRepository(env.DB), encryptionSecret);
+  new OAuthSigningKeys(env.DB, encryptionSecret);
 const records = () => new OAuthSigningKeyRepository(env.DB).list();
 const requestJwks = () =>
   createAuth(env, createDatabase(env.DB)).handler(
@@ -203,26 +203,31 @@ describe("persisted OAuth signing keys", () => {
   it("does not generate a replacement when database reads fail", async () => {
     await createKeys().getJwks();
     const saved = await records();
-    const repository = new OAuthSigningKeyRepository(env.DB);
-    vi.spyOn(repository, "list").mockImplementation(() => {
+    vi.spyOn(
+      OAuthSigningKeyRepository.prototype,
+      "list"
+    ).mockImplementationOnce(() => {
       throw new Error("Database unavailable");
     });
-    const initialize = vi.spyOn(repository, "initialize");
-    await expect(
-      new OAuthSigningKeys(repository, secret).issueAccessToken(input)
-    ).rejects.toThrow("Database unavailable");
+    const initialize = vi.spyOn(
+      OAuthSigningKeyRepository.prototype,
+      "initialize"
+    );
+    await expect(createKeys().issueAccessToken(input)).rejects.toThrow(
+      "Database unavailable"
+    );
     expect(initialize).not.toHaveBeenCalled();
     await expect(records()).resolves.toStrictEqual(saved);
   });
 
   it("propagates initialization writes that fail and leaves no local fallback", async () => {
-    const repository = new OAuthSigningKeyRepository(env.DB);
-    vi.spyOn(repository, "initialize").mockRejectedValue(
-      new Error("Database unavailable")
+    vi.spyOn(
+      OAuthSigningKeyRepository.prototype,
+      "initialize"
+    ).mockRejectedValueOnce(new Error("Database unavailable"));
+    await expect(createKeys().issueAccessToken(input)).rejects.toThrow(
+      "Database unavailable"
     );
-    await expect(
-      new OAuthSigningKeys(repository, secret).issueAccessToken(input)
-    ).rejects.toThrow("Database unavailable");
     await expect(records()).resolves.toStrictEqual([]);
   });
 });

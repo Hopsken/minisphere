@@ -11,7 +11,7 @@ import {
   decryptPrivateKey,
   encryptPrivateKey,
 } from "../lib/private-key-encryption";
-import type { OAuthSigningKeyRepository } from "../repositories/oauth-signing-key-repository";
+import { OAuthSigningKeyRepository } from "../repositories/oauth-signing-key-repository";
 
 const purpose = "oauth-access-token";
 
@@ -19,8 +19,8 @@ export class OAuthSigningKeys {
   private readonly repository: OAuthSigningKeyRepository;
   private readonly encryptionSecret: string;
 
-  constructor(repository: OAuthSigningKeyRepository, encryptionSecret: string) {
-    this.repository = repository;
+  constructor(database: D1Database, encryptionSecret: string) {
+    this.repository = new OAuthSigningKeyRepository(database);
     this.encryptionSecret = encryptionSecret;
   }
 

@@ -1,7 +1,6 @@
 import { atprotoOAuthProvider } from "@minisphere/atproto-oauth-provider";
 
 import type { Database } from "../db";
-import { OAuthSigningKeyRepository } from "../repositories/oauth-signing-key-repository";
 import { UserRepository } from "../repositories/user-repository";
 import { OAuthSigningKeys } from "../services/oauth-signing-keys";
 import { createHostedHandle } from "./hosted-handle";
@@ -9,7 +8,7 @@ import { createHostedHandle } from "./hosted-handle";
 export const createAtprotoOAuthProvider = (env: Env, database: Database) => {
   const users = new UserRepository(database);
   const signingKeys = new OAuthSigningKeys(
-    new OAuthSigningKeyRepository(env.DB),
+    env.DB,
     env.ACCOUNTS_KEY_ENCRYPTION_KEY
   );
 
