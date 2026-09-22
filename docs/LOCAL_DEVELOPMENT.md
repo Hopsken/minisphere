@@ -173,8 +173,8 @@ Each configuration file has one responsibility.
 
 ### `wrangler.jsonc`
 
-- Production non-secret values.
-- Worker bindings, routes, databases, Durable Objects, and compatibility settings.
+- Worker bindings, databases, Durable Objects, and compatibility settings.
+- `keep_vars: true` to preserve production variables configured in Cloudflare.
 - Fixed development ports for Wrangler-owned servers.
 
 ### `.dev.vars.example`
@@ -182,6 +182,7 @@ Each configuration file has one responsibility.
 - Complete local Worker-variable and secret template for one project.
 - Local origins that correspond to the fixed topology.
 - Development-only placeholder secrets.
+- Variable names for `wrangler types --env-file .dev.vars.example`, independent of developer-owned files.
 
 ### `.dev.vars`
 
@@ -195,6 +196,18 @@ Each configuration file has one responsibility.
 - Frontend and build-tool configuration kept separate from Worker runtime variables.
 
 Each application owns its credentials. Shared local origins are explicit integration contracts, and the setup workflow validates them against the assigned ports.
+
+### Production and Workers Builds
+
+Follow the [deployment guide](./DEPLOYMENT.md) for first-time setup, runtime values, migration order, and per-Worker Builds commands.
+
+Configure runtime values in each Worker's **Settings → Variables and Secrets**, using the variable and secret lists in its README. Builds' environment variables are build-time values, not Worker runtime bindings. Never upload `.dev.vars.example` values as production secrets.
+
+Configure custom domains and the Handle Registry wildcard route in **Settings → Domains & Routes**. Wrangler configurations omit `route` and `routes` so deployment leaves Dashboard-managed routes in place. `keep_vars: true` preserves Dashboard-managed variables; Wrangler also preserves existing secrets.
+
+Before the first deployment with this configuration, verify that all runtime values and routes exist in Cloudflare. Existing deployments should already have the former Wrangler variables, but check them before deploying. Worker names, D1 IDs, and service bindings remain in Wrangler configuration and must match the target Cloudflare account. Workers Builds can keep its existing build and deploy commands; it does not need a `.dev.vars` file.
+
+The `secrets` configuration is intentionally absent: `secrets.required` would filter out local variables no longer declared in `vars`. Type generation reads the committed template explicitly and emits string bindings without reading private local values. This also means Wrangler no longer validates a required-secret list on deployment; configure every documented production value before use. Keep `--env-file .dev.vars.example` limited to type generation, not deployment.
 
 ## Integration contracts
 
@@ -228,6 +241,8 @@ pnpm setup:local
 ```
 
 This command prepares both the service group and Town from a fresh checkout while retaining each developer's existing local values.
+
+`setup:local` sets `CI=true` for its Turbo invocation so Wrangler accepts migration confirmation without input. Each migration command explicitly uses `--local`; setup does not access production databases. Running a project's migration command directly retains Wrangler's default confirmation behavior.
 
 ## Development commands
 

@@ -10,12 +10,7 @@
     },
   },
   "workers_dev": false,
-  "routes": [
-    {
-      "custom_domain": true,
-      "pattern": "plc.hopsken.dev",
-    },
-  ],
+  "keep_vars": true,
   "dev": {
     "port": 8788,
     "inspector_port": 0,

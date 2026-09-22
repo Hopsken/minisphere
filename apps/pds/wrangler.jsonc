@@ -15,19 +15,7 @@
     },
   },
   "workers_dev": false,
-  "routes": [
-    {
-      "custom_domain": true,
-      "pattern": "pds.hopsken.dev",
-    },
-  ],
-  "vars": {
-    "ACCOUNTS_ORIGIN": "https://accounts.hopsken.dev",
-    "PDS_ORIGIN": "https://pds.hopsken.dev",
-  },
-  "secrets": {
-    "required": ["PDS_JWT_SECRET", "PDS_ENCRYPTION_KEY"],
-  },
+  "keep_vars": true,
   "services": [
     {
       "binding": "DIRECTORY",

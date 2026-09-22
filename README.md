@@ -50,7 +50,7 @@ The setup command validates the fixed local topology, creates each missing `.env
 
 Shared external dependencies, core toolchain packages, and direct `@atcute/*` dependencies are defined in the pnpm catalog in `pnpm-workspace.yaml`. Workspace manifests reference them with the `catalog:` protocol, and `pnpm add` prefers matching catalog entries.
 
-The example Worker secrets are for local development only. Production secrets are managed with Wrangler and must use different values.
+The example Worker secrets are for local development only. Configure production runtime variables and secrets in Cloudflare's Worker settings, and configure domains and routes there as well. Deployments preserve these values; production secrets must differ from the examples. See [configuration ownership](./docs/LOCAL_DEVELOPMENT.md#configuration-ownership) for Workers Builds setup.
 
 ## Commands
 
@@ -95,6 +95,7 @@ GitHub Actions runs `pnpm check` for pull requests, merge queue entries, and pus
 
 - [Accounts Entryway product requirements](./docs/product/accounts-entryway.md)
 - [Local development environment](./docs/LOCAL_DEVELOPMENT.md)
+- [Deployment guide](./docs/DEPLOYMENT.md)
 - [Development status and decision log](./DEVELOPMENT.md)
 - [Coding style](./docs/CODING_STYLE.md)
 - [Architecture Decision Records](./docs/adr/README.md)

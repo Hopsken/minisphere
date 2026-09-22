@@ -132,20 +132,21 @@ Variables:
 
 - `PUBLIC_URL` — public Accounts origin used by Better Auth
 - `PUBLIC_HANDLE_DOMAIN` — suffix for hosted handles
-- `EMAIL_ALLOWLIST` — comma-separated permitted domains/addresses, or `*`; configured as `hopsken.com`; an empty value denies access
+- `EMAIL_ALLOWLIST` — comma-separated permitted domains/addresses, or `*`; an empty value denies access
 - `EMAIL_FROM` — Resend sender, for example `Minisphere <login@notify.example.com>`; use a verified domain
+- `PDS_ORIGIN` — canonical PDS OAuth resource origin; an existing Secret binding can remain as-is
 
 Secrets:
 
 - `BETTER_AUTH_SECRET` — signs and encrypts Better Auth data; it must contain at least 32 high-entropy characters
 - `RESEND_API_KEY` — Resend API key with email sending permission
-- `PDS_ORIGIN` — canonical PDS OAuth resource origin
 - `ACCOUNTS_ENCRYPTION_KEY` — stable, independent secret with at least 32 high-entropy characters; encrypts Accounts private key material in D1 and must not reuse `BETTER_AUTH_SECRET`
+
+Set all production values in the Worker's **Settings → Variables and Secrets**, and its custom domain in **Settings → Domains & Routes**. Deployments preserve these settings. See [Workers Builds configuration](../../docs/LOCAL_DEVELOPMENT.md#production-and-workers-builds). Alternatively, set secrets with Wrangler:
 
 ```sh
 pnpm --filter @minisphere/accounts exec wrangler secret put BETTER_AUTH_SECRET
 pnpm --filter @minisphere/accounts exec wrangler secret put RESEND_API_KEY
-pnpm --filter @minisphere/accounts exec wrangler secret put PDS_ORIGIN
 pnpm --filter @minisphere/accounts exec wrangler secret put ACCOUNTS_ENCRYPTION_KEY
 ```
 
@@ -166,7 +167,7 @@ pnpm dev:accounts
 pnpm turbo test typecheck build --filter=@minisphere/accounts
 ```
 
-The Vite development server uses `http://localhost:8790`. The local `.dev.vars` file sets `PUBLIC_URL`, `PUBLIC_HANDLE_DOMAIN=r2d2.test`, and `PDS_ORIGIN` so handles, OAuth metadata, and issued tokens refer to the local service group. Production uses the canonical values configured through Wrangler.
+The Vite development server uses `http://localhost:8790`. The local `.dev.vars` file sets `PUBLIC_URL`, `PUBLIC_HANDLE_DOMAIN=r2d2.test`, and `PDS_ORIGIN` so handles, OAuth metadata, and issued tokens refer to the local service group. Production uses the canonical values configured in Cloudflare. Type generation reads `.dev.vars.example`, not private local values.
 
 For local browser tests, open `/__dev/log-me-in/<email>?returnTo=<path>` on the Accounts development origin. For example, `/__dev/log-me-in/dev@example.com?returnTo=/` creates the user when needed, creates a normal Better Auth session, and redirects to `/`. This route returns 404 outside Vite development. Open it in the browser session used for tests; a `curl` request does not sign that browser in.
 

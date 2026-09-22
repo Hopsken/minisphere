@@ -19,6 +19,8 @@ Town runs as an external client with a Worker, static assets, and configuration 
 - `PLC_DIRECTORY_ORIGIN` — selected `did:plc` directory. The DID document selects the PDS, and PDS metadata selects the authorization server.
 - `DEV_HANDLE_RESOLVER_ORIGIN` — optional local XRPC transport for `.test` handles.
 
+Set production `PUBLIC_URL` and `PLC_DIRECTORY_ORIGIN` in the Worker's **Settings → Variables and Secrets**, and its custom domain in **Settings → Domains & Routes**. Do not set the development resolver in production. Deployments preserve these settings. Type generation reads `.dev.vars.example`, not private local values. See [Workers Builds configuration](../../docs/LOCAL_DEVELOPMENT.md#production-and-workers-builds).
+
 `/oauth-client-metadata.json` is Town's public client metadata document. Town requests the `atproto` scope. The Worker exposes same-origin handle resolution and PLC reads to the browser.
 
 ## Development
