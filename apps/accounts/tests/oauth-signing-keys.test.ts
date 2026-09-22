@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { verifyOAuthAccessToken } from "../../pds/src/auth/oauth";
 import { createDatabase } from "../worker/db";
+import { oauthSigningKey } from "../worker/db/schema/oauth-signing-key";
 import { createAuth } from "../worker/lib/better-auth";
 import {
   decryptPrivateKey,
@@ -86,8 +87,7 @@ describe("persisted OAuth signing keys", () => {
     });
     const privateKey = await decryptPrivateKey(
       storedKey,
-      "oauth-access-token",
-      storedKey.kid,
+      { keyId: storedKey.kid, purpose: "oauth-access-token" },
       secret
     );
     expect(JSON.stringify(saved)).not.toContain(privateKey);
@@ -156,6 +156,32 @@ describe("persisted OAuth signing keys", () => {
     await expect(records()).resolves.toHaveLength(1);
   });
 
+  it.each<"retired" | "disabled">(["retired", "disabled"])(
+    "does not initialize the repository when only a %s key exists",
+    async (status) => {
+      await createKeys().getJwks();
+      await createDatabase(env.DB).update(oauthSigningKey).set({ status });
+      const repository = new OAuthSigningKeyRepository(env.DB);
+      const saved = await repository.list();
+      const [existing] = saved;
+      if (!existing) {
+        throw new Error("Missing persisted key");
+      }
+
+      const result = await repository.initializeIfEmpty({
+        encryptedPrivateKey: existing.encryptedPrivateKey,
+        encryptionIv: existing.encryptionIv,
+        // A different kid prevents a primary-key conflict from hiding an insert.
+        kid: "unexpected-initialization",
+        publicX: existing.publicX,
+        publicY: existing.publicY,
+      });
+
+      expect(result).toStrictEqual(saved);
+      await expect(repository.list()).resolves.toStrictEqual(saved);
+    }
+  );
+
   it("enforces one current key while allowing retained public keys", async () => {
     const original = await createKeys().getJwks();
     const originalKid = original.keys[0]?.kid;
@@ -219,21 +245,21 @@ describe("persisted OAuth signing keys", () => {
     ).mockImplementationOnce(() => {
       throw new Error("Database unavailable");
     });
-    const initialize = vi.spyOn(
+    const initializeIfEmpty = vi.spyOn(
       OAuthSigningKeyRepository.prototype,
-      "initialize"
+      "initializeIfEmpty"
     );
     await expect(createKeys().issueAccessToken(input)).rejects.toThrow(
       "Database unavailable"
     );
-    expect(initialize).not.toHaveBeenCalled();
+    expect(initializeIfEmpty).not.toHaveBeenCalled();
     await expect(records()).resolves.toStrictEqual(saved);
   });
 
   it("propagates initialization writes that fail and leaves no local fallback", async () => {
     vi.spyOn(
       OAuthSigningKeyRepository.prototype,
-      "initialize"
+      "initializeIfEmpty"
     ).mockRejectedValueOnce(new Error("Database unavailable"));
     await expect(createKeys().issueAccessToken(input)).rejects.toThrow(
       "Database unavailable"
@@ -243,39 +269,39 @@ describe("persisted OAuth signing keys", () => {
 });
 
 describe("private-key encryption", () => {
+  it("decrypts the existing AES-GCM storage format", async () => {
+    // Fixed test fixture: AES-256-GCM, SHA-256(secret), AAD [purpose, keyId].
+    await expect(
+      decryptPrivateKey(
+        {
+          encryptedPrivateKey: "6EHYJwLyoDg3fUyoFm3XJJLChaSLSQAL0T0wZM17McE=",
+          encryptionIv: "AAECAwQFBgcICQoL",
+        },
+        { keyId: "key-a", purpose: "oauth-access-token" },
+        "format-test-secret-at-least-32-characters"
+      )
+    ).resolves.toBe("private-material");
+  });
+
   it("uses random IVs, round trips, and binds both purpose and key identity", async () => {
-    const first = await encryptPrivateKey(
-      "private-material",
-      "oauth-access-token",
-      "key-a",
-      secret
-    );
-    const second = await encryptPrivateKey(
-      "private-material",
-      "oauth-access-token",
-      "key-a",
-      secret
-    );
+    const context = { keyId: "key-a", purpose: "oauth-access-token" };
+    const first = await encryptPrivateKey("private-material", context, secret);
+    const second = await encryptPrivateKey("private-material", context, secret);
     expect({
       sameCiphertext: second.encryptedPrivateKey === first.encryptedPrivateKey,
       sameIv: second.encryptionIv === first.encryptionIv,
     }).toStrictEqual({ sameCiphertext: false, sameIv: false });
+    await expect(decryptPrivateKey(first, context, secret)).resolves.toBe(
+      "private-material"
+    );
     await expect(
-      decryptPrivateKey(first, "oauth-access-token", "key-a", secret)
-    ).resolves.toBe("private-material");
-    await expect(
-      decryptPrivateKey(first, "plc-rotation", "key-a", secret)
+      decryptPrivateKey(first, { ...context, purpose: "plc-rotation" }, secret)
     ).rejects.toThrow(/Decrypt/u);
     await expect(
-      decryptPrivateKey(first, "oauth-access-token", "key-b", secret)
+      decryptPrivateKey(first, { ...context, keyId: "key-b" }, secret)
     ).rejects.toThrow(/Decrypt/u);
     await expect(
-      encryptPrivateKey(
-        "private-material",
-        "oauth-access-token",
-        "key-a",
-        "short"
-      )
+      encryptPrivateKey("private-material", context, "short")
     ).rejects.toThrow("ACCOUNTS_ENCRYPTION_KEY");
   });
 });

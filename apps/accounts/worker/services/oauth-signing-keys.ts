@@ -19,7 +19,7 @@ const purpose = "oauth-access-token";
 export class OAuthSigningKeys {
   private readonly repository = new OAuthSigningKeyRepository(env.DB);
 
-  private async getKeys() {
+  private async getOrInitializeKeys() {
     const existing = await this.repository.list();
     if (existing.length > 0) {
       return existing;
@@ -29,30 +29,30 @@ export class OAuthSigningKeys {
     const jwk = z
       .object({ x: z.string(), y: z.string() })
       .parse(await key.exportPublicKey("jwk"));
-    return this.repository.initialize({
+    const privateKey = await key.exportPrivateKey("multikey");
+    const encrypted = await encryptPrivateKey(
+      privateKey,
+      { keyId: kid, purpose },
+      env.ACCOUNTS_ENCRYPTION_KEY
+    );
+
+    return this.repository.initializeIfEmpty({
+      ...encrypted,
       kid,
       publicX: jwk.x,
       publicY: jwk.y,
-      status: "current",
-      ...(await encryptPrivateKey(
-        await key.exportPrivateKey("multikey"),
-        purpose,
-        kid,
-        env.ACCOUNTS_ENCRYPTION_KEY
-      )),
     });
   }
 
   async issueAccessToken(input: AtprotoAccessTokenInput) {
-    const keys = await this.getKeys();
+    const keys = await this.getOrInitializeKeys();
     const current = keys.find((key) => key.status === "current");
     if (!current) {
       throw new Error("No current OAuth signing key");
     }
     const privateKey = await decryptPrivateKey(
       current,
-      purpose,
-      current.kid,
+      { keyId: current.kid, purpose },
       env.ACCOUNTS_ENCRYPTION_KEY
     );
     const parsed = parsePrivateMultikey(privateKey);
@@ -72,7 +72,7 @@ export class OAuthSigningKeys {
   }
 
   async getJwks() {
-    const keys = await this.getKeys();
+    const keys = await this.getOrInitializeKeys();
     return {
       keys: keys
         .filter((key) => key.status !== "disabled")

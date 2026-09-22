@@ -14,45 +14,49 @@ const importEncryptionKey = async (secret: string) => {
   ]);
 };
 
-const encode = (bytes: Uint8Array) => btoa(String.fromCodePoint(...bytes));
-const decode = (value: string) =>
+interface KeyEncryptionContext {
+  purpose: string;
+  keyId: string;
+}
+
+const encodeBase64 = (bytes: Uint8Array) =>
+  btoa(String.fromCodePoint(...bytes));
+const decodeBase64 = (value: string) =>
   Uint8Array.from(atob(value), (character) => character.codePointAt(0) ?? 0);
-const additionalData = (purpose: string, id: string) =>
-  encoder.encode(JSON.stringify([purpose, id]));
+const encodeAdditionalData = ({ purpose, keyId }: KeyEncryptionContext) =>
+  encoder.encode(JSON.stringify([purpose, keyId]));
 
 export const encryptPrivateKey = async (
   privateKey: string,
-  purpose: string,
-  id: string,
+  context: KeyEncryptionContext,
   secret: string
 ) => {
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const ciphertext = await crypto.subtle.encrypt(
-    { additionalData: additionalData(purpose, id), iv, name: "AES-GCM" },
+    { additionalData: encodeAdditionalData(context), iv, name: "AES-GCM" },
     await importEncryptionKey(secret),
     encoder.encode(privateKey)
   );
   return {
-    encryptedPrivateKey: encode(new Uint8Array(ciphertext)),
-    encryptionIv: encode(iv),
+    encryptedPrivateKey: encodeBase64(new Uint8Array(ciphertext)),
+    encryptionIv: encodeBase64(iv),
   };
 };
 
 export const decryptPrivateKey = async (
   encrypted: { encryptedPrivateKey: string; encryptionIv: string },
-  purpose: string,
-  id: string,
+  context: KeyEncryptionContext,
   secret: string
 ) => {
-  const iv = decode(encrypted.encryptionIv);
+  const iv = decodeBase64(encrypted.encryptionIv);
   if (iv.length !== 12) {
     throw new Error("Invalid private-key encryption IV");
   }
   return decoder.decode(
     await crypto.subtle.decrypt(
-      { additionalData: additionalData(purpose, id), iv, name: "AES-GCM" },
+      { additionalData: encodeAdditionalData(context), iv, name: "AES-GCM" },
       await importEncryptionKey(secret),
-      decode(encrypted.encryptedPrivateKey)
+      decodeBase64(encrypted.encryptedPrivateKey)
     )
   );
 };

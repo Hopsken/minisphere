@@ -7,15 +7,16 @@ export class OAuthSigningKeyRepository {
   private readonly db;
 
   constructor(d1: D1Database) {
-    // Start on the primary; later reads must include this session's writes.
-    this.db = drizzle(d1.withSession("first-primary"));
+    this.db = drizzle(d1);
   }
 
   list() {
     return this.db.select().from(oauthSigningKey);
   }
 
-  async initialize(key: typeof oauthSigningKey.$inferInsert) {
+  async initializeIfEmpty(
+    key: Omit<typeof oauthSigningKey.$inferInsert, "status" | "createdAt">
+  ) {
     // Never recreate a key when existing keys have been retired or disabled.
     // SQLite serializes this conditional write across all Worker instances.
     await this.db.insert(oauthSigningKey).select(
@@ -30,6 +31,7 @@ export class OAuthSigningKeyRepository {
           publicY: sql`${key.publicY}`.as("public_y"),
           status: sql`'current'`.as("status"),
         })
+        // A single source row allows initialization when the key table is empty.
         .from(sql`(select 1)`)
         .where(notExists(this.db.select({ one: sql`1` }).from(oauthSigningKey)))
     );
