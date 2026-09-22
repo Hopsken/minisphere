@@ -76,7 +76,13 @@ Resend delivery uses `POST https://api.resend.com/emails`. Configure a verified 
 
 Better Auth authenticates the user. Accounts resolves no more than one active DID for that user. An incomplete user goes to username onboarding and must restart client authorization after setup. The protocol handler redirects to the React `/authorize` route with an opaque consent token. That page reads the server-validated client, scope, DID, and handle from `/oauth/authorization-details`; it has no DID chooser or DID form input. Consent submission resolves the subject again and requires it to match the server-side transaction.
 
-OAuth request, replay, code, session, and refresh state uses the database-backed Better Auth `verification` table. No separate OAuth migration is required. As the authorization server, Accounts signs each five-minute, DPoP-bound access JWT with its dedicated secp256k1 key and publishes the public key at the `jwks_uri` in its authorization-server metadata. The PDS discovers that JWKS from the configured Accounts origin.
+OAuth request, replay, code, session, and refresh state uses the database-backed Better Auth `verification` table. As the authorization server, Accounts signs each five-minute, DPoP-bound access JWT with its dedicated secp256k1 key and publishes public keys at the `jwks_uri` in its authorization-server metadata. The PDS discovers that JWKS from the configured Accounts origin.
+
+The OAuth provider uses `new OAuthSigningKeys()` without configuration arguments. The service reads its D1 binding and encryption secret directly from `cloudflare:workers` `env` and creates its signing-key repository internally.
+
+Accounts creates its first OAuth signing key when signing or JWKS publication first needs it. The `oauth_signing_key` D1 table stores each key by `kid`, with public coordinates, encrypted private material, creation time, and `current`, `retired`, or `disabled` status. An atomic conditional insert into an empty table selects the initialization winner; a partial unique index allows only one current key. The repository uses the D1 binding without the Sessions API, so all queries go to the primary database. Worker instances read the stored winner and do not cache keys.
+
+Private multikeys use AES-256-GCM under `ACCOUNTS_ENCRYPTION_KEY`, with a random 96-bit IV and additional authenticated data binding the OAuth purpose and `kid`. Public JWKS publication does not decrypt stored keys. It includes current and retired public keys and excludes disabled keys. Signing requires a current key and fails on database, decryption, or key-integrity errors; it never replaces an existing key automatically. The table supports future rotation, but this version has no rotation scheduler or administrative key-management endpoint. A future rotation must retain retired public keys for token validity and JWKS cache windows. Disabling a key does not invalidate JWKS copies already cached by clients.
 
 The Worker enables Cloudflare's `global_fetch_strictly_public` compatibility flag for Client ID Metadata Document fetches. Keep this flag enabled to prevent same-zone and private-network routing during client discovery.
 
@@ -130,16 +136,18 @@ Secrets:
 - `BETTER_AUTH_SECRET` — signs and encrypts Better Auth data; it must contain at least 32 high-entropy characters
 - `RESEND_API_KEY` — Resend API key with email sending permission
 - `PDS_ORIGIN` — canonical PDS OAuth resource origin
-- `ACCOUNTS_OAUTH_SIGNING_KEY` — secp256k1 private multikey used only to sign OAuth access JWTs; Accounts publishes its public JWK
+- `ACCOUNTS_ENCRYPTION_KEY` — stable, independent secret with at least 32 high-entropy characters; encrypts Accounts private key material in D1 and must not reuse `BETTER_AUTH_SECRET`
 - `ACCOUNTS_PLC_ROTATION_KEY` — secp256k1 private multikey used by Accounts to sign genesis PLC operations
 
 ```sh
 pnpm --filter @minisphere/accounts exec wrangler secret put BETTER_AUTH_SECRET
 pnpm --filter @minisphere/accounts exec wrangler secret put RESEND_API_KEY
 pnpm --filter @minisphere/accounts exec wrangler secret put PDS_ORIGIN
-pnpm --filter @minisphere/accounts exec wrangler secret put ACCOUNTS_OAUTH_SIGNING_KEY
+pnpm --filter @minisphere/accounts exec wrangler secret put ACCOUNTS_ENCRYPTION_KEY
 pnpm --filter @minisphere/accounts exec wrangler secret put ACCOUNTS_PLC_ROTATION_KEY
 ```
+
+Generate the encryption secret from at least 32 random bytes, for example with `openssl rand -base64 32`, and keep a secure backup separate from D1 backups. The implementation derives the AES key with SHA-256; this is not a password-hardening function. Losing or changing this secret makes stored private keys unreadable. Do not replace it without a separate re-encryption procedure. Apply the normal Accounts migrations before running this version. The former manually configured OAuth signing key is not imported; existing OAuth access tokens must expire and clients must obtain new tokens. Local setup preserves existing `.dev.vars` files, so add the new encryption secret there if the file already exists. Do not copy the development example secret to production.
 
 ## Development
 
