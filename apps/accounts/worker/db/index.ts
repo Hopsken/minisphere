@@ -4,7 +4,7 @@ import { atprotoAccountRelations } from "./schema/atproto-account";
 import { authRelations } from "./schema/better-auth";
 
 export const createDatabase = (d1: D1Database) =>
-  drizzle(d1, {
+  drizzle(d1.withSession("first-primary"), {
     relations: { ...authRelations, ...atprotoAccountRelations },
   });
 

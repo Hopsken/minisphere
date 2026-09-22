@@ -196,8 +196,8 @@ export const loginActiveUser = async () => {
 
   await env.DB.prepare(
     `INSERT OR IGNORE INTO atproto_account
-      (user_id, username, did, signing_key, status)
-     VALUES (?, ?, ?, ?, 'active')`
+      (user_id, username, did, signing_key, operation, encrypted_rotation_key, rotation_key_iv, status)
+     VALUES (?, ?, ?, ?, '{}', 'fixture-ciphertext', 'fixture-iv', 'active')`
   )
     .bind(user.id, "account", accountDid, "did:key:zQ3shOAuthSigningKey")
     .run();

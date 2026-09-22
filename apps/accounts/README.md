@@ -25,7 +25,7 @@ The frontend uses Vite, React, TanStack Router, TanStack Query, Tailwind CSS, an
 
 ## Data ownership
 
-Accounts D1 contains the ordinary Better Auth tables and one optional `atproto_account` row per Better Auth user. That row owns the normalized username, status, immutable DID, and public repository signing key used to reconstruct the expected genesis PLC operation. A hosted handle is derived as `<username>.<PUBLIC_HANDLE_DOMAIN>`. Accounts is the source of truth for the active handle-to-DID mapping.
+Accounts D1 contains the ordinary Better Auth tables and one optional `atproto_account` row per Better Auth user. That row owns the normalized username, status, immutable DID, public repository signing key, signed genesis PLC operation, and encrypted per-account PLC rotation private key with its random IV. A hosted handle is derived as `<username>.<PUBLIC_HANDLE_DOMAIN>`. Accounts is the source of truth for the active handle-to-DID mapping.
 
 The PDS owns its account, session, repository state, and repository private signing keys. The PLC Directory owns DID documents. Accounts binds to both services: it creates accounts through standard PDS XRPC methods and reads PDS and PLC state before activation. The PDS remains responsible for submitting the PLC operation. Handle Registry publication is derived from the active Accounts mapping and is not an activation input.
 
@@ -34,12 +34,14 @@ The PDS owns its account, session, repository state, and repository private sign
 An authenticated user completes one account through `POST /api/account`:
 
 1. Accounts normalizes and atomically reserves the username.
-2. For a new provisioning attempt, Accounts calls `com.atproto.server.reserveSigningKey`. The PDS keeps the private repository key and returns its public `did:key`. Accounts signs the genesis PLC operation, derives the expected `did:plc`, and stores the DID and public signing key.
-3. Accounts reconstructs the same PLC operation and checks the PDS repository and PLC Directory before it starts another create request. A complete matching result activates the account. An unavailable result keeps the account in `provisioning`.
+2. For a new provisioning attempt, Accounts calls `com.atproto.server.reserveSigningKey`. The PDS keeps the private repository key and returns its public `did:key`. Accounts generates a fresh secp256k1 PLC rotation key, signs the genesis operation, and derives the expected `did:plc`. One conditional write stores the complete identity material only while the reserved record has no material. Concurrent candidates read and use the database winner. Database sessions start on the primary and preserve read-after-write consistency.
+3. Accounts decrypts and verifies the stored material and checks the PDS repository and PLC Directory before it starts another create request. It reuses the signed operation, rather than rebuilding it from current configuration. A complete matching result activates the account. An unavailable result keeps the account in `provisioning`. Invalid ciphertext or identity material fails without replacing the identity.
 4. If the account is missing, Accounts gets a one-time invite through `PdsControlPlane.generateInviteCode()` and calls `com.atproto.server.createAccount` with the invite, DID, hosted handle, and PLC operation. The PDS validates the required request shape, claims the invite and reserved signing key, initializes the repository, and submits the PLC operation.
 5. Accounts checks the PDS and PLC state again. It activates the account only when the local repository and the PLC identity state match the expected DID, handle, PDS endpoint, rotation keys, and repository signing key.
 
-A confirmed PDS response failure removes the provisional claim, making the username available again. A transport failure has an unknown outcome, so Accounts retains the pre-derived DID and reconstructs the same PLC operation on retry. It checks PDS and PLC state before sending another create request. This makes the active identity result stable without a private provisioning RPC or operation ID.
+Before identity material is saved, an error can release only the same user's empty username reservation. After material is saved, both response and transport failures retain it: another request may still be creating the same identity. Accounts checks PDS and PLC state before retrying and after a create failure. Response failures return an error unless that check proves the account is ready. This makes the active identity result stable without a private provisioning RPC, operation ID, or in-memory lock.
+
+Rotation private keys remain encrypted after activation. AES-GCM uses a random 96-bit IV and authenticated data that binds the PLC purpose and internal user ID. `ACCOUNTS_ENCRYPTION_KEY` is an independent high-entropy Worker secret, hashed with SHA-256 into an AES-256 key. This remains server-managed custody: it does not prevent an administrator with Worker and secret access from controlling an account. Keep the secret backed up; replacing it without re-encrypting stored keys makes them unreadable. Key rotation and account recovery are not implemented.
 
 The account states are `needs_username`, `provisioning`, and `active`. Product access, hosted handle resolution, and AT Protocol OAuth require `active`.
 
@@ -90,6 +92,8 @@ The AT Protocol authorization server accepts URL-based public clients only. Conf
 
 ## Database
 
+The per-account PLC migration requires no existing rows with old DID material. It preserves empty reservations, but deliberately rejects old identity rows that lack encrypted keys and signed operations. There is no legacy-key conversion. Do not apply it to non-disposable data without a separate migration plan; do not delete that data to bypass the constraint.
+
 Create the production D1 database and copy its ID into `wrangler.jsonc`:
 
 ```sh
@@ -137,14 +141,12 @@ Secrets:
 - `RESEND_API_KEY` — Resend API key with email sending permission
 - `PDS_ORIGIN` — canonical PDS OAuth resource origin
 - `ACCOUNTS_ENCRYPTION_KEY` — stable, independent secret with at least 32 high-entropy characters; encrypts Accounts private key material in D1 and must not reuse `BETTER_AUTH_SECRET`
-- `ACCOUNTS_PLC_ROTATION_KEY` — secp256k1 private multikey used by Accounts to sign genesis PLC operations
 
 ```sh
 pnpm --filter @minisphere/accounts exec wrangler secret put BETTER_AUTH_SECRET
 pnpm --filter @minisphere/accounts exec wrangler secret put RESEND_API_KEY
 pnpm --filter @minisphere/accounts exec wrangler secret put PDS_ORIGIN
 pnpm --filter @minisphere/accounts exec wrangler secret put ACCOUNTS_ENCRYPTION_KEY
-pnpm --filter @minisphere/accounts exec wrangler secret put ACCOUNTS_PLC_ROTATION_KEY
 ```
 
 Generate the encryption secret from at least 32 random bytes, for example with `openssl rand -base64 32`, and keep a secure backup separate from D1 backups. The implementation derives the AES key with SHA-256; this is not a password-hardening function. Losing or changing this secret makes stored private keys unreadable. Do not replace it without a separate re-encryption procedure. Apply the normal Accounts migrations before running this version. The former manually configured OAuth signing key is not imported; existing OAuth access tokens must expire and clients must obtain new tokens. Local setup preserves existing `.dev.vars` files, so add the new encryption secret there if the file already exists. Do not copy the development example secret to production.

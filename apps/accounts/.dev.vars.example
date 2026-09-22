@@ -6,5 +6,4 @@ EMAIL_ALLOWLIST=example.com
 EMAIL_FROM=Minisphere <login@example.com>
 RESEND_API_KEY=replace-with-resend-api-key
 PDS_ORIGIN=http://localhost:8787
-ACCOUNTS_PLC_ROTATION_KEY=z3vLkg9CfGbLKz4hVw59gaeakjfwZZ1mzG6VFpiCnXuGUXFe
 ACCOUNTS_ENCRYPTION_KEY=local-development-key-encryption-secret-change-me

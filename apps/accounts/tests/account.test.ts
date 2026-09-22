@@ -1,6 +1,11 @@
+import { isSignedOperationValid } from "@atcute/did-plc";
 import { env, exports } from "cloudflare:workers";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
+
+import { createDatabase } from "../worker/db";
+import { restorePlcAccountMaterial } from "../worker/lib/plc-account";
+import { UserRepository } from "../worker/repositories/user-repository";
 
 const origin = "https://accounts.test";
 const accountSchema = z.discriminatedUnion("state", [
@@ -89,6 +94,49 @@ describe("Entryway account API", () => {
     });
   });
 
+  it("uses the same saved signed operation for concurrent HTTP requests", async () => {
+    const cookie = await login("same-user-race@example.com");
+    const [first, second] = await Promise.all([
+      createAccount(cookie, "same-user-race"),
+      createAccount(cookie, "same-user-race"),
+    ]);
+    const firstBody = await first.json();
+    expect([first.status, second.status]).toStrictEqual([201, 201]);
+    await expect(second.json()).resolves.toStrictEqual(firstBody);
+    const user = await env.DB.prepare("SELECT id FROM user WHERE email = ?")
+      .bind("same-user-race@example.com")
+      .first<{ id: string }>();
+    if (!user) {
+      throw new Error("Missing test user");
+    }
+    const stored = await new UserRepository(
+      createDatabase(env.DB)
+    ).findAccountByUserId(user.id);
+    if (!stored) {
+      throw new Error("Missing stored identity");
+    }
+    const material = await restorePlcAccountMaterial(
+      user.id,
+      env.ACCOUNTS_ENCRYPTION_KEY,
+      stored
+    );
+    await expect(
+      isSignedOperationValid(
+        material.operation.rotationKeys,
+        material.operation
+      )
+    ).resolves.toBe(material.operation.rotationKeys[0]);
+    const response = await env.DIRECTORY.fetch(
+      new Request(`https://directory.test/${material.did}/data`)
+    );
+    const { sig: _sig, ...expectedState } = material.operation;
+    await expect(response.json()).resolves.toStrictEqual({
+      ...expectedState,
+      did: material.did,
+    });
+    expect(firstBody).toMatchObject({ did: material.did, state: "active" });
+  });
+
   it("keeps an unknown outcome on the same expected DID", async () => {
     const cookie = await login("waiting-entryway-user@example.com");
     const first = await createAccount(cookie, "waiting");
@@ -164,7 +212,7 @@ describe("Entryway account API", () => {
     ).resolves.toBeNull();
   });
 
-  it("releases a username after a confirmed failure", async () => {
+  it("retains identity material after a response failure for safe concurrent retry", async () => {
     const cookie = await login("failed-entryway-user@example.com");
     const response = await createAccount(cookie, "unavailable");
 
@@ -173,7 +221,7 @@ describe("Entryway account API", () => {
       env.DB.prepare("SELECT username FROM atproto_account WHERE username = ?")
         .bind("unavailable")
         .first()
-    ).resolves.toBeNull();
+    ).resolves.toStrictEqual({ username: "unavailable" });
   });
 
   it("allows only one user to claim a username", async () => {

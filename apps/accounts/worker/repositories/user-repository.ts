@@ -2,6 +2,7 @@ import { and, eq, isNull } from "drizzle-orm";
 
 import type { Database } from "../db";
 import { atprotoAccount } from "../db/schema/atproto-account";
+import type { createPlcAccountMaterial } from "../lib/plc-account";
 
 export class UserRepository {
   private readonly db: Database;
@@ -24,15 +25,16 @@ export class UserRepository {
 
   async saveProvisioningIdentity(
     userId: string,
-    did: string,
-    signingKey: string
+    username: string,
+    material: Awaited<ReturnType<typeof createPlcAccountMaterial>>
   ) {
     await this.db
       .update(atprotoAccount)
-      .set({ did, signingKey })
+      .set(material)
       .where(
         and(
           eq(atprotoAccount.userId, userId),
+          eq(atprotoAccount.username, username),
           eq(atprotoAccount.status, "provisioning"),
           isNull(atprotoAccount.did)
         )
@@ -74,13 +76,15 @@ export class UserRepository {
     return this.findAccountByUserId(userId);
   }
 
-  async releaseProvisioningAccount(userId: string) {
+  async releaseEmptyProvisioningAccount(userId: string, username: string) {
     await this.db
       .delete(atprotoAccount)
       .where(
         and(
           eq(atprotoAccount.userId, userId),
-          eq(atprotoAccount.status, "provisioning")
+          eq(atprotoAccount.username, username),
+          eq(atprotoAccount.status, "provisioning"),
+          isNull(atprotoAccount.did)
         )
       );
   }

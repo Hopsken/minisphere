@@ -4,7 +4,10 @@ import { PdsClient } from "../clients/pds-client";
 import { PdsResponseError } from "../clients/pds-response-error";
 import { PlcDirectoryClient } from "../clients/plc-directory-client";
 import { createHostedHandle } from "../lib/hosted-handle";
-import { createPlcAccountMaterial } from "../lib/plc-account";
+import {
+  createPlcAccountMaterial,
+  restorePlcAccountMaterial,
+} from "../lib/plc-account";
 import type { PlcAccountMaterial } from "../lib/plc-account";
 import type { UserRepository } from "../repositories/user-repository";
 
@@ -79,18 +82,19 @@ export class AccountService {
       try {
         const signingKey = await this.pds.reserveSigningKey();
         const prepared = await createPlcAccountMaterial(
-          this.env.ACCOUNTS_PLC_ROTATION_KEY,
+          userId,
+          this.env.ACCOUNTS_ENCRYPTION_KEY,
           handle,
           this.env.PDS_ORIGIN,
           signingKey
         );
         account = await this.users.saveProvisioningIdentity(
           userId,
-          prepared.did,
-          prepared.signingKey
+          username,
+          prepared
         );
       } catch (error) {
-        await this.users.releaseProvisioningAccount(userId);
+        await this.users.releaseEmptyProvisioningAccount(userId, username);
         if (error instanceof PdsResponseError) {
           throw new HTTPException(502, {
             message: "PDS signing-key reservation failed",
@@ -99,20 +103,20 @@ export class AccountService {
         throw error;
       }
     }
-    if (!account?.did || !account.signingKey) {
-      throw new Error(
-        "Provisioning account is missing its PLC identity material"
-      );
+    if (account?.username !== username) {
+      throw new HTTPException(409, {
+        message: "Account reservation changed; retry setup",
+      });
     }
-
-    const material = await createPlcAccountMaterial(
-      this.env.ACCOUNTS_PLC_ROTATION_KEY,
-      handle,
-      this.env.PDS_ORIGIN,
-      account.signingKey
+    const material = await restorePlcAccountMaterial(
+      userId,
+      this.env.ACCOUNTS_ENCRYPTION_KEY,
+      account
     );
-    if (material.did !== account.did) {
-      throw new Error("Stored DID does not match its PLC genesis operation");
+    if (material.operation.alsoKnownAs[0] !== `at://${handle}`) {
+      throw new Error(
+        "Stored PLC handle does not match the configured handle domain"
+      );
     }
 
     const status = await this.getProvisioningStatus(material, handle);
@@ -136,7 +140,11 @@ export class AccountService {
       }
     } catch (error) {
       if (error instanceof PdsResponseError) {
-        await this.users.releaseProvisioningAccount(userId);
+        // Another request can still be creating this identity. A response error
+        // does not prove that no concurrent request has caused external effects.
+        if ((await this.getProvisioningStatus(material, handle)) === "ready") {
+          return this.activateAccount(userId, material.did);
+        }
         throw new HTTPException(502, {
           message: "PDS account creation failed",
         });
@@ -188,7 +196,8 @@ export class AccountService {
         ) &&
         plc.verificationMethods.atproto === material.signingKey &&
         pdsService?.type === "AtprotoPersonalDataServer" &&
-        pdsService.endpoint === new URL(this.env.PDS_ORIGIN).origin
+        pdsService.endpoint ===
+          material.operation.services.atproto_pds?.endpoint
         ? "ready"
         : "pending";
     } catch (error) {
