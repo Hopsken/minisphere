@@ -7,7 +7,7 @@ import type { FormEvent } from "react";
 
 import { loadAccount } from "@/lib/account";
 
-import { AccountAvatar } from "./-components/account-avatar";
+import { AccountMenu } from "./-components/account-menu";
 import { PostComposer } from "./-components/post-composer";
 
 export const Route = createFileRoute("/")({
@@ -26,10 +26,29 @@ export const Route = createFileRoute("/")({
 
 function TownPage() {
   const { configuration } = Route.useRouteContext();
-  const { account, error: initialError } = Route.useLoaderData();
+  const { account: loadedAccount, error: initialError } = Route.useLoaderData();
+  const [signedOut, setSignedOut] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+  const account = signedOut ? null : loadedAccount;
   const [message, setError] = useState<string | null>(initialError);
   const [handle, setHandle] = useState("");
   const [isPending, setIsPending] = useState(false);
+
+  const logout = async () => {
+    if (!account || loggingOut) {
+      return;
+    }
+    setLoggingOut(true);
+    setError(null);
+    try {
+      await account.oauth.signOut();
+    } catch {
+      // signOut removes the local session even if it cannot load or revoke it.
+    } finally {
+      setSignedOut(true);
+      setLoggingOut(false);
+    }
+  };
 
   const authorize = async (value: string) => {
     setError(null);
@@ -74,13 +93,21 @@ function TownPage() {
       <header className="flex h-20 items-center justify-between border-b border-gray-200 px-5 sm:px-6">
         <h1 className="text-3xl font-bold tracking-tight">Town</h1>
         {account ? (
-          <AccountAvatar
-            name={account.name || account.handle}
-            src={account.avatar}
+          <AccountMenu
+            account={account}
+            onLogout={() => {
+              void logout();
+            }}
+            pending={loggingOut}
           />
         ) : null}
       </header>
-      {account ? (
+      {loggingOut ? (
+        <p className="p-6 text-sm text-gray-500" role="status">
+          Logging out…
+        </p>
+      ) : null}
+      {account && !loggingOut ? (
         <PostComposer
           account={account}
           authorize={() => {
@@ -89,7 +116,8 @@ function TownPage() {
             }
           }}
         />
-      ) : (
+      ) : null}
+      {account ? null : (
         <form className="p-6" onSubmit={login}>
           <label className="text-sm font-medium" htmlFor="handle">
             Handle or DID

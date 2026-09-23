@@ -20,8 +20,8 @@ export const loadAccount = async () => {
     return null;
   }
   const session = await getSession(did);
-  const agent = new OAuthUserAgent(session);
-  const writer = new Client({ handler: agent });
+  const oauth = new OAuthUserAgent(session);
+  const writer = new Client({ handler: oauth });
   // Public repository reads go directly to the same discovered PDS without
   // credentials. No AppView, backend relay, or extra OAuth permission is needed.
   const reader = new Client({
@@ -46,13 +46,13 @@ export const loadAccount = async () => {
   const record = parsed?.ok ? parsed.value : null;
   const avatar = record?.avatar;
   return {
-    agent,
     avatar: avatar
       ? getAvatarUrl(session.info.aud, did, avatar.ref.$link)
       : undefined,
     did,
     handle: repo?.ok ? repo.data.handle : did,
     name: record?.displayName,
+    oauth,
     reader,
     writer,
   };
