@@ -148,7 +148,7 @@ export const PostComposer = ({
             <textarea
               aria-label="Post text"
               aria-describedby="post-count"
-              className="min-h-40 w-full resize-none text-lg leading-7 outline-none placeholder:text-gray-400 disabled:opacity-60"
+              className="min-h-24 w-full resize-none text-lg leading-7 outline-none placeholder:text-gray-400 disabled:opacity-60"
               disabled={pending || !!publisher.pending}
               onChange={(event) => updateText(event.target.value)}
               placeholder="What's up?"
