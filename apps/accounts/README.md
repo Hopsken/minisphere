@@ -27,7 +27,7 @@ The frontend uses Vite, React, TanStack Router, TanStack Query, Tailwind CSS, an
 
 Accounts D1 contains the ordinary Better Auth tables and one optional `atproto_account` row per Better Auth user. That row owns the normalized username, status, immutable DID, public repository signing key, signed genesis PLC operation, and encrypted per-account PLC rotation private key with its random IV. A hosted handle is derived as `<username>.<handleDomain>`, using the base origin's hostname or the explicit `PUBLIC_HANDLE_DOMAIN` override. Accounts is the source of truth for the active handle-to-DID mapping.
 
-The PDS owns its account, session, repository state, and repository private signing keys. The PLC Directory owns DID documents. Accounts creates accounts through the retained PDS binding and reads PDS and PLC state before activation. PLC reads use HTTP at the mandatory `PLC_DIRECTORY`; no missing value or request failure falls back to a public directory. The PDS remains responsible for submitting the PLC operation. Handle publication is derived from the active Accounts mapping and is not an activation input.
+The PDS owns its account, session, repository state, and repository private signing keys. The PLC Directory owns DID documents. Accounts creates accounts through the retained PDS binding and reads PDS and PLC state before activation. PLC reads use HTTP at `PLC_DIRECTORY`, which defaults to `https://plc.directory` when omitted. An invalid explicit value fails configuration validation, and request failures never switch directories. The PDS remains responsible for submitting the PLC operation. Handle publication is derived from the active Accounts mapping and is not an activation input.
 
 ## AT Protocol accounts
 
@@ -131,6 +131,8 @@ pnpm --filter @minisphere/accounts db:migrate:remote
 
 `worker/config.ts` owns the Accounts origin and handle configuration schema. Zod validates origins before deriving defaults; they must be canonical HTTP(S) origins without credentials, paths, queries, fragments, or trailing slashes. An explicit handle-domain override must be nonempty. Unrelated Worker bindings are ignored.
 
+`resolveConfig()` reads the current `cloudflare:workers` environment when called, rather than capturing configuration at module initialization. `GET /health` runs configuration validation only. It does not contact D1, the PDS, the PLC Directory, Resend, or any other dependency; invalid configuration receives a generic error response.
+
 Bindings:
 
 - `DB` — authoritative Accounts D1 database
@@ -141,9 +143,11 @@ Variables:
 - `MINISPHERE_ORIGIN` — canonical Accounts origin; also derives the handle suffix from its hostname and derives the PDS at `pds.<hostname>`
 - `EMAIL_ALLOWLIST` — comma-separated permitted domains/addresses, or `*`; an empty value denies access
 - `EMAIL_FROM` — Resend sender, for example `Minisphere <login@notify.example.com>`; use a verified domain
-- `PLC_DIRECTORY` — required PLC HTTP origin; Accounts, PDS, and Town must use the same value, with no default or fallback
+- `PLC_DIRECTORY` — optional PLC HTTP origin; omission selects `https://plc.directory`, while an explicit invalid origin fails validation
 
 `MINISPHERE_ORIGIN` is required in every environment. Local development sets it to `http://localhost:8790` and overrides `PDS_ORIGIN=http://localhost:8787` and `PUBLIC_HANDLE_DOMAIN=r2d2.test`.
+
+Set `PLC_DIRECTORY` explicitly for private or local networks, and keep Accounts, PDS, and Town on the same origin. Omitting it opts Accounts into the public PLC Directory. Public PLC records are persistent, and provisioning through the paired PDS can result in public writes; use a private Directory for disposable development identities. Neither an explicit private selection nor a failed request falls back to the public service.
 
 Secrets:
 
@@ -176,7 +180,7 @@ pnpm dev:accounts
 pnpm turbo test typecheck build --filter=@minisphere/accounts
 ```
 
-The Vite development server uses `http://localhost:8790`. The local `.dev.vars` template sets the base origin and the two local overrides listed above. Production sets `MINISPHERE_ORIGIN=https://r2d2.party` without these overrides. Type generation reads `.dev.vars.example`, not private local values.
+The Vite development server uses `http://localhost:8790`. The local `.dev.vars` template sets the base origin and the two local overrides listed above. Production sets `MINISPHERE_ORIGIN=https://example.com` without these overrides. Type generation reads `.dev.vars.example`, not private local values.
 
 For local browser tests, open `/__dev/log-me-in/<email>?returnTo=<path>` on the Accounts development origin. For example, `/__dev/log-me-in/dev@example.com?returnTo=/` creates the user when needed, creates a normal Better Auth session, and redirects to `/`. This route returns 404 outside Vite development. Open it in the browser session used for tests; a `curl` request does not sign that browser in.
 

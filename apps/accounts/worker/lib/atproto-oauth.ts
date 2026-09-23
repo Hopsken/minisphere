@@ -6,8 +6,8 @@ import { UserRepository } from "../repositories/user-repository";
 import { OAuthSigningKeys } from "../services/oauth-signing-keys";
 import { createHostedHandle } from "./hosted-handle";
 
-export const createAtprotoOAuthProvider = (env: Env, database: Database) => {
-  const config = resolveConfig(env);
+export const createAtprotoOAuthProvider = (database: Database) => {
+  const config = resolveConfig();
   const users = new UserRepository(database);
   const signingKeys = new OAuthSigningKeys();
 

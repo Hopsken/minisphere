@@ -1,8 +1,8 @@
 # Deployment
 
-Run commands from the repository root with Node.js 24, pnpm 11, a Cloudflare account, and a verified Resend sender. Production uses Accounts at `https://r2d2.party` and the PDS at `https://pds.r2d2.party`.
+Run commands from the repository root with Node.js 24, pnpm 11, a Cloudflare account, and a verified Resend sender. The examples below use Accounts at `https://example.com` and the PDS at `https://pds.example.com`; substitute your own domains.
 
-`PLC_DIRECTORY` is mandatory. Set it to `https://plc.directory` or one private Directory origin in both Accounts and PDS (and Town, if deployed). There is no default or public fallback. Public PLC writes are persistent public records; do not switch an existing network between directories without migrating identities.
+Accounts and PDS default an omitted `PLC_DIRECTORY` to `https://plc.directory`; Town still requires an explicit value. Prefer setting the selected origin explicitly in all deployed clients, especially for private networks. Invalid explicit values fail configuration validation, and request failures never switch directories. Public PLC writes are persistent public records; omission can therefore publish PDS-created identities publicly. Do not switch an existing network between directories without migrating identities.
 
 ## 1. Audit existing deployments
 
@@ -30,16 +30,16 @@ Put returned IDs in the owning `wrangler.jsonc`; retain existing IDs for existin
 
 Use **Settings → Variables and Secrets**, not Builds settings. Production runtime configuration remains Dashboard-managed and `keep_vars` preserves it.
 
-| Worker   | Text variable       | Production value                   |
-| -------- | ------------------- | ---------------------------------- |
-| Accounts | `MINISPHERE_ORIGIN` | `https://r2d2.party`               |
-| Accounts | `PLC_DIRECTORY`     | selected PLC origin                |
-| Accounts | `EMAIL_FROM`        | verified Resend sender             |
-| Accounts | `EMAIL_ALLOWLIST`   | permitted addresses/domains or `*` |
-| PDS      | `MINISPHERE_ORIGIN` | `https://r2d2.party`               |
-| PDS      | `PLC_DIRECTORY`     | same selected PLC origin           |
+| Worker | Text variable | Production value |
+| --- | --- | --- |
+| Accounts | `MINISPHERE_ORIGIN` | `https://example.com` |
+| Accounts | `PLC_DIRECTORY` | optional; defaults to `https://plc.directory` |
+| Accounts | `EMAIL_FROM` | verified Resend sender |
+| Accounts | `EMAIL_ALLOWLIST` | permitted addresses/domains or `*` |
+| PDS | `MINISPHERE_ORIGIN` | `https://example.com` |
+| PDS | `PLC_DIRECTORY` | optional; same selected PLC origin |
 
-`MINISPHERE_ORIGIN` is required in both Workers. It derives the Accounts origin, `r2d2.party` handle suffix, and `https://pds.r2d2.party`. Production uses this layout without `PDS_ORIGIN` or `PUBLIC_HANDLE_DOMAIN` overrides; those are only needed for a different layout, such as local development. Accounts `PUBLIC_URL` and PDS `ACCOUNTS_ORIGIN` are not runtime configuration inputs.
+`MINISPHERE_ORIGIN` is required in both Workers. It derives the Accounts origin, `example.com` handle suffix, and `https://pds.example.com`. Production uses this layout without `PDS_ORIGIN` or `PUBLIC_HANDLE_DOMAIN` overrides; those are only needed for a different layout, such as local development. Accounts `PUBLIC_URL` and PDS `ACCOUNTS_ORIGIN` are not runtime configuration inputs. Both Workers read `cloudflare:workers` environment bindings in `resolveConfig()` when configuration is needed.
 
 Keep the five secrets listed above unchanged. Generate secrets only for a new deployment (`openssl rand -base64 32`, except the Resend-issued key) and back up encryption keys. Do not upload `.dev.vars.example`, and do not configure Town's development resolver in production.
 
@@ -64,12 +64,12 @@ Use `run deploy`, not pnpm's built-in deploy command. A code rollback does not r
 
 In **Settings → Domains & Routes**:
 
-1. Add the Accounts Custom Domain `r2d2.party`.
-2. Add the PDS Custom Domain `pds.r2d2.party`.
-3. Create proxied wildcard DNS and ensure a certificate covers `*.r2d2.party`.
-4. After Accounts verification, route exactly `*.r2d2.party/.well-known/atproto-did` to Accounts.
+1. Add the Accounts Custom Domain `example.com`.
+2. Add the PDS Custom Domain `pds.example.com`.
+3. Create proxied wildcard DNS and ensure a certificate covers `*.example.com`.
+4. After Accounts verification, route exactly `*.example.com/.well-known/atproto-did` to Accounts.
 
-Do **not** add a blanket `*.r2d2.party/*` route: it would capture unrelated subdomain traffic. Wrangler does not create or modify these Dashboard-managed resources automatically.
+Do **not** add a blanket `*.example.com/*` route: it would capture unrelated subdomain traffic. Wrangler does not create or modify these Dashboard-managed resources automatically.
 
 ## 6. Workers Builds
 
@@ -96,13 +96,14 @@ For optional Town, set runtime `PUBLIC_URL` and the same `PLC_DIRECTORY`, then a
 
 Before changing the wildcard route, verify Accounts directly:
 
-- `/.well-known/oauth-authorization-server` advertises `https://r2d2.party`;
+- Accounts and PDS `/health` succeed with the intended runtime variables; these probes validate configuration only and do not establish dependency availability. Invalid configuration produces a generic error;
+- `/.well-known/oauth-authorization-server` advertises `https://example.com`;
 - PDS `/.well-known/oauth-protected-resource` advertises the derived production origins;
-- `/xrpc/com.atproto.identity.resolveHandle?handle=<active-user>.r2d2.party` returns the active DID and permits XRPC CORS;
+- `/xrpc/com.atproto.identity.resolveHandle?handle=<active-user>.example.com` returns the active DID and permits XRPC CORS;
 - inactive and unknown names do not resolve; reserved names cannot be newly registered (existing records require the audit above);
 - login, username creation, and Town OAuth still work; and
 - `/__dev/log-me-in/dev@example.com` returns 404.
 
-Then switch only the well-known wildcard route, verify `https://<active-user>.r2d2.party/.well-known/atproto-did`, and only afterward remove the old Handle Registry Worker. These are manual Cloudflare changes; deployment performs none automatically.
+Then switch only the well-known wildcard route, verify `https://<active-user>.example.com/.well-known/atproto-did`, and only afterward remove the old Handle Registry Worker. These are manual Cloudflare changes; deployment performs none automatically.
 
 See [current limitations](../DEVELOPMENT.md) before accepting real user data. Test account creation writes persistent identity data.

@@ -13,7 +13,7 @@ export default new Hono<WorkerEnv>()
   .get("/.well-known/atproto-did", withDBAccess, async (ctx) => {
     const service = new HandleService(
       new UserRepository(ctx.var.database),
-      resolveConfig(ctx.env).handleDomain
+      resolveConfig().handleDomain
     );
     const did = await service.resolve(new URL(ctx.req.url).hostname);
     return did ? ctx.text(did) : ctx.notFound();
@@ -29,7 +29,7 @@ export default new Hono<WorkerEnv>()
     }
     const service = new HandleService(
       new UserRepository(ctx.var.database),
-      resolveConfig(ctx.env).handleDomain
+      resolveConfig().handleDomain
     );
     const did = await service.resolve(handle);
     if (!did) {

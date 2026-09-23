@@ -73,11 +73,10 @@ const signingKeyReservations = (env: Env) =>
   );
 
 const ensureDirectoryOperation = async (
-  env: Env,
   did: DidPlcString,
   operation: Operation
 ) => {
-  const config = resolveConfig(env);
+  const config = resolveConfig();
   const directory = new PlcClient({
     serviceUrl: config.plcDirectory,
   });
@@ -129,7 +128,7 @@ app.post(
       });
     }
 
-    const pdsHostname = new URL(resolveConfig(c.env).pdsOrigin).hostname;
+    const pdsHostname = new URL(resolveConfig().pdsOrigin).hostname;
     const session = await createSessionTokens(
       did,
       `did:web:${pdsHostname}`,
@@ -138,7 +137,7 @@ app.post(
 
     const repo = c.env.REPO.getByName(did);
     await repo.reserveRepo(did, repoSigningKey);
-    await ensureDirectoryOperation(c.env, did, plcOp);
+    await ensureDirectoryOperation(did, plcOp);
 
     const accountWrites = [
       pdsDb.insert(accountsTable).values({ did }).onConflictDoNothing(),

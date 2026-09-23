@@ -13,11 +13,11 @@ interface LoginRequest {
 }
 const post = (path: string, body: LoginRequest, ip = "192.0.2.1") =>
   exports.default.fetch(
-    new Request(`https://accounts.test/api/auth${path}`, {
+    new Request(`https://minisphere.test/api/auth${path}`, {
       body: JSON.stringify(body),
       headers: {
         "Content-Type": "application/json",
-        Origin: "https://accounts.test",
+        Origin: "https://minisphere.test",
         "cf-connecting-ip": ip,
       },
       method: "POST",
@@ -100,7 +100,7 @@ describe("email login", () => {
     const cookie = response.headers.get("set-cookie")?.split(";", 1)[0] ?? "";
     expect(cookie).toContain("session_token=");
     const session = await exports.default.fetch(
-      new Request("https://accounts.test/api/auth/get-session", {
+      new Request("https://minisphere.test/api/auth/get-session", {
         headers: { cookie },
       })
     );

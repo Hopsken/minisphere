@@ -1,3 +1,4 @@
+import { env } from "cloudflare:workers";
 import { z } from "zod";
 
 const originSchema = z.url({ protocol: /^https?$/u }).pipe(
@@ -10,12 +11,12 @@ const originSchema = z.url({ protocol: /^https?$/u }).pipe(
 const configSchema = z.object({
   MINISPHERE_ORIGIN: originSchema,
   PDS_ORIGIN: originSchema.optional(),
-  PLC_DIRECTORY: originSchema,
+  PLC_DIRECTORY: originSchema.default("https://plc.directory"),
   PUBLIC_HANDLE_DOMAIN: z.string().min(1).optional(),
 });
 
-export const resolveConfig = (input: z.input<typeof configSchema>) => {
-  const config = configSchema.parse(input);
+export const resolveConfig = () => {
+  const config = configSchema.parse(env);
   const accounts = new URL(config.MINISPHERE_ORIGIN);
   const pds = new URL(accounts.origin);
   pds.hostname = `pds.${accounts.hostname}`;

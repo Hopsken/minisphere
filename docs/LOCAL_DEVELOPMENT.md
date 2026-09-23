@@ -29,7 +29,7 @@ Accounts and PDS each validate configuration with their own Zod schema. Set the 
 | Town     | `PLC_DIRECTORY=http://localhost:8788`              |
 | Town     | `DEV_HANDLE_RESOLVER_ORIGIN=http://localhost:8790` |
 
-`PLC_DIRECTORY` is mandatory in every PLC client. Missing configuration and failed requests never fall back to `https://plc.directory`.
+Keep the explicit local `PLC_DIRECTORY` values above. Accounts and PDS default an omitted value to `https://plc.directory`; Town remains unchanged and requires an explicit value. An invalid explicit value fails Accounts/PDS Zod configuration validation, and failed requests never switch directories. Because PDS account creation writes persistent PLC records, accidentally omitting the local override can publish development identities to the public directory.
 
 Setup preserves existing `.dev.vars`. Therefore existing Town checkouts still point `DEV_HANDLE_RESOLVER_ORIGIN` at the removed port 8789 and **must be updated manually to `http://localhost:8790`**. Do not set this development adapter in production.
 
@@ -40,6 +40,8 @@ Setup preserves existing `.dev.vars`. Therefore existing Town checkouts still po
 - ignored `.dev.vars` contains developer-owned runtime values and is never overwritten by setup.
 - `.env.example` and `.env` contain frontend/build-tool settings.
 - Cloudflare Dashboard owns production text variables, secrets, custom domains, and routes; `keep_vars` preserves them.
+
+Accounts and PDS read `cloudflare:workers` environment bindings in `resolveConfig()` on demand. Their `GET /health` endpoints validate that current configuration only. They do not test D1, Durable Objects, service bindings, the PLC Directory, or other dependency availability, and return a generic error when configuration is invalid.
 
 Accounts' SPA assets defer protocol and application endpoints to the Worker. In particular, `/.well-known/atproto-did` and `/xrpc/com.atproto.identity.resolveHandle` must not fall through to `index.html`.
 

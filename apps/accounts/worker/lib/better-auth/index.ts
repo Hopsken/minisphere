@@ -9,7 +9,7 @@ import { createEmailLogin, emailLoginGuard } from "./email-login";
 import { betterAuthOptions } from "./options";
 
 export const createAuth = (env: Env, database: Database) => {
-  const config = resolveConfig(env);
+  const config = resolveConfig();
   return betterAuth({
     ...betterAuthOptions,
     baseURL: config.accountsOrigin,
@@ -18,7 +18,7 @@ export const createAuth = (env: Env, database: Database) => {
       schema,
     }),
     hooks: { before: emailLoginGuard(env) },
-    plugins: [createEmailLogin(env), createAtprotoOAuthProvider(env, database)],
+    plugins: [createEmailLogin(env), createAtprotoOAuthProvider(database)],
     secret: env.BETTER_AUTH_SECRET,
   });
 };

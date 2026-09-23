@@ -44,7 +44,7 @@ export default defineConfig(async () => {
       cloudflareTest({
         miniflare: {
           bindings: {
-            MINISPHERE_ORIGIN: "https://accounts.test",
+            MINISPHERE_ORIGIN: "https://minisphere.test",
             PDS_ENCRYPTION_KEY: signingKeyEncryptionKey,
             PDS_JWT_SECRET: jwtSecret,
             PDS_ORIGIN: pdsOrigin,

@@ -22,7 +22,7 @@ This file records the current implementation state and important architecture de
 
 ### PLC Directory
 
-- Accounts, PDS, and Town select a PLC Directory through `PLC_DIRECTORY` and use HTTP, without Directory service bindings. Deployments can use `https://plc.directory`; local templates use `http://localhost:8788`. Missing configuration or request failures never trigger public fallback.
+- Accounts, PDS, and Town use HTTP for PLC access, without Directory service bindings. Accounts and PDS default an omitted `PLC_DIRECTORY` to `https://plc.directory` in their own Zod schemas; Town still requires it explicitly. Invalid explicit values fail validation, and request failures never switch directories. Local templates explicitly use `http://localhost:8788` to avoid persistent public writes.
 - The private PLC Directory supports DID registration, resolution, updates, recovery, and audit logs.
 - D1 stores the append-only PLC operation log and derived DID state.
 - The PDS submits genesis operations to the configured Directory.
@@ -57,7 +57,8 @@ This file records the current implementation state and important architecture de
 - Every AT Protocol identity uses the same account model. The system does not store an account type or classification.
 - The PLC Directory is the source of truth for DID documents. The PDS is the source of truth for its account and session state. Accounts owns users, primary authentication, usernames, and hosted handle-to-DID mappings.
 - A PLC `alsoKnownAs` value is a handle claim, not proof of the reverse mapping. Accounts completes reverse verification directly from its active mapping.
-- Accounts and PDS each own their configuration resolver and Zod schema. Both require `MINISPHERE_ORIGIN` and derive the Accounts and `pds.<hostname>` origins. Only Accounts configures the hosted-handle suffix. Local development overrides the PDS origin and Accounts handle suffix. `PLC_DIRECTORY` is mandatory and has no default or fallback.
+- Accounts and PDS each own their configuration resolver and Zod schema. Both require `MINISPHERE_ORIGIN` and derive the Accounts and `pds.<hostname>` origins. Only Accounts configures the hosted-handle suffix. Local development overrides the PDS origin and Accounts handle suffix. Each `resolveConfig()` reads `cloudflare:workers` environment bindings on demand. Their schemas default an omitted `PLC_DIRECTORY` to `https://plc.directory`; explicit invalid values still fail, and neither request failures nor explicit private origins fall back to another directory. Town remains unchanged and requires `PLC_DIRECTORY`.
+- Accounts and PDS expose `GET /health` as configuration-validation probes. A successful response means only that current configuration is valid, not that databases, service bindings, the PLC Directory, or other dependencies are available. Invalid configuration returns a generic error.
 - Accounts owns OAuth authorization, refresh state, and access-token signing. The PDS is the resource server and verifies the Accounts signature, configured issuer and audience, DPoP binding, scope, and local active subject before granting access.
 - Primary account authentication does not use a PDS password. Future app-password compatibility is a separate capability.
 - One Durable Object hosts one DID repository and uses the DID as its object name.

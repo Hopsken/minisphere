@@ -17,8 +17,14 @@ app.use(cors()).use(logger());
 
 app.get("/", (ctx) => ctx.json({ name: "pds" }));
 
+app.get("/health", (ctx) => {
+  ctx.header("Cache-Control", "no-store");
+  resolveConfig();
+  return ctx.json({ status: "ok" });
+});
+
 app.get("/.well-known/oauth-protected-resource", (ctx) => {
-  const config = resolveConfig(ctx.env);
+  const config = resolveConfig();
   ctx.header("Cache-Control", "public, max-age=300");
   return ctx.json({
     authorization_servers: [config.accountsOrigin],

@@ -28,10 +28,7 @@ const app = new Hono<WorkerEnv>()
       const users = new UserRepository(ctx.var.database);
       return ctx.json({
         available: await users.isUsernameAvailable(username),
-        handle: createHostedHandle(
-          username,
-          resolveConfig(ctx.env).handleDomain
-        ),
+        handle: createHostedHandle(username, resolveConfig().handleDomain),
         username,
       });
     }

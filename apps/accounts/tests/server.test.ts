@@ -1,33 +1,56 @@
-import { env, exports } from "cloudflare:workers";
+import { env, exports, withEnv } from "cloudflare:workers";
 import { describe, expect, it } from "vitest";
 
 import app from "../worker";
 
 const request = (path: string): Promise<Response> =>
-  exports.default.fetch(new Request(`https://accounts.test${path}`));
+  exports.default.fetch(new Request(`https://minisphere.test${path}`));
 
 describe("accounts server", () => {
-  it("uses the paired origin for OAuth metadata, not the request host", async () => {
-    const bindings = { ...env, MINISPHERE_ORIGIN: "https://r2d2.party" };
-    for (const key of ["PUBLIC_HANDLE_DOMAIN", "PDS_ORIGIN"]) {
-      Reflect.deleteProperty(bindings, key);
+  it("checks configuration without authentication or database access", async () => {
+    const bindings = { ...env, DB: undefined, PLC_DIRECTORY: undefined };
+    await withEnv(bindings, async () => {
+      const response = await app.request("https://minisphere.test/health");
+      expect(response.status).toBe(200);
+      expect(response.headers.get("Cache-Control")).toBe("no-store");
+      await expect(response.json()).resolves.toStrictEqual({ status: "ok" });
+    });
+  });
+
+  it.each(["/health", "/api/auth/ok"])(
+    "hides invalid configuration details on %s",
+    async (path) => {
+      await withEnv(
+        { ...env, PLC_DIRECTORY: "https://private.invalid/secret-path" },
+        async () => {
+          const response = await app.request(
+            `https://minisphere.test${path}`,
+            {},
+            env
+          );
+          expect(response.status).toBe(500);
+          await expect(response.json()).resolves.toStrictEqual({
+            error: "InternalServerError",
+            message: "Internal server error",
+          });
+        }
+      );
     }
-    const foreignOrigin = await app.request(
-      "https://untrusted.example/.well-known/oauth-authorization-server",
-      {},
-      bindings
+  );
+
+  it("uses the paired origin for OAuth metadata, not the request host", async () => {
+    const foreignOrigin = await exports.default.fetch(
+      new Request(
+        "https://untrusted.example/.well-known/oauth-authorization-server"
+      )
     );
     expect(foreignOrigin.status).toBe(404);
-    const response = await app.request(
-      "https://r2d2.party/.well-known/oauth-authorization-server",
-      {},
-      bindings
-    );
+    const response = await request("/.well-known/oauth-authorization-server");
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toMatchObject({
-      authorization_endpoint: "https://r2d2.party/oauth/authorize",
-      issuer: "https://r2d2.party",
-      token_endpoint: "https://r2d2.party/oauth/token",
+      authorization_endpoint: "https://minisphere.test/oauth/authorize",
+      issuer: "https://minisphere.test",
+      token_endpoint: "https://minisphere.test/oauth/token",
     });
   });
 
@@ -67,7 +90,7 @@ describe("accounts server", () => {
     ]);
 
     const wellKnown = await exports.default.fetch(
-      new Request("https://alice.r2d2.party/.well-known/atproto-did")
+      new Request("https://alice.minisphere.test/.well-known/atproto-did")
     );
     expect({
       body: await wellKnown.text(),
@@ -82,7 +105,7 @@ describe("accounts server", () => {
     });
 
     const xrpc = await request(
-      "/xrpc/com.atproto.identity.resolveHandle?handle=ALICE.R2D2.PARTY"
+      "/xrpc/com.atproto.identity.resolveHandle?handle=ALICE.MINISPHERE.TEST"
     );
     expect({
       body: await xrpc.json(),
@@ -93,11 +116,11 @@ describe("accounts server", () => {
 
     await Promise.all(
       [
-        "unknown.r2d2.party",
+        "unknown.minisphere.test",
         "alice.example.com",
-        "nested.alice.r2d2.party",
-        "r2d2.party",
-        "alice.notr2d2.party",
+        "nested.alice.minisphere.test",
+        "minisphere.test",
+        "alice.notminisphere.test",
       ].map(async (handle) => {
         const absent = await exports.default.fetch(
           new Request(`https://${handle}/.well-known/atproto-did`)
@@ -129,7 +152,7 @@ describe("accounts server", () => {
     ]);
 
     const response = await request(
-      "/xrpc/com.atproto.identity.resolveHandle?handle=waiting.r2d2.party"
+      "/xrpc/com.atproto.identity.resolveHandle?handle=waiting.minisphere.test"
     );
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toStrictEqual({
@@ -138,7 +161,7 @@ describe("accounts server", () => {
     });
   });
 
-  it.each(["", "?handle=invalid", "?handle=alice..r2d2.party"])(
+  it.each(["", "?handle=invalid", "?handle=alice..minisphere.test"])(
     "rejects invalid XRPC handle input %s",
     async (query) => {
       const response = await request(
@@ -155,7 +178,7 @@ describe("accounts server", () => {
   it("limits public CORS to the handle resolver", async () => {
     const preflight = await exports.default.fetch(
       new Request(
-        "https://accounts.test/xrpc/com.atproto.identity.resolveHandle",
+        "https://minisphere.test/xrpc/com.atproto.identity.resolveHandle",
         {
           headers: {
             "Access-Control-Request-Method": "GET",

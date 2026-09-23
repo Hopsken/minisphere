@@ -53,7 +53,7 @@ export class AccountService {
   constructor(users: UserRepository, env: Env) {
     this.users = users;
     this.env = env;
-    this.config = resolveConfig(env);
+    this.config = resolveConfig();
     this.pds = new PdsClient(env.PDS);
     this.directory = new PlcDirectoryClient(this.config.plcDirectory);
   }

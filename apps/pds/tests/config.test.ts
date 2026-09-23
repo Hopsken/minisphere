@@ -1,44 +1,59 @@
+import { env, withEnv } from "cloudflare:workers";
 import { describe, expect, it } from "vitest";
 
 import { resolveConfig } from "../src/config";
 
-const production = {
-  MINISPHERE_ORIGIN: "https://r2d2.party",
-  PLC_DIRECTORY: "https://directory.example.net",
+const defaults = {
+  ...env,
+  MINISPHERE_ORIGIN: "https://minisphere.test",
+  PDS_ORIGIN: undefined,
+  PLC_DIRECTORY: undefined,
 };
 
 describe("PDS configuration", () => {
-  it("derives the paired service origins without handle configuration", () => {
-    const input = { ...production, DB: {}, PUBLIC_HANDLE_DOMAIN: "" };
-    expect(resolveConfig(input)).toStrictEqual({
-      accountsOrigin: "https://r2d2.party",
-      pdsOrigin: "https://pds.r2d2.party",
-      plcDirectory: "https://directory.example.net",
+  it("derives service origins and the official PLC Directory without handle configuration", () => {
+    expect(
+      withEnv({ ...defaults, PUBLIC_HANDLE_DOMAIN: "" }, resolveConfig)
+    ).toStrictEqual({
+      accountsOrigin: "https://minisphere.test",
+      pdsOrigin: "https://pds.minisphere.test",
+      plcDirectory: "https://plc.directory",
     });
   });
 
-  it("supports a separate local PDS port", () => {
+  it("reads local overrides from the current Worker environment on each call", () => {
     expect(
-      resolveConfig({
-        MINISPHERE_ORIGIN: "http://localhost:8790",
-        PDS_ORIGIN: "http://localhost:8787",
-        PLC_DIRECTORY: "http://localhost:8788",
-      })
+      withEnv(
+        {
+          ...defaults,
+          MINISPHERE_ORIGIN: "http://localhost:8790",
+          PDS_ORIGIN: "http://localhost:8787",
+          PLC_DIRECTORY: "http://localhost:8788",
+        },
+        resolveConfig
+      )
     ).toStrictEqual({
       accountsOrigin: "http://localhost:8790",
       pdsOrigin: "http://localhost:8787",
       plcDirectory: "http://localhost:8788",
     });
+    expect(withEnv(defaults, () => resolveConfig().plcDirectory)).toBe(
+      "https://plc.directory"
+    );
   });
 
-  it.each(["MINISPHERE_ORIGIN", "PLC_DIRECTORY"])(
-    "requires the binding even with a PDS override: %s",
-    (key) => {
-      const input = { ...production, PDS_ORIGIN: "http://localhost:8787" };
-      Reflect.deleteProperty(input, key);
-      expect(() => resolveConfig(input)).toThrow(new RegExp(key, "u"));
-    }
-  );
+  it("requires the base origin even with a PDS override", () => {
+    expect(() =>
+      withEnv(
+        {
+          ...defaults,
+          MINISPHERE_ORIGIN: undefined,
+          PDS_ORIGIN: "https://pds.test",
+        },
+        resolveConfig
+      )
+    ).toThrow(/MINISPHERE_ORIGIN/u);
+  });
 
   it.each([
     "",
@@ -49,15 +64,18 @@ describe("PDS configuration", () => {
     "https://example.com?query=1",
     "https://example.com/",
     "https://example.com#fragment",
-  ])("rejects non-canonical origins in every origin binding: %s", (origin) => {
-    expect(() =>
-      resolveConfig({ ...production, MINISPHERE_ORIGIN: origin })
-    ).toThrow(/MINISPHERE_ORIGIN/u);
-    expect(() => resolveConfig({ ...production, PDS_ORIGIN: origin })).toThrow(
-      /PDS_ORIGIN/u
-    );
-    expect(() =>
-      resolveConfig({ ...production, PLC_DIRECTORY: origin })
-    ).toThrow(/PLC_DIRECTORY/u);
-  });
+  ])(
+    "rejects invalid explicit origins rather than using defaults: %s",
+    (origin) => {
+      expect(() =>
+        withEnv({ ...defaults, MINISPHERE_ORIGIN: origin }, resolveConfig)
+      ).toThrow(/MINISPHERE_ORIGIN/u);
+      expect(() =>
+        withEnv({ ...defaults, PDS_ORIGIN: origin }, resolveConfig)
+      ).toThrow(/PDS_ORIGIN/u);
+      expect(() =>
+        withEnv({ ...defaults, PLC_DIRECTORY: origin }, resolveConfig)
+      ).toThrow(/PLC_DIRECTORY/u);
+    }
+  );
 });
