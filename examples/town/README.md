@@ -18,6 +18,8 @@ The reservation change is separate Accounts work; this Town implementation does 
 
 Town runs as an external client with a Worker, static assets, and configuration variables. It reaches AT Protocol services through HTTP discovery.
 
+The Worker enables `global_fetch_strictly_public` so outbound HTTP requests use public routing. This lets HTTPS handle resolution reach Accounts Worker routes in the same Cloudflare zone instead of bypassing them and contacting the origin server. It also applies to PLC requests made by the Worker; it does not change browser-side OAuth or PDS requests. Local tests cannot verify Cloudflare's production zone routing.
+
 ## Variables
 
 - `PUBLIC_URL` — canonical Town origin used by the OAuth Client ID Metadata Document and redirect URI.
