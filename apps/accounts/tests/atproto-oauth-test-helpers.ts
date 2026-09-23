@@ -4,7 +4,7 @@ import type { JWK, JWTPayload } from "jose";
 import { expect } from "vitest";
 import { z } from "zod";
 
-export const origin = "https://accounts.test";
+export const origin = "https://minisphere.test";
 export const redirectUri = "http://127.0.0.1:3000/callback";
 export const clientId = `http://localhost?redirect_uri=${encodeURIComponent("http://127.0.0.1/callback")}&scope=atproto`;
 export const accountDid = "did:plc:aaaaaaaaaaaaaaaaaaaaaaaa";

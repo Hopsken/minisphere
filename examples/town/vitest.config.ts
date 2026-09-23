@@ -6,7 +6,7 @@ export default defineConfig({
     cloudflareTest({
       miniflare: {
         bindings: {
-          DEV_HANDLE_RESOLVER_ORIGIN: "https://handle-registry.test",
+          DEV_HANDLE_RESOLVER_ORIGIN: "https://accounts.test",
           PLC_DIRECTORY: "https://plc.test",
           PUBLIC_URL: "https://town.hopsken.dev",
         },
@@ -18,7 +18,7 @@ export default defineConfig({
             routes: [
               "https://alice.example.com/*",
               "https://cloudflare-dns.com/*",
-              "https://handle-registry.test/*",
+              "https://accounts.test/*",
               "https://plc.test/*",
             ],
             script: `
@@ -26,7 +26,7 @@ export default defineConfig({
                 fetch(request) {
                   const url = new URL(request.url);
                   if (
-                    url.hostname === "handle-registry.test" &&
+                    url.hostname === "accounts.test" &&
                     url.pathname === "/xrpc/com.atproto.identity.resolveHandle" &&
                     url.searchParams.get("handle") === "alice.r2d2.test"
                   ) {

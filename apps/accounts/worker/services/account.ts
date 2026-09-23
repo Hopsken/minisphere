@@ -3,6 +3,7 @@ import { HTTPException } from "hono/http-exception";
 import { PdsClient } from "../clients/pds-client";
 import { PdsResponseError } from "../clients/pds-response-error";
 import { PlcDirectoryClient } from "../clients/plc-directory-client";
+import { resolveConfig } from "../config";
 import { createHostedHandle } from "../lib/hosted-handle";
 import {
   createPlcAccountMaterial,
@@ -43,6 +44,7 @@ const accountView = (
 };
 
 export class AccountService {
+  private readonly config: ReturnType<typeof resolveConfig>;
   private readonly directory: PlcDirectoryClient;
   private readonly env: Env;
   private readonly pds: PdsClient;
@@ -51,13 +53,14 @@ export class AccountService {
   constructor(users: UserRepository, env: Env) {
     this.users = users;
     this.env = env;
+    this.config = resolveConfig();
     this.pds = new PdsClient(env.PDS);
-    this.directory = new PlcDirectoryClient(env.PLC_DIRECTORY);
+    this.directory = new PlcDirectoryClient(this.config.plcDirectory);
   }
 
   async getAccount(userId: string) {
     const account = await this.users.findAccountByUserId(userId);
-    return accountView(account, this.env.PUBLIC_HANDLE_DOMAIN);
+    return accountView(account, this.config.handleDomain);
   }
 
   async createAccount(userId: string, username: string) {
@@ -71,12 +74,12 @@ export class AccountService {
       });
     }
     if (account.status === "active") {
-      return accountView(account, this.env.PUBLIC_HANDLE_DOMAIN);
+      return accountView(account, this.config.handleDomain);
     }
 
     const handle = createHostedHandle(
       account.username,
-      this.env.PUBLIC_HANDLE_DOMAIN
+      this.config.handleDomain
     );
     if (!account.did && !account.signingKey) {
       try {
@@ -85,7 +88,7 @@ export class AccountService {
           userId,
           this.env.ACCOUNTS_ENCRYPTION_KEY,
           handle,
-          this.env.PDS_ORIGIN,
+          this.config.pdsOrigin,
           signingKey
         );
         account = await this.users.saveProvisioningIdentity(
@@ -124,7 +127,7 @@ export class AccountService {
       return this.activateAccount(userId, material.did);
     }
     if (status === "pending") {
-      return accountView(account, this.env.PUBLIC_HANDLE_DOMAIN);
+      return accountView(account, this.config.handleDomain);
     }
 
     try {
@@ -157,12 +160,12 @@ export class AccountService {
 
     return (await this.getProvisioningStatus(material, handle)) === "ready"
       ? this.activateAccount(userId, material.did)
-      : accountView(account, this.env.PUBLIC_HANDLE_DOMAIN);
+      : accountView(account, this.config.handleDomain);
   }
 
   private async activateAccount(userId: string, did: string) {
     const active = await this.users.activateAccount(userId, did);
-    return accountView(active, this.env.PUBLIC_HANDLE_DOMAIN);
+    return accountView(active, this.config.handleDomain);
   }
 
   private async getProvisioningStatus(

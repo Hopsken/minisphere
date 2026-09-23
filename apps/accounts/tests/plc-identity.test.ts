@@ -3,7 +3,7 @@ import {
   deriveDidFromGenesisOp,
   isSignedOperationValid,
 } from "@atcute/did-plc";
-import { env } from "cloudflare:workers";
+import { env, withEnv } from "cloudflare:workers";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { PdsClient } from "../worker/clients/pds-client";
@@ -23,7 +23,7 @@ const candidate = async (userId: string, username: string) => {
   return createPlcAccountMaterial(
     userId,
     env.ACCOUNTS_ENCRYPTION_KEY,
-    `${username}.r2d2.party`,
+    `${username}.minisphere.test`,
     "https://pds.test",
     await key.exportPublicKey("did")
   );
@@ -173,13 +173,12 @@ describe("durable per-account PLC identity", () => {
       .spyOn(PdsClient.prototype, "createAccount")
       .mockRejectedValue(new Error("Unknown outcome"));
     await new AccountService(users(), env).createAccount(id, "restart");
-    await new AccountService(users(), {
-      ...env,
-      PDS_ORIGIN: "https://changed.test",
-    }).createAccount(id, "restart");
+    await withEnv({ ...env, PDS_ORIGIN: "https://changed.test" }, () =>
+      new AccountService(users(), env).createAccount(id, "restart")
+    );
     const expectedInput = {
       did: material.did,
-      handle: "restart.r2d2.party",
+      handle: "restart.minisphere.test",
       inviteCode: "test-invite",
       plcOp: material.operation,
     };

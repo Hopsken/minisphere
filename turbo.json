@@ -28,8 +28,7 @@
       "with": [
         "@minisphere/directory#dev",
         "@minisphere/pds#dev",
-        "@minisphere/accounts#dev",
-        "@minisphere/handle-registry#dev"
+        "@minisphere/accounts#dev"
       ]
     },
     "//#dev:town:local:stack": {
@@ -38,8 +37,7 @@
         "@minisphere/town#dev",
         "@minisphere/directory#dev",
         "@minisphere/pds#dev",
-        "@minisphere/accounts#dev",
-        "@minisphere/handle-registry#dev"
+        "@minisphere/accounts#dev"
       ]
     },
     "//#format:check:root": {},

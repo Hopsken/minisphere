@@ -10,7 +10,7 @@ const input = {
   audience: "https://pds.test",
   clientId: "https://client.example/oauth-client-metadata.json",
   expiresIn: 300,
-  issuer: "https://accounts.test",
+  issuer: "https://minisphere.test",
   jwkThumbprint: "a".repeat(43),
   scope: "atproto",
   subject: "did:plc:aaaaaaaaaaaaaaaaaaaaaaaa",

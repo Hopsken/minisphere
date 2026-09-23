@@ -7,6 +7,9 @@
   "assets": {
     "not_found_handling": "single-page-application",
     "run_worker_first": [
+      "/health",
+      "/.well-known/atproto-did",
+      "/xrpc/com.atproto.identity.resolveHandle",
       "/.well-known/oauth-authorization-server",
       "/api/*",
       "/oauth/*",

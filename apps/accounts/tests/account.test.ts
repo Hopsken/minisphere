@@ -6,8 +6,9 @@ import { z } from "zod";
 import { createDatabase } from "../worker/db";
 import { restorePlcAccountMaterial } from "../worker/lib/plc-account";
 import { UserRepository } from "../worker/repositories/user-repository";
+import { UsernameUnavailableError } from "../worker/repositories/username-unavailable-error";
 
-const origin = "https://accounts.test";
+const origin = "https://minisphere.test";
 const accountSchema = z.discriminatedUnion("state", [
   z.object({ handleDomain: z.string(), state: z.literal("needs_username") }),
   z.object({
@@ -50,6 +51,14 @@ const createAccount = (cookie: string, username: string) =>
     method: "POST",
   });
 
+const usernameAvailability = (cookie: string, username: string) =>
+  exports.default.fetch(
+    new Request(
+      `${origin}/api/account/usernames/${encodeURIComponent(username)}`,
+      { headers: { cookie } }
+    )
+  );
+
 describe("Entryway account API", () => {
   it("gates a new authenticated user on username completion", async () => {
     const cookie = await login("new-entryway-user@example.com");
@@ -57,7 +66,7 @@ describe("Entryway account API", () => {
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toStrictEqual({
-      handleDomain: "r2d2.party",
+      handleDomain: "minisphere.test",
       state: "needs_username",
     });
   });
@@ -70,8 +79,8 @@ describe("Entryway account API", () => {
     expect(first.status).toBe(201);
     expect(account).toStrictEqual({
       did: expect.stringMatching(/^did:plc:[a-z2-7]{24}$/u),
-      handle: "alice-entryway.r2d2.party",
-      handleDomain: "r2d2.party",
+      handle: "alice-entryway.minisphere.test",
+      handleDomain: "minisphere.test",
       state: "active",
       username: "alice-entryway",
     });
@@ -156,8 +165,8 @@ describe("Entryway account API", () => {
 
     expect({ body: firstBody, status: first.status }).toStrictEqual({
       body: {
-        handle: "waiting.r2d2.party",
-        handleDomain: "r2d2.party",
+        handle: "waiting.minisphere.test",
+        handleDomain: "minisphere.test",
         state: "provisioning",
         username: "waiting",
       },
@@ -169,9 +178,10 @@ describe("Entryway account API", () => {
       signing_key: expect.stringMatching(/^did:key:/u),
     });
     expect(retriedIdentity).toStrictEqual(identity);
-    await expect(
-      exports.AccountsEntrypoint.resolveHandle("waiting.r2d2.party")
-    ).resolves.toBeNull();
+    const resolution = await exports.default.fetch(
+      new Request("https://waiting.minisphere.test/.well-known/atproto-did")
+    );
+    expect(resolution.status).toBe(404);
   });
 
   it("recovers a timed-out response by verifying PDS and PLC state", async () => {
@@ -196,8 +206,8 @@ describe("Entryway account API", () => {
 
     expect({ account, status: response.status }).toStrictEqual({
       account: {
-        handle: "pds-only.r2d2.party",
-        handleDomain: "r2d2.party",
+        handle: "pds-only.minisphere.test",
+        handleDomain: "minisphere.test",
         state: "provisioning",
         username: "pds-only",
       },
@@ -207,9 +217,10 @@ describe("Entryway account API", () => {
       account,
       status: 202,
     });
-    await expect(
-      exports.AccountsEntrypoint.resolveHandle("pds-only.r2d2.party")
-    ).resolves.toBeNull();
+    const resolution = await exports.default.fetch(
+      new Request("https://pds-only.minisphere.test/.well-known/atproto-did")
+    );
+    expect(resolution.status).toBe(404);
   });
 
   it("retains identity material after a response failure for safe concurrent retry", async () => {
@@ -241,5 +252,79 @@ describe("Entryway account API", () => {
       .bind("one-winner")
       .first<{ count: number }>();
     expect(count?.count).toBe(1);
+  });
+
+  it("throws when a reserved name is passed directly to the repository", async () => {
+    const users = new UserRepository(createDatabase(env.DB));
+    await expect(
+      users.reserveAccount("reserved-user", " PDS ")
+    ).rejects.toThrow(UsernameUnavailableError);
+    await expect(
+      users.findAccountByUserId("reserved-user")
+    ).resolves.toBeUndefined();
+  });
+
+  it("rejects reserved usernames without persisting account state", async () => {
+    const reservedVariants = [
+      " PDS ",
+      "AdMiN",
+      " API ",
+      " WebMaster ",
+      " CDN ",
+      " Managed-Accounts ",
+    ];
+
+    await Promise.all(
+      reservedVariants.map(async (username, index) => {
+        const cookie = await login(`reserved-username-${index}@example.com`);
+        const availability = await usernameAvailability(cookie, username);
+        const registration = await createAccount(cookie, username);
+
+        expect({
+          availability: await availability.json(),
+          availabilityStatus: availability.status,
+          registration: await registration.json(),
+          registrationStatus: registration.status,
+        }).toStrictEqual({
+          availability: {
+            available: false,
+            handle: `${username.trim().toLowerCase()}.minisphere.test`,
+            username: username.trim().toLowerCase(),
+          },
+          availabilityStatus: 200,
+          registration: {
+            message: "Username is not available",
+            status: 409,
+          },
+          registrationStatus: 409,
+        });
+      })
+    );
+
+    const persisted = await env.DB.prepare(
+      "SELECT COUNT(*) AS count FROM atproto_account WHERE username IN (?, ?, ?, ?, ?, ?)"
+    )
+      .bind("pds", "admin", "api", "webmaster", "cdn", "managed-accounts")
+      .first<{ count: number }>();
+    expect(persisted?.count).toBe(0);
+  });
+
+  it("allows non-exact matches to reserved usernames", async () => {
+    const cookie = await login("pds-user@example.com");
+    const availability = await usernameAvailability(cookie, " PDS-user ");
+    const registration = await createAccount(cookie, " PDS-user ");
+
+    await expect(availability.json()).resolves.toStrictEqual({
+      available: true,
+      handle: "pds-user.minisphere.test",
+      username: "pds-user",
+    });
+    expect(availability.status).toBe(200);
+    expect(registration.status).toBe(201);
+    await expect(registration.json()).resolves.toMatchObject({
+      handle: "pds-user.minisphere.test",
+      state: "active",
+      username: "pds-user",
+    });
   });
 });

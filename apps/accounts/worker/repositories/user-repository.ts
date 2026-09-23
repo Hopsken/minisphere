@@ -3,6 +3,8 @@ import { and, eq, isNull } from "drizzle-orm";
 import type { Database } from "../db";
 import { atprotoAccount } from "../db/schema/atproto-account";
 import type { createPlcAccountMaterial } from "../lib/plc-account";
+import { isReservedUsername } from "../lib/reserved-usernames";
+import { UsernameUnavailableError } from "./username-unavailable-error";
 
 export class UserRepository {
   private readonly db: Database;
@@ -12,6 +14,10 @@ export class UserRepository {
   }
 
   async reserveAccount(userId: string, username: string) {
+    if (isReservedUsername(username)) {
+      throw new UsernameUnavailableError();
+    }
+
     await this.db
       .insert(atprotoAccount)
       .values({
@@ -53,6 +59,10 @@ export class UserRepository {
   }
 
   async isUsernameAvailable(username: string): Promise<boolean> {
+    if (isReservedUsername(username)) {
+      return false;
+    }
+
     const [account] = await this.db
       .select({ username: atprotoAccount.username })
       .from(atprotoAccount)

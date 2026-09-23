@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import { verifyOAuthAccessToken } from "../src/auth/oauth";
 
-const accountsOrigin = "https://accounts.test";
+const accountsOrigin = "https://minisphere.test";
 const pdsOrigin = "https://pds.test";
 const subject = "did:plc:aaaaaaaaaaaaaaaaaaaaaaaa";
 const jwkThumbprint = "a".repeat(43);

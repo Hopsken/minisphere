@@ -275,7 +275,7 @@ describe("AT Protocol OAuth authorization server", () => {
       subject: {
         did: accountDid,
         displayName: "account",
-        handle: "account.r2d2.party",
+        handle: "account.minisphere.test",
       },
     });
     await env.DB.prepare("DELETE FROM atproto_account WHERE did = ?")

@@ -23,6 +23,7 @@
     "@atcute/client": "catalog:",
     "@atcute/crypto": "catalog:",
     "@atcute/did-plc": "catalog:",
+    "@atcute/lexicons": "catalog:",
     "@base-ui/react": "catalog:",
     "@better-auth/drizzle-adapter": "catalog:",
     "@blobatar/react": "catalog:",

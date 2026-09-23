@@ -6,11 +6,11 @@ The PDS is a Hono Cloudflare Worker that exposes AT Protocol XRPC routes. It own
 
 - PDS D1 stores active account DIDs, refresh-token records, short-lived account invitation codes and expiry times, and encrypted repository signing-key reservations. It does not store OIDC identities, usernames, or primary account passwords.
 - [`@minisphere/repo-do`](../../packages/repo-do/README.md) owns repository data and repository signing keys.
-- PLC genesis operations and recovery reads use HTTP at `PLC_DIRECTORY`. Accounts and Town must use the same directory. Failed requests do not switch to another directory.
+- PLC genesis operations and recovery reads use HTTP at `PLC_DIRECTORY`, which defaults to `https://plc.directory` when omitted. Accounts and Town must use the same directory. Invalid explicit values fail configuration validation, and failed requests do not switch to another directory.
 - `PdsControlPlane.generateInviteCode()` is a named RPC entrypoint for Accounts.
 - `PdsControlPlane.fetch()` exposes the standard PDS XRPC routes to trusted service bindings.
 
-Account creation accepts a syntactically valid handle and records it as an `alsoKnownAs` claim in the PLC genesis operation. `PDS_ORIGIN` is the canonical public HTTPS origin used for the DID document service endpoint and session JWT audience; these values do not depend on the incoming request URL. The PDS does not prove or publish the reverse handle-to-DID mapping. Accounts owns hosted handle mappings, and the stateless Handle Registry publishes the DID supplied by Accounts.
+Account creation accepts a syntactically valid handle and records it as an `alsoKnownAs` claim in the PLC genesis operation. The resolved PDS origin is the canonical public HTTPS origin used for the DID document service endpoint and session JWT audience; these values do not depend on the incoming request URL. The PDS does not prove or publish the reverse mapping; Accounts owns and directly serves hosted handle mappings.
 
 ### Entryway provisioning
 
@@ -27,7 +27,7 @@ The PDS does not allocate or enforce hosted-handle uniqueness. Accounts owns tha
 
 ## OAuth resource contract
 
-`/.well-known/oauth-protected-resource` identifies `PDS_ORIGIN` as the resource and `ACCOUNTS_ORIGIN` as its authorization server. Accounts signs maximum-five-minute ES256K access JWTs and advertises its `jwks_uri` through authorization-server metadata. The PDS discovers the JWT `kid` from that JWKS and verifies these claims:
+`/.well-known/oauth-protected-resource` identifies the resolved PDS origin as the resource and Accounts origin as its authorization server. Accounts signs maximum-five-minute ES256K access JWTs and advertises its `jwks_uri` through authorization-server metadata. The PDS discovers the JWT `kid` from that JWKS and verifies these claims:
 
 - selected DID in `sub`;
 - PDS origin in `aud`;
@@ -63,11 +63,18 @@ pnpm --filter @minisphere/pds db:migrate:remote
 
 Variables:
 
-- `ACCOUNTS_ORIGIN` — canonical Accounts OAuth issuer origin
-- `PDS_ORIGIN` — canonical OAuth resource and PDS service origin
-- `PLC_DIRECTORY` — required PLC HTTP URL, either `https://plc.directory` or your private Directory
+`src/config.ts` owns the PDS origin configuration schema. Zod validates origins before deriving defaults; they must be canonical HTTP(S) origins without credentials, paths, queries, fragments, or trailing slashes. The PDS schema has no handle-domain setting and ignores unrelated Worker bindings.
 
-Set production variables and secrets in the Worker's **Settings → Variables and Secrets**, and its custom domain in **Settings → Domains & Routes**. Deployments preserve these settings. Type generation reads `.dev.vars.example`, not private local values. See [Workers Builds configuration](../../docs/LOCAL_DEVELOPMENT.md#production-and-workers-builds). Alternatively, set secrets with Wrangler:
+`resolveConfig()` reads the current `cloudflare:workers` environment on demand. `GET /health` validates configuration only: it does not check D1, repository Durable Objects, Accounts, or the PLC Directory. Invalid configuration returns a generic error response.
+
+- `MINISPHERE_ORIGIN` — canonical Accounts origin; derives the PDS origin as `pds.<hostname>`
+- `PLC_DIRECTORY` — optional PLC HTTP origin; omission selects `https://plc.directory`, while an explicit invalid origin fails validation
+
+`MINISPHERE_ORIGIN` is required in every environment. Local development uses `MINISPHERE_ORIGIN=http://localhost:8790` with `PDS_ORIGIN=http://localhost:8787` to override the default subdomain layout.
+
+Set `PLC_DIRECTORY` explicitly for private or local networks, and configure Accounts and Town with the same origin. Omitting it opts the PDS into the public PLC Directory. Account creation submits persistent public PLC records, so do not use the default for disposable development identities. A private selection and request failures never fall back to another directory.
+
+Set production variables and secrets in the Worker's **Settings → Variables and Secrets**, and its custom domain in **Settings → Domains & Routes**. Deployments preserve these settings. Type generation reads `.dev.vars.example`, not private local values. See the [deployment guide](../../docs/DEPLOYMENT.md). Alternatively, set secrets with Wrangler:
 
 ```sh
 pnpm --filter @minisphere/pds exec wrangler secret put PDS_JWT_SECRET

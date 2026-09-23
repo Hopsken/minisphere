@@ -10,6 +10,7 @@ import { HTTPException } from "hono/http-exception";
 import z from "zod";
 
 import { createSessionTokens } from "../../auth/session";
+import { resolveConfig } from "../../config";
 import { createPdsDatabase } from "../../db";
 import {
   accountsTable,
@@ -72,12 +73,12 @@ const signingKeyReservations = (env: Env) =>
   );
 
 const ensureDirectoryOperation = async (
-  env: Env,
   did: DidPlcString,
   operation: Operation
 ) => {
+  const config = resolveConfig();
   const directory = new PlcClient({
-    serviceUrl: new URL(env.PLC_DIRECTORY).href,
+    serviceUrl: config.plcDirectory,
   });
   try {
     await directory.submitOperation(did, operation);
@@ -127,7 +128,7 @@ app.post(
       });
     }
 
-    const pdsHostname = new URL(c.env.PDS_ORIGIN).hostname;
+    const pdsHostname = new URL(resolveConfig().pdsOrigin).hostname;
     const session = await createSessionTokens(
       did,
       `did:web:${pdsHostname}`,
@@ -136,7 +137,7 @@ app.post(
 
     const repo = c.env.REPO.getByName(did);
     await repo.reserveRepo(did, repoSigningKey);
-    await ensureDirectoryOperation(c.env, did, plcOp);
+    await ensureDirectoryOperation(did, plcOp);
 
     const accountWrites = [
       pdsDb.insert(accountsTable).values({ did }).onConflictDoNothing(),

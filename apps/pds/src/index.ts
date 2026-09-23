@@ -4,6 +4,7 @@ import { cors } from "hono/cors";
 import { HTTPException } from "hono/http-exception";
 import { logger } from "hono/logger";
 
+import { resolveConfig } from "./config";
 import { createPdsDatabase } from "./db";
 import { InviteCodeRepository } from "./repositories/invite-code";
 import xrpcRoutes from "./routes/xrpc";
@@ -16,11 +17,18 @@ app.use(cors()).use(logger());
 
 app.get("/", (ctx) => ctx.json({ name: "pds" }));
 
+app.get("/health", (ctx) => {
+  ctx.header("Cache-Control", "no-store");
+  resolveConfig();
+  return ctx.json({ status: "ok" });
+});
+
 app.get("/.well-known/oauth-protected-resource", (ctx) => {
+  const config = resolveConfig();
   ctx.header("Cache-Control", "public, max-age=300");
   return ctx.json({
-    authorization_servers: [ctx.env.ACCOUNTS_ORIGIN],
-    resource: ctx.env.PDS_ORIGIN,
+    authorization_servers: [config.accountsOrigin],
+    resource: config.pdsOrigin,
   });
 });
 

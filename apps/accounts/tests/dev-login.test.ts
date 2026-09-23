@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 
 const request = (path: string): Promise<Response> =>
   exports.default.fetch(
-    new Request(`https://accounts.test${path}`, { redirect: "manual" })
+    new Request(`https://minisphere.test${path}`, { redirect: "manual" })
   );
 
 describe("development login route", () => {
@@ -28,7 +28,7 @@ describe("development login route", () => {
     ]);
 
     const sessionResponse = await exports.default.fetch(
-      new Request("https://accounts.test/api/auth/get-session", {
+      new Request("https://minisphere.test/api/auth/get-session", {
         headers: { cookie: setCookie?.split(";", 1)[0] ?? "" },
       })
     );

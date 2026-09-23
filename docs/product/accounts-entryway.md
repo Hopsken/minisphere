@@ -154,7 +154,7 @@ Accounts owns the member-facing provisioning journey because it owns the Better 
 
 Provisioning follows the AT Protocol reference Entryway flow. Accounts first calls `com.atproto.server.reserveSigningKey`; the PDS stores the private repository key and returns the public `did:key`. Accounts then constructs and signs the genesis PLC operation, derives the DID, obtains a one-time PDS invitation through its trusted service binding, and calls standard `com.atproto.server.createAccount` with the invite, DID, and operation. The invitation authorizes account creation. The PDS trusts the Accounts-supplied identity material, creates the repository and local account, and registers the operation with PLC. Accounts verifies the resulting PDS and PLC state before activation.
 
-Accounts activates only after the PDS reports that both the local account and repository exist and PLC resolves the expected DID, handle claim, PDS endpoint, and repository signing key. Handle Registry publication is controlled by the resulting active Accounts mapping, so querying that derived publication is not an activation prerequisite.
+Accounts activates only after the PDS reports that both the local account and repository exist and PLC resolves the expected DID, handle claim, PDS endpoint, and repository signing key. Accounts' direct handle publication is controlled by the resulting active mapping, so querying that derived publication is not an activation prerequisite.
 
 A confirmed PDS response failure releases the provisional Accounts username. A transport failure remains unknown and retains the expected DID and signed operation for status checks and retry. This guarantees one active identity result for the attempt without a custom PDS provisioning service or operation ID. The PDS must not receive OIDC credentials or Better Auth session material, or write Better Auth storage directly.
 
@@ -187,7 +187,7 @@ OIDC provider ──> Better Auth session ──> username onboarding
                     +-----------------------+--------------------+
                     |                                            |
                     v                                            v
-          Handle Registry                              AT OAuth consent
+       Accounts handle routes                          AT OAuth consent
                                                              |
                                                              v
                                                    Accounts OAuth signer
@@ -203,7 +203,6 @@ OIDC provider ──> Better Auth session ──> username onboarding
 | Accounts | OIDC identity links, Better Auth sessions, permanent usernames, hosted handle claims, PLC rotation key, immutable DID reference, OAuth grant and replay state, OAuth access-token signing, authentication availability | Repository private keys, PDS hosting state, PLC documents, resource permissions |
 | PDS | Local DID existence, provisioning and hosting state, repositories and private signing keys, PLC submission, PDS sessions or app passwords, OAuth access-token verification, resource authorization | OIDC identity links, Better Auth sessions, hosted username allocation or uniqueness, OAuth consent or access-token signing |
 | PLC Directory | DID operation log and resolved DID document | Login, username availability, handle reverse mapping |
-| Handle Registry | Stateless HTTPS publication of the active hosted handle mapping supplied by Accounts | Username allocation, account creation, DID documents |
 
 ## Account state model
 
@@ -247,7 +246,7 @@ Requirements are ranked in release priority order.
 4. **Single active identity outcome.** Repeated submissions and unknown-outcome retries for one attempt must activate no more than one DID and one permanent username claim. Dangling downstream artifacts from a confirmed failure are not active Accounts identities.
 5. **Safe unknown-outcome retry.** A member must be able to retry a transport failure against the same pre-derived DID and signed PLC operation.
 6. **Single-subject OAuth.** An active member authorizes only their DID. A non-active member cannot receive a code or token, and consent submission must revalidate the current session and subject.
-7. **Handle publication.** An active hosted handle must resolve to the same DID that claims it. A failed, incomplete, or unknown hosted handle must not resolve. Because Accounts owns both activation and the hosted mapping, Handle Registry is derived output rather than an activation gate.
+7. **Handle publication.** An active hosted handle must resolve to the same DID that claims it. A failed, incomplete, or unknown hosted handle must not resolve. Accounts serves the derived mapping directly; publication is not an activation gate.
 8. **Paired local deployment.** OIDC login, onboarding, consent, and token issuance must work with a configured local Accounts and PDS pair.
 9. **No managed-account surface.** The user experience and service contracts must not expose owner, child, descendant, managed-DID CRUD, multi-DID selection, or external DID attachment concepts.
 
@@ -290,7 +289,7 @@ These requirements are important but do not justify delaying the first safe loca
 
 ## Migration
 
-The first release assumes disposable development data. Migration uses a synchronized destructive rebuild of Accounts and PDS D1, repository Durable Objects, PLC Directory, and Handle Registry-visible mappings. Migrating production owner-to-managed-DID data is out of scope.
+The first release assumes disposable development data. Migration uses a synchronized destructive rebuild of Accounts and PDS D1, repository Durable Objects, PLC Directory, and Accounts-visible handle mappings. Migrating production owner-to-managed-DID data is out of scope.
 
 ## Product risks and discovery plan
 
@@ -373,7 +372,7 @@ These follow-ups come from comparing the current Accounts and PDS implementation
 - [x] **Store PDS account invitations in D1.** Store each bearer code in plaintext with its expiry, but do not bind the code to a DID. Validate the account material first, then atomically consume one unexpired code before account-creation side effects. A consumed code remains spent after a downstream failure; Accounts obtains a new code for a retry. Expired unused rows can be removed opportunistically. Verify that only one of two concurrent requests using the same code can begin provisioning and that a completed account never leaves a reusable invitation.
 - [x] **Make initial RepoDO creation atomic and recoverable.** Format and sign the initial commit before entering the Durable Object SQLite transaction. Inside one synchronous transaction, store the signing key, all initial blocks, and metadata containing the final root CID and revision; never persist empty root metadata as an initialization marker. Load the repository only after the transaction commits. Use the same atomic blocks-and-root boundary for later commits. A same-DID, same-key retry verifies the readable repository, a different key is rejected, and an incomplete repository from the former initialization sequence is rebuilt atomically.
 - [x] **Store repository signing-key reservations in PDS D1.** Store the private key encrypted under a stable deployment secret and keep durable reservation state without the independent two-hour KV expiry. Identify a new reservation by its public signing key, then atomically claim it for the derived DID during account creation; another DID cannot claim the same key. Keep the reservation until RepoDO is readable and PLC submission succeeds, then delete it in the same D1 batch that records the PDS account and refresh token. Do not expire reservations in the provisioning path; any future cleanup of abandoned, unclaimed reservations requires a separate policy. A delayed same-DID retry uses the same private key.
-- [ ] **Define and enforce a hosted-username reservation policy.** Maintain one categorized Minisphere-specific `ReadonlySet<string>` and exact-match helper after username normalization; do not copy another product's list unchanged. Include relevant authentication and operator names, AT Protocol terms, service and API routes, privileged mailbox names, infrastructure hostnames, and names that must remain reserved after a route is removed. Validate `PUBLIC_HANDLE_DOMAIN` as a canonical handle suffix. Apply the same shared policy to UI validation, availability checks, and atomic account reservation, while keeping the server authoritative. Use Multica's categorized [reserved slug table](https://github.com/multica-ai/multica/blob/a075e58b80895f14cacfe3a9aa0808e1cde1f69a/packages/core/paths/reserved-slugs.ts#L41) as one design reference.
+- [x] **Define and enforce a hosted-username reservation policy.** The worker owns one categorized Minisphere-specific exact-match list, informed by Multica's categories and including protocol, operator, service, mailbox, infrastructure, and historical names such as `pds`. The repository applies it after normalization to availability and atomic reservation. Reserved and occupied names return the same generic unavailable result; the frontend schema does not duplicate the policy. Existing deployments must audit occupied names and explicitly migrate conflicts without silent rename or deletion.
 
 ## Separate production gate: PDS OAuth resource server
 
@@ -409,5 +408,5 @@ A date should be attached only after discovery resolves the significant usabilit
 - SVPG, [Product Risk Taxonomy](https://www.svpg.com/product-risk-taxonomies)
 - [Accounts architecture](../../apps/accounts/README.md)
 - [PDS architecture and OAuth resource contract](../../apps/pds/README.md)
-- [Handle Registry trust boundary](../../apps/handle-registry/README.md)
+- [Accounts architecture and handle trust boundary](../../apps/accounts/README.md)
 - [Current development decisions](../../DEVELOPMENT.md)

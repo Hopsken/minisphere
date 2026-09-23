@@ -1,5 +1,7 @@
-import { exports } from "cloudflare:workers";
+import { env, exports, withEnv } from "cloudflare:workers";
 import { describe, expect, it } from "vitest";
+
+import worker from "../src";
 
 const ORIGIN = "https://internal.test";
 const JSON_HEADERS = { "Content-Type": "application/json" };
@@ -78,6 +80,52 @@ const invalidRoutes: [path: string, init?: RequestInit][] = [
 ];
 
 describe("XRPC route stubs", () => {
+  it("checks configuration without database access", async () => {
+    await withEnv(
+      { ...env, PDS_DB: undefined, PLC_DIRECTORY: undefined },
+      async () => {
+        const response = await worker.fetch(
+          new Request(`${ORIGIN}/health`),
+          env
+        );
+        expect(response.status).toBe(200);
+        expect(response.headers.get("Cache-Control")).toBe("no-store");
+        await expect(response.json()).resolves.toStrictEqual({ status: "ok" });
+      }
+    );
+  });
+
+  it.each(["/health", "/.well-known/oauth-protected-resource"])(
+    "hides invalid configuration details on %s",
+    async (path) => {
+      await withEnv(
+        { ...env, PLC_DIRECTORY: "https://private.invalid/secret-path" },
+        async () => {
+          const response = await worker.fetch(
+            new Request(`${ORIGIN}${path}`),
+            env
+          );
+          expect(response.status).toBe(500);
+          await expect(response.text()).resolves.toBe("Internal Server Error");
+        }
+      );
+    }
+  );
+
+  it("derives resource metadata without trusting the request host", async () => {
+    await withEnv({ ...env, PDS_ORIGIN: undefined }, async () => {
+      const response = await worker.fetch(
+        new Request(`${ORIGIN}/.well-known/oauth-protected-resource`),
+        env
+      );
+      expect(response.status).toBe(200);
+      await expect(response.json()).resolves.toStrictEqual({
+        authorization_servers: ["https://minisphere.test"],
+        resource: "https://pds.minisphere.test",
+      });
+    });
+  });
+
   it.each(unimplementedRoutes)("throws for %s", async (path, init) => {
     const response = await request(path, init);
 
