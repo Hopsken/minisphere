@@ -14,16 +14,21 @@
     "postinstall": "pnpm typegen"
   },
   "dependencies": {
+    "@atcute/atproto": "catalog:",
+    "@atcute/bluesky": "catalog:",
+    "@atcute/client": "catalog:",
     "@atcute/did-plc": "catalog:",
     "@atcute/identity-resolver": "catalog:",
     "@atcute/lexicons": "catalog:",
     "@atcute/oauth-browser-client": "catalog:",
+    "@atcute/tid": "catalog:",
     "@fontsource-variable/inter": "catalog:",
     "@tanstack/react-router": "catalog:",
     "hono": "catalog:",
     "lucide-react": "catalog:",
     "react": "catalog:",
-    "react-dom": "catalog:"
+    "react-dom": "catalog:",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "catalog:",

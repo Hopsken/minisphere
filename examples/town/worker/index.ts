@@ -14,13 +14,16 @@ import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { logger } from "hono/logger";
 
-const scope = "atproto";
-type TownEnv = Omit<Env, "DEV_HANDLE_RESOLVER_ORIGIN"> & {
+import { configurationSchema, townScope as scope } from "./configuration";
+
+type TownEnv = Omit<Env, "DEV_HANDLE_RESOLVER_ORIGIN" | "PLC_DIRECTORY"> & {
+  PLC_DIRECTORY?: string;
   DEV_HANDLE_RESOLVER_ORIGIN?: string;
 };
 
 const getOAuthConfiguration = (env: TownEnv) => {
-  const publicOrigin = new URL(env.PUBLIC_URL).origin;
+  const publicOrigin = new URL(configurationSchema.parse(env).PUBLIC_URL)
+    .origin;
   return {
     clientId: `${publicOrigin}/oauth-client-metadata.json`,
     redirectUri: `${publicOrigin}/oauth/callback`,
@@ -59,7 +62,7 @@ const api = new Hono<{ Bindings: TownEnv }>()
     const did = parseDid(context.req.param("did"));
     try {
       const document = await createPlcClient(
-        context.env.PLC_DIRECTORY
+        configurationSchema.parse(context.env).PLC_DIRECTORY
       ).getDocument(did);
       return context.json(document, 200, {
         "Content-Type": "application/did+ld+json",
@@ -70,29 +73,6 @@ const api = new Hono<{ Bindings: TownEnv }>()
       }
       throw error;
     }
-  })
-  .get("/identities/:did", async (context) => {
-    const did = parseDid(context.req.param("did"));
-    let state;
-    try {
-      state = await createPlcClient(context.env.PLC_DIRECTORY).getState(did);
-    } catch (error) {
-      if (error instanceof PlcClientError && error.status === 404) {
-        throw new HTTPException(404, { message: "DID not found" });
-      }
-      throw error;
-    }
-
-    const handle = state.alsoKnownAs
-      .find((identifier) => identifier.startsWith("at://"))
-      ?.slice("at://".length);
-    if (!handle || !isHandle(handle)) {
-      throw new HTTPException(502, {
-        message: "DID does not contain a valid handle",
-      });
-    }
-
-    return context.json({ did, handle });
   });
 
 const app = new Hono<{ Bindings: TownEnv }>()

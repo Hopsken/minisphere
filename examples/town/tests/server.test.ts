@@ -26,7 +26,7 @@ describe("Town server", () => {
       grant_types: ["authorization_code", "refresh_token"],
       redirect_uris: ["https://town.hopsken.dev/oauth/callback"],
       response_types: ["code"],
-      scope: "atproto",
+      scope: "atproto repo?collection=app.bsky.feed.post&action=create",
       token_endpoint_auth_method: "none",
     });
   });
@@ -38,7 +38,7 @@ describe("Town server", () => {
     await expect(response.json()).resolves.toStrictEqual({
       clientId: "https://town.hopsken.dev/oauth-client-metadata.json",
       redirectUri: "https://town.hopsken.dev/oauth/callback",
-      scope: "atproto",
+      scope: "atproto repo?collection=app.bsky.feed.post&action=create",
     });
   });
 
@@ -98,20 +98,8 @@ describe("Town server", () => {
     });
   });
 
-  it("resolves the logged-in DID handle through PLC", async () => {
-    const response = await request(
-      "/api/identities/did%3Aplc%3Aaaaaaaaaaaaaaaaaaaaaaaaa"
-    );
-
-    expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toStrictEqual({
-      did: "did:plc:aaaaaaaaaaaaaaaaaaaaaaaa",
-      handle: "alice.r2d2.test",
-    });
-  });
-
   it("rejects an invalid DID", async () => {
-    const response = await request("/api/identities/not-a-did");
+    const response = await request("/api/did-documents/not-a-did");
 
     expect(response.status).toBe(400);
   });

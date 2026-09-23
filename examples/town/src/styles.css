@@ -7,17 +7,12 @@
 
 @layer base {
   body {
-    @apply m-0 bg-stone-100 font-sans text-stone-950 antialiased;
-    background-image:
-      radial-gradient(
-        circle at 20% 10%,
-        rgb(209 250 229 / 55%),
-        transparent 35%
-      ),
-      radial-gradient(
-        circle at 80% 90%,
-        rgb(254 243 199 / 60%),
-        transparent 35%
-      );
+    @apply m-0 bg-white font-sans text-gray-950 antialiased;
+  }
+}
+
+@layer components {
+  .post-button {
+    @apply inline-flex h-10 items-center justify-center rounded-full bg-blue-600 px-6 text-sm font-semibold text-white hover:bg-blue-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:cursor-not-allowed disabled:bg-blue-300;
   }
 }
