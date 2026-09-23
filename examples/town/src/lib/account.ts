@@ -1,11 +1,18 @@
 import { AppBskyActorProfile } from "@atcute/bluesky";
 import { Client, simpleFetchHandler } from "@atcute/client";
 import { safeParse } from "@atcute/lexicons";
+import type { Did } from "@atcute/lexicons";
 import {
   getSession,
   listStoredSessions,
   OAuthUserAgent,
 } from "@atcute/oauth-browser-client";
+
+export const getAvatarUrl = (service: string, did: Did, cid: string) => {
+  const url = new URL("/xrpc/com.atproto.sync.getBlob", service);
+  url.search = new URLSearchParams({ cid, did }).toString();
+  return url.href;
+};
 
 export const loadAccount = async () => {
   const [did] = listStoredSessions();
@@ -41,7 +48,7 @@ export const loadAccount = async () => {
   return {
     agent,
     avatar: avatar
-      ? `${session.info.aud}/xrpc/com.atproto.sync.getBlob?${new URLSearchParams({ cid: avatar.ref.$link, did })}`
+      ? getAvatarUrl(session.info.aud, did, avatar.ref.$link)
       : undefined,
     did,
     handle: repo?.ok ? repo.data.handle : did,
