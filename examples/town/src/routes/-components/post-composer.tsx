@@ -42,7 +42,7 @@ export const PostComposer = ({
   const [pending, setPending] = useState(false);
   const busy = useRef(false);
   const readVersion = useRef(0);
-  const writable = canCreatePost(account.agent.session.token.scope);
+  const writable = canCreatePost(account.oauth.session.token.scope);
   const count = countGraphemes(text);
   const validation = postValidationError(text);
 

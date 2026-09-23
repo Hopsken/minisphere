@@ -22,6 +22,7 @@
     "@atcute/lexicons": "catalog:",
     "@atcute/oauth-browser-client": "catalog:",
     "@atcute/tid": "catalog:",
+    "@base-ui/react": "catalog:",
     "@fontsource-variable/inter": "catalog:",
     "@tanstack/react-router": "catalog:",
     "hono": "catalog:",

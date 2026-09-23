@@ -18,6 +18,8 @@ The reservation change is separate Accounts work; this Town implementation does 
 
 Town runs as an external client with a Worker, static assets, and configuration variables. It reaches AT Protocol services through HTTP discovery.
 
+The header avatar opens the account menu. **Log out** signs out the current Town account using the OAuth client's `signOut()`: it attempts token revocation and removes the local OAuth session even if revocation fails. Town then shows the login form. This does not sign out the identity provider's website or delete posts, local drafts, or pending post recovery data.
+
 The Worker enables `global_fetch_strictly_public` so outbound HTTP requests use public routing. This lets HTTPS handle resolution reach Accounts Worker routes in the same Cloudflare zone instead of bypassing them and contacting the origin server. It also applies to PLC requests made by the Worker; it does not change browser-side OAuth or PDS requests. Local tests cannot verify Cloudflare's production zone routing.
 
 ## Variables
