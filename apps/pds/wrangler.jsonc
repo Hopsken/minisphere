@@ -3,7 +3,7 @@
   "name": "minisphere-pds",
   "main": "src/index.ts",
   "compatibility_date": "2026-08-16",
-  "compatibility_flags": ["nodejs_compat"],
+  "compatibility_flags": ["global_fetch_strictly_public", "nodejs_compat"],
   "dev": {
     "port": 8787,
     "inspector_port": 0,

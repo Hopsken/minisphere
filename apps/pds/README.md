@@ -51,6 +51,8 @@ The following methods accept anonymous requests for locally registered accounts:
 
 Repository reads accept a DID or handle; sync reads accept a DID. Reads do not forward to remote PDS servers or expose repositories left behind by incomplete provisioning. PDSls can use the first three methods without login, then use the CAR endpoint to verify a record. Blob browsing and full repository export are not implemented yet.
 
+The PDS enables `global_fetch_strictly_public` so HTTPS identity resolution reaches public Worker routes, including the Accounts hosted-handle route in the same Cloudflare zone. Without this flag, same-zone fetches bypass Worker routes and go to the origin server instead.
+
 Tests seed disposable repositories directly in the Workers test runtime because public record mutation is not implemented. They do not create identities in the public PLC Directory.
 
 The four read routes use `withRepoReader` middleware after query validation. It creates one request-scoped `RepoReader` in `ctx.var.repoReader`; other XRPC routes do not initialize it. The service receives its dependencies through its constructor and does not read Worker configuration.
