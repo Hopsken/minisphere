@@ -10,6 +10,7 @@ import { HTTPException } from "hono/http-exception";
 import z from "zod";
 
 import { createSessionTokens } from "../../auth/session";
+import { resolveConfig } from "../../config";
 import { createPdsDatabase } from "../../db";
 import {
   accountsTable,
@@ -76,8 +77,9 @@ const ensureDirectoryOperation = async (
   did: DidPlcString,
   operation: Operation
 ) => {
+  const config = resolveConfig(env);
   const directory = new PlcClient({
-    serviceUrl: new URL(env.PLC_DIRECTORY).href,
+    serviceUrl: config.plcDirectory,
   });
   try {
     await directory.submitOperation(did, operation);
@@ -127,7 +129,7 @@ app.post(
       });
     }
 
-    const pdsHostname = new URL(c.env.PDS_ORIGIN).hostname;
+    const pdsHostname = new URL(resolveConfig(c.env).pdsOrigin).hostname;
     const session = await createSessionTokens(
       did,
       `did:web:${pdsHostname}`,

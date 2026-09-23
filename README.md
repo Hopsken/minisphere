@@ -8,9 +8,9 @@ Every AT Protocol identity uses the same account model. Clients and runtimes def
 
 ```text
 Members / clients ──▶ Accounts ──▶ PDS ──▶ Relay ──▶ consumers / AppViews
-                           ▲          │
-                           │          ▼
-Handle requests ──▶ Handle Registry  private PLC Directory
+        Handle resolution ──┘          │
+                                      ▼
+                              configured PLC Directory
 ```
 
 ## Workspace
@@ -20,7 +20,6 @@ Handle requests ──▶ Handle Registry  private PLC Directory
 - [`apps/accounts`](./apps/accounts/README.md) — system authentication server and React SPA on Better Auth, Hono, and D1
 - [`apps/directory`](./apps/directory/README.md) — optional private PLC Directory on a Hono Worker and D1; deployments can use `https://plc.directory` instead
 - [`apps/pds`](./apps/pds/README.md) — PDS XRPC, account, authentication, and repository routing Worker
-- [`apps/handle-registry`](./apps/handle-registry/README.md) — stateless AT Protocol HTTPS handle verification wrapper
 
 ### Examples
 
@@ -55,12 +54,11 @@ The example Worker secrets are for local development only. Configure production 
 ## Commands
 
 ```sh
-pnpm dev              # Run Town, PLC Directory, PDS, Accounts, and Handle Registry
-pnpm dev:atproto      # Run PLC Directory, PDS, Accounts, and Handle Registry
+pnpm dev              # Run Town, PLC Directory, PDS, and Accounts
+pnpm dev:atproto      # Run PLC Directory, PDS, and Accounts
 pnpm dev:accounts     # Run Accounts and its PDS dependency
 pnpm dev:pds          # Run the PDS and Directory
 pnpm dev:directory    # Run only the Directory
-pnpm dev:handle-registry # Run the Handle Registry and its dependencies
 pnpm dev:town         # Run Town with its current local configuration
 pnpm dev:town:local   # Run Town and the complete local AT Protocol service group
 pnpm check            # Run all repository checks through Turbo

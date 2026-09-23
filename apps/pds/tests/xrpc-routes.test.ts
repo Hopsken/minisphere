@@ -1,5 +1,7 @@
-import { exports } from "cloudflare:workers";
+import { env, exports } from "cloudflare:workers";
 import { describe, expect, it } from "vitest";
+
+import worker from "../src";
 
 const ORIGIN = "https://internal.test";
 const JSON_HEADERS = { "Content-Type": "application/json" };
@@ -78,6 +80,20 @@ const invalidRoutes: [path: string, init?: RequestInit][] = [
 ];
 
 describe("XRPC route stubs", () => {
+  it("derives resource metadata without trusting the request host", async () => {
+    const bindings = { ...env, MINISPHERE_ORIGIN: "https://r2d2.party" };
+    Reflect.deleteProperty(bindings, "PDS_ORIGIN");
+    const response = await worker.fetch(
+      new Request(`${ORIGIN}/.well-known/oauth-protected-resource`),
+      bindings
+    );
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toStrictEqual({
+      authorization_servers: ["https://r2d2.party"],
+      resource: "https://pds.r2d2.party",
+    });
+  });
+
   it.each(unimplementedRoutes)("throws for %s", async (path, init) => {
     const response = await request(path, init);
 

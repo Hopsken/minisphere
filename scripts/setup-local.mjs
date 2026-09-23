@@ -8,7 +8,7 @@ const contracts = new Map([
   [
     "apps/accounts/.dev.vars.example",
     [
-      "PUBLIC_URL=http://localhost:8790",
+      "MINISPHERE_ORIGIN=http://localhost:8790",
       "PUBLIC_HANDLE_DOMAIN=r2d2.test",
       "PDS_ORIGIN=http://localhost:8787",
       "PLC_DIRECTORY=http://localhost:8788",
@@ -17,7 +17,7 @@ const contracts = new Map([
   [
     "apps/pds/.dev.vars.example",
     [
-      "ACCOUNTS_ORIGIN=http://localhost:8790",
+      "MINISPHERE_ORIGIN=http://localhost:8790",
       "PDS_ORIGIN=http://localhost:8787",
       "PLC_DIRECTORY=http://localhost:8788",
     ],
@@ -25,14 +25,13 @@ const contracts = new Map([
   [
     "examples/town/.dev.vars.example",
     [
-      "DEV_HANDLE_RESOLVER_ORIGIN=http://localhost:8789",
+      "DEV_HANDLE_RESOLVER_ORIGIN=http://localhost:8790",
       "PLC_DIRECTORY=http://localhost:8788",
       "PUBLIC_URL=http://127.0.0.1:5174",
     ],
   ],
   ["apps/accounts/vite.config.ts", ["port: 8790,", "strictPort: true,"]],
   ["apps/directory/wrangler.jsonc", ['"port": 8788,']],
-  ["apps/handle-registry/wrangler.jsonc", ['"port": 8789,']],
   ["apps/pds/wrangler.jsonc", ['"port": 8787,']],
   ["examples/town/vite.config.ts", ["port: 5174,", "strictPort: true,"]],
 ]);

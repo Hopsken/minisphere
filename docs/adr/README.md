@@ -28,4 +28,5 @@ The current decision log contains these ADR candidates:
 - PLC Directory and PDS data ownership;
 - one DID repository per SQLite Durable Object;
 - the split between PDS D1 and `@minisphere/repo-do`;
-- Accounts ownership of users, primary authentication, usernames, handles, and DIDs, with stateless HTTPS handle verification;
+- Accounts ownership of users, primary authentication, usernames, DIDs, and direct active-only HTTPS/XRPC handle verification;
+- canonical paired-service origin derivation with local-development overrides and mandatory PLC configuration;

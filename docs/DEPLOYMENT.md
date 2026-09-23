@@ -1,112 +1,108 @@
 # Deployment
 
-Run commands from the repository root. Use Node.js 24, pnpm 11, a Cloudflare account, and a verified Resend sender. Replace example domains with your own.
+Run commands from the repository root with Node.js 24, pnpm 11, a Cloudflare account, and a verified Resend sender. Production uses Accounts at `https://r2d2.party` and the PDS at `https://pds.r2d2.party`.
 
-**Directory is optional.** Choose one mode before creating accounts:
+`PLC_DIRECTORY` is mandatory. Set it to `https://plc.directory` or one private Directory origin in both Accounts and PDS (and Town, if deployed). There is no default or public fallback. Public PLC writes are persistent public records; do not switch an existing network between directories without migrating identities.
 
-- **Public PLC:** set `PLC_DIRECTORY=https://plc.directory` in Accounts, PDS, and Town; skip all Directory resources, deployment, domain, and Builds steps below.
-- **Private PLC:** deploy Directory and set the same variable to its HTTP origin in all three apps. Local templates use `http://localhost:8788`.
+## 1. Audit existing deployments
 
-Use the same mode for Accounts, PDS, and Town. Public PLC writes are public, persistent identity records. Do not use it for disposable local tests or switch an existing private network without an identity migration plan.
+Before deploying, back up D1 and encryption keys and record the effective Accounts, PDS, handle, and PLC origins. Preserve those origins and all five existing secrets: Accounts `BETTER_AUTH_SECRET`, `ACCOUNTS_ENCRYPTION_KEY`, and `RESEND_API_KEY`; PDS `PDS_JWT_SECRET` and `PDS_ENCRYPTION_KEY`. No session JWT design changes are part of this migration.
 
-For existing DIDs with only a genesis operation, use the [local migration script](../apps/directory/README.md#copy-a-genesis-operation) before switching directories.
+Reserved usernames are now enforced by the authoritative categorized list in [`apps/accounts/worker/lib/reserved-usernames.ts`](../apps/accounts/worker/lib/reserved-usernames.ts), including `pds`. Audit every occupied normalized username against that file before rollout. A practical audit is to export occupied usernames from Accounts D1, extract the quoted entries from the category lists, normalize both sets to lowercase, and compare their exact intersection. Review every match, especially `pds`, and plan an explicit migration with the account owner. Never silently rename or delete an account.
 
-## 1. Create resources
+The former Handle Registry Worker and `AccountsEntrypoint` are removed. The old Registry cannot call the new Accounts version. Schedule a maintenance window for the Accounts deployment and wildcard-route cutover; this is not a zero-downtime migration. Delete the old Worker only after verifying the new route.
+
+## 2. Create resources
 
 ```sh
 pnpm install --frozen-lockfile
 pnpm check
 pnpm exec wrangler login
 pnpm exec wrangler whoami
-
 pnpm --filter @minisphere/directory exec wrangler d1 create minisphere-directory # Private PLC only
 pnpm --filter @minisphere/pds exec wrangler d1 create minisphere-pds
 pnpm --filter @minisphere/accounts exec wrangler d1 create minisphere-accounts
 ```
 
-Put each returned database ID in its project's `wrangler.jsonc`. For an existing deployment, retain its databases and IDs.
+Put returned IDs in the owning `wrangler.jsonc`; retain existing IDs for existing deployments. Create `minisphere-pds` and `minisphere-accounts` Workers, plus `minisphere-directory` for private PLC and optionally `minisphere-town`. Worker names and the Accounts-to-PDS service binding remain in Wrangler configuration.
 
-In Cloudflare, create Workers named `minisphere-pds`, `minisphere-accounts`, and `minisphere-handle-registry`. Add `minisphere-directory` for private PLC and `minisphere-town` for the optional client. Temporary Hello World Workers are sufficient. Disable their public endpoints until configuration is complete. If you rename Workers, update Wrangler names and service-binding targets too.
+## 3. Set Dashboard runtime values
 
-## 2. Set runtime values
+Use **Settings → Variables and Secrets**, not Builds settings. Production runtime configuration remains Dashboard-managed and `keep_vars` preserves it.
 
-Use each Worker's **Settings → Variables and Secrets**, not Builds settings.
+| Worker   | Text variable       | Production value                   |
+| -------- | ------------------- | ---------------------------------- |
+| Accounts | `MINISPHERE_ORIGIN` | `https://r2d2.party`               |
+| Accounts | `PLC_DIRECTORY`     | selected PLC origin                |
+| Accounts | `EMAIL_FROM`        | verified Resend sender             |
+| Accounts | `EMAIL_ALLOWLIST`   | permitted addresses/domains or `*` |
+| PDS      | `MINISPHERE_ORIGIN` | `https://r2d2.party`               |
+| PDS      | `PLC_DIRECTORY`     | same selected PLC origin           |
 
-| Worker | Variable | Example |
-| --- | --- | --- |
-| Accounts | `PUBLIC_URL` | `https://accounts.example.com` |
-| Accounts | `PUBLIC_HANDLE_DOMAIN` | `example.net` |
-| Accounts | `PDS_ORIGIN` | `https://pds.example.com` |
-| Accounts | `EMAIL_ALLOWLIST` | `you@example.com` |
-| Accounts | `EMAIL_FROM` | `Minisphere <login@example.com>` — verified in Resend |
-| PDS | `ACCOUNTS_ORIGIN` | Same as Accounts `PUBLIC_URL` |
-| PDS | `PDS_ORIGIN` | Same as Accounts `PDS_ORIGIN` |
-| Town | `PUBLIC_URL` | `https://town.example.com` |
-| Accounts, PDS, Town | `PLC_DIRECTORY` | `https://plc.directory` or your private PLC URL |
+`MINISPHERE_ORIGIN` is required in both Workers. It derives the Accounts origin, `r2d2.party` handle suffix, and `https://pds.r2d2.party`. Production uses this layout without `PDS_ORIGIN` or `PUBLIC_HANDLE_DOMAIN` overrides; those are only needed for a different layout, such as local development. Accounts `PUBLIC_URL` and PDS `ACCOUNTS_ORIGIN` are not runtime configuration inputs.
 
-Add these as **Secrets**:
+Keep the five secrets listed above unchanged. Generate secrets only for a new deployment (`openssl rand -base64 32`, except the Resend-issued key) and back up encryption keys. Do not upload `.dev.vars.example`, and do not configure Town's development resolver in production.
 
-- **Accounts:** `BETTER_AUTH_SECRET`, `ACCOUNTS_ENCRYPTION_KEY`, `RESEND_API_KEY`.
-- **PDS:** `PDS_JWT_SECRET`, `PDS_ENCRYPTION_KEY`.
+## 4. Deploy in dependency order
 
-Generate each secret separately with `openssl rand -base64 32`, except the Resend-issued API key. Back up encryption keys; replacing them makes existing encrypted data unreadable.
-
-Directory and Handle Registry need no runtime variables. Do not upload `.dev.vars.example` values or set `DEV_HANDLE_RESOLVER_ORIGIN` in production. `keep_vars` preserves Dashboard values, but deployment does not validate missing secrets.
-
-## 3. Deploy in order
-
-These commands change production data. For existing databases, review the [Accounts migration warning](../apps/accounts/README.md#database) and back up data first. Stop if a command fails.
+Review the [Accounts database migration warning](../apps/accounts/README.md#database) and stop on failure. Worker-first asset paths include `/.well-known/atproto-did`, `/.well-known/oauth-authorization-server`, `/xrpc/com.atproto.identity.resolveHandle`, `/api/*`, `/oauth/*`, and `/__dev/*`, so these requests reach the Worker rather than the SPA fallback.
 
 ```sh
 pnpm build
 pnpm --filter @minisphere/directory run db:migrate:remote # Private PLC only
-pnpm --filter @minisphere/directory run deploy # Private PLC only
+pnpm --filter @minisphere/directory run deploy            # Private PLC only
 pnpm --filter @minisphere/pds run db:migrate:remote
 pnpm --filter @minisphere/pds run deploy
 pnpm --filter @minisphere/accounts run db:migrate:remote
 pnpm --filter @minisphere/accounts run deploy
-pnpm --filter @minisphere/handle-registry run deploy
-pnpm --filter @minisphere/town run deploy # Optional
+pnpm --filter @minisphere/town run deploy                 # Optional
 ```
 
-Keep this order for the first deployment so dependencies exist. Use `run deploy`, not pnpm's built-in `deploy` command. A code rollback does not reverse database migrations.
+Use `run deploy`, not pnpm's built-in deploy command. A code rollback does not reverse database migrations.
 
-## 4. Add domains
+## 5. Configure domains and route
 
-In **Settings → Domains & Routes**, add Custom Domains for Accounts, PDS, Directory, and Town to match the URLs above. Wrangler leaves Dashboard routes unchanged; `workers.dev` is disabled.
+In **Settings → Domains & Routes**:
 
-For Handle Registry, add the Worker route `*.example.net/*`. It requires a proxied wildcard DNS record and a certificate covering `*.example.net`. The suffix must match `PUBLIC_HANDLE_DOMAIN`.
+1. Add the Accounts Custom Domain `r2d2.party`.
+2. Add the PDS Custom Domain `pds.r2d2.party`.
+3. Create proxied wildcard DNS and ensure a certificate covers `*.r2d2.party`.
+4. After Accounts verification, route exactly `*.r2d2.party/.well-known/atproto-did` to Accounts.
 
-## 5. Connect Workers Builds
+Do **not** add a blanket `*.r2d2.party/*` route: it would capture unrelated subdomain traffic. Wrangler does not create or modify these Dashboard-managed resources automatically.
 
-Connect the repository's production branch to each Worker. Set the root directory and commands below.
+## 6. Workers Builds
 
-Build variables: `NODE_VERSION=24`, `PNPM_VERSION=11.21.0` (match root `package.json`), and `SKIP_DEPENDENCY_INSTALL=1`.
-
-Build command — replace `PACKAGE` with the table value:
+Use build variables `NODE_VERSION=24`, `PNPM_VERSION=11.21.0`, and `SKIP_DEPENDENCY_INSTALL=1`. Build with:
 
 ```sh
 pnpm -w install --frozen-lockfile && pnpm -w exec turbo run build --filter=PACKAGE
 ```
 
-| Worker | Root directory | Package | Deploy command |
+| Worker | Root | Package | Deploy command |
 | --- | --- | --- | --- |
-| Directory (private PLC only) | `apps/directory` | `@minisphere/directory` | `pnpm run db:migrate:remote && pnpm run deploy` |
+| Directory (private only) | `apps/directory` | `@minisphere/directory` | `pnpm run db:migrate:remote && pnpm run deploy` |
 | PDS | `apps/pds` | `@minisphere/pds` | `pnpm run db:migrate:remote && pnpm run deploy` |
 | Accounts | `apps/accounts` | `@minisphere/accounts` | `pnpm run db:migrate:remote && pnpm run deploy` |
-| Handle Registry | `apps/handle-registry` | `@minisphere/handle-registry` | `pnpm run deploy` |
-| Town | `examples/town` | `@minisphere/town` | `pnpm run deploy` |
+| Town (optional) | `examples/town` | `@minisphere/town` | `pnpm run deploy` |
 
-- The Builds token needs Worker deployment permissions and **D1 → Edit** for migrations.
-- CI applies migrations without confirmation. For manual approval, migrate separately and use `pnpm run deploy` only.
-- Builds variables do not become runtime variables. No `.dev.vars` file is needed.
-- Disable preview builds until they have separate Workers, databases, secrets, and domains.
-- Workers Builds does not wait for GitHub checks or other Workers. Merge tested changes; coordinate releases that change service contracts.
+Build variables are not runtime bindings. Disable previews unless they have separate resources. The token needs Worker deployment and D1 edit permissions.
 
-## 6. Verify
+CI applies migrations without confirmation. For manual approval, migrate separately and use `pnpm run deploy` only. Workers Builds does not wait for GitHub checks or other Workers; coordinate releases that change service contracts.
 
-Check private Directory `/_health` if deployed, PDS `/.well-known/oauth-protected-resource`, Accounts `/.well-known/oauth-authorization-server`, and Town `/oauth-client-metadata.json`. All advertised origins must match production.
+For optional Town, set runtime `PUBLIC_URL` and the same `PLC_DIRECTORY`, then add its matching Custom Domain. A private Directory also needs a Custom Domain matching `PLC_DIRECTORY`; public PLC deployments need no Directory Worker.
 
-Use a test account to verify email login, username creation, `https://<username>.example.net/.well-known/atproto-did`, and Town OAuth login. This creates persistent account data. Accounts `/__dev/log-me-in/dev@example.com` must return 404.
+## 7. Verify and cut over
 
-See [current limitations](../DEVELOPMENT.md) before accepting real user data.
+Before changing the wildcard route, verify Accounts directly:
+
+- `/.well-known/oauth-authorization-server` advertises `https://r2d2.party`;
+- PDS `/.well-known/oauth-protected-resource` advertises the derived production origins;
+- `/xrpc/com.atproto.identity.resolveHandle?handle=<active-user>.r2d2.party` returns the active DID and permits XRPC CORS;
+- inactive and unknown names do not resolve; reserved names cannot be newly registered (existing records require the audit above);
+- login, username creation, and Town OAuth still work; and
+- `/__dev/log-me-in/dev@example.com` returns 404.
+
+Then switch only the well-known wildcard route, verify `https://<active-user>.r2d2.party/.well-known/atproto-did`, and only afterward remove the old Handle Registry Worker. These are manual Cloudflare changes; deployment performs none automatically.
+
+See [current limitations](../DEVELOPMENT.md) before accepting real user data. Test account creation writes persistent identity data.

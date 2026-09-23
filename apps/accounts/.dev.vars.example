@@ -1,6 +1,7 @@
 # Local development value only. Never reuse it in production.
 BETTER_AUTH_SECRET=local-development-better-auth-secret-change-me
-PUBLIC_URL=http://localhost:8790
+# Local ports and handles override the production domain layout.
+MINISPHERE_ORIGIN=http://localhost:8790
 PUBLIC_HANDLE_DOMAIN=r2d2.test
 EMAIL_ALLOWLIST=example.com
 EMAIL_FROM=Minisphere <login@example.com>
