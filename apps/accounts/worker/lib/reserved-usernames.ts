@@ -102,6 +102,7 @@ const reservedUsernamesByCategory = {
     "ready",
     "readyz",
     "status",
+    "town",
     "well-known",
   ],
 } as const;

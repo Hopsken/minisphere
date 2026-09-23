@@ -32,6 +32,16 @@ export default defineConfig(async () => {
   const oauthSigningKey = await Secp256k1PrivateKeyExportable.createKeypair();
   const oauthSigningKeyMultikey =
     await oauthSigningKey.exportPrivateKey("multikey");
+  const oauthJwks = {
+    keys: [
+      {
+        ...(await oauthSigningKey.exportPublicKey("jwk")),
+        alg: "ES256K",
+        kid: await oauthSigningKey.exportPublicKey("did"),
+        use: "sig",
+      },
+    ],
+  };
   const jwtSecret = "test-pds-jwt-secret-with-at-least-32-bytes";
   const signingKeyEncryptionKey =
     "test-signing-key-encryption-secret-at-least-32-bytes";
@@ -62,6 +72,17 @@ export default defineConfig(async () => {
               export default {
                 async fetch(request) {
                   const url = new URL(request.url);
+                  if (url.origin === "https://redirect.test") {
+                    return Response.redirect("https://minisphere.test/.well-known/oauth-authorization-server");
+                  }
+                  if (url.origin === "https://minisphere.test") {
+                    if (url.pathname === "/.well-known/oauth-authorization-server") {
+                      return Response.json({ issuer: url.origin, jwks_uri: url.origin + "/oauth/jwks" });
+                    }
+                    if (url.pathname === "/oauth/jwks") {
+                      return Response.json(${JSON.stringify(oauthJwks)});
+                    }
+                  }
                   if (url.origin !== "https://directory.test") {
                     return new Response("Unexpected PLC origin", { status: 400 });
                   }

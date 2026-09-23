@@ -7,7 +7,7 @@ catalogMode: prefer
 
 catalog:
   "@atcute/atproto": ^4.0.4
-  "@atcute/bluesky": ^4.0.21
+  "@atcute/bluesky": ^4.0.22
   "@atcute/car": ^6.0.2
   "@atcute/cbor": ^2.3.6
   "@atcute/cid": ^2.4.2
@@ -24,6 +24,7 @@ catalog:
   "@atcute/tid": ^1.1.4
   "@atproto/crypto": ^0.4.5
   "@atproto/lex-json": ^0.1.6
+  "@atproto/oauth-scopes": ^0.5.12
   "@atproto/repo": ^0.10.11
   "@base-ui/react": ^1.7.0
   "@better-auth/drizzle-adapter": ^1.7.1
@@ -78,3 +79,4 @@ minimumReleaseAgeExclude:
   - "@cloudflare/workers-types@5.20260821.1"
   - "@cloudflare/vite-plugin@1.52.0"
   - miniflare@5.20260820.0-alpha
+  - "@atcute/bluesky@4.0.22"

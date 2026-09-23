@@ -126,6 +126,10 @@ The Worker enables Cloudflare's `global_fetch_strictly_public` compatibility fla
 
 The AT Protocol authorization server accepts URL-based public clients only. Confidential `private_key_jwt` clients and client signing-key continuity are deferred and are not advertised. Dynamic registration, OAuth client secrets, client credentials, and implicit grants are not supported. This protocol is separate from email login and remains enabled.
 
+Accounts accepts `atproto` and valid `repo` permissions for any collection, including multiple collections, action subsets, and the explicit `*` wildcard. `@atproto/oauth-scopes` validates permission semantics; each requested scope string must also appear in client metadata. Consent and tokens retain exactly the requested scopes, and refresh never expands them. Authorization-server metadata lists static scopes only, not the unbounded set of collection permissions.
+
+The consent UI renders actions and collections generically. Its optional collection-name map supplies friendly labels such as “Bluesky posts”; it does not authorize a collection or load its schema. Unknown collections remain usable and display their NSIDs. Permission sets (`include:`), blob, RPC, identity, and account permissions remain unsupported. Supporting permission sets requires authenticated Lexicon resolution, namespace checks, and matching resource-server enforcement, not just a display label.
+
 ## Database
 
 The per-account PLC migration requires no existing rows with old DID material. It preserves empty reservations, but deliberately rejects old identity rows that lack encrypted keys and signed operations. There is no legacy-key conversion. Do not apply it to non-disposable data without a separate migration plan; do not delete that data to bypass the constraint.

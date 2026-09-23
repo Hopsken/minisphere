@@ -5,6 +5,15 @@ export const accountsTable = sqliteTable("accounts", {
   did: text().primaryKey(),
 });
 
+export const dpopStateTable = sqliteTable(
+  "dpop_state",
+  {
+    expiresAt: integer("expires_at").notNull(),
+    key: text().primaryKey(),
+  },
+  (table) => [index("dpop_state_expires_at_idx").on(table.expiresAt)]
+);
+
 export const accountInvitationsTable = sqliteTable(
   "account_invitations",
   {

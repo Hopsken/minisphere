@@ -38,7 +38,7 @@ Drafts and a pending operation are stored in browser local storage, keyed by DID
 
 - A successful write is read back with `getRecord` before the post is displayed. Confirmed writes clear the composer even if readback fails. **Retry reading** never sends another write.
 - After a failed or timed-out write, Town checks the same key. If found with the expected text and timestamp, it displays the record. If absent, the user can retry the same record/key. If reading fails, Town keeps the draft and only offers a check. It never silently creates a new key for an uncertain write.
-- A reload retains a pending operation. The most recent 10 posts are loaded with `listRecords`, `reverse=true`, and `limit=10`, in descending repository-key order rather than sorted by user-supplied timestamps. After a post is read back, Town shows it immediately and refreshes the list. A failed list refresh keeps the visible posts and offers a read-only retry.
+- A reload retains a pending operation. The most recent 10 posts are loaded with `listRecords` and `limit=10`, using the default descending repository-key order rather than sorting by user-supplied timestamps. `reverse=true` would return the oldest keys first. After a post is read back, Town shows it immediately and refreshes the list. A failed list refresh keeps the visible posts and offers a read-only retry.
 - Duplicate clicks are blocked while an operation is active. Pending writes must be resolved before composing another post.
 
 ## Development

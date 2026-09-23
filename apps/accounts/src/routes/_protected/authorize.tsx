@@ -1,4 +1,5 @@
 /* oxlint-disable eslint/func-style, eslint/no-use-before-define -- TanStack file routes export Route before their component declarations. */
+import { RepoPermission } from "@atproto/oauth-scopes";
 import { queryOptions } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
@@ -36,6 +37,29 @@ const authorizationDetailsQuery = (consentToken: string) =>
     staleTime: 0,
   });
 
+// Display names only: adding a label never grants permission or enables a schema.
+const collectionLabels = new Map([["app.bsky.feed.post", "Bluesky posts"]]);
+const permissionList = new Intl.ListFormat("en", { type: "conjunction" });
+
+const scopeLabel = (scope: string) => {
+  if (scope === "atproto") {
+    return "Access your AT Protocol account";
+  }
+  const permission = RepoPermission.fromString(scope);
+  if (permission) {
+    const actions = permissionList.format(permission.action);
+    const targets = permission.collection.map((collection) => {
+      if (collection === "*") {
+        return "all public records (all collections)";
+      }
+      const label = collectionLabels.get(collection);
+      return label ? `public ${label}` : `public records in ${collection}`;
+    });
+    return `${actions.charAt(0).toUpperCase()}${actions.slice(1)} ${permissionList.format(targets)}`;
+  }
+  return `Requested permission: ${scope}`;
+};
+
 export const Route = createFileRoute("/_protected/authorize")({
   beforeLoad: async ({ context, search }) => ({
     authorization: await context.queryClient.fetchQuery(
@@ -54,13 +78,10 @@ function AuthorizationPage() {
   const clientLabel = clientId.startsWith("http://localhost")
     ? "Local application"
     : clientId;
-  const scopes = scope
-    .split(" ")
-    .map((value) =>
-      value === "atproto"
-        ? "Access your AT Protocol account"
-        : value.replaceAll(/[:_-]+/gu, " ")
-    );
+  const scopes = scope.split(" ").map((value) => ({
+    label: scopeLabel(value),
+    value,
+  }));
 
   return (
     <section className="flex w-full max-w-md flex-col items-center text-center">
@@ -75,9 +96,9 @@ function AuthorizationPage() {
         {subject.did}
       </p>
 
-      <ul className="border-border bg-card mt-8 w-full rounded-2xl border p-4 text-left text-sm shadow-xs">
-        {scopes.map((value) => (
-          <li key={value}>{value}</li>
+      <ul className="border-border bg-card mt-8 w-full space-y-2 rounded-2xl border p-4 text-left text-sm [overflow-wrap:anywhere] shadow-xs">
+        {scopes.map(({ label: scopeLabelValue, value }) => (
+          <li key={value}>{scopeLabelValue}</li>
         ))}
       </ul>
 

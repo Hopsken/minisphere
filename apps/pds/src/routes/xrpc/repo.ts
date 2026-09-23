@@ -6,45 +6,51 @@ import * as GetRecord from "@atcute/atproto/types/repo/getRecord";
 import * as ListRecords from "@atcute/atproto/types/repo/listRecords";
 import * as PutRecord from "@atcute/atproto/types/repo/putRecord";
 import { Hono } from "hono";
+import { bodyLimit } from "hono/body-limit";
 
 import { withRepoReader } from "../../middlewares/with-repo-reader";
+import { withRepoWriter } from "../../middlewares/with-repo-writer";
 import {
   lexiconJsonValidator,
   lexiconQueryValidator,
 } from "../../utils/lexicon-validator";
+import { xrpcError } from "../../utils/xrpc-error";
+
+const writeBodyLimit = bodyLimit({
+  maxSize: 1_000_000,
+  onError: () => {
+    throw xrpcError("InvalidRequest", "Write request is too large");
+  },
+});
 
 const app = new Hono<{ Bindings: Env }>()
   .post(
     "/com.atproto.repo.createRecord",
+    writeBodyLimit,
     lexiconJsonValidator(CreateRecord.mainSchema.input.schema),
-    () => {
-      // Expected response: CreateRecord.$output
-      throw new Error("Not implemented");
-    }
+    withRepoWriter,
+    async (c) => c.json(await c.var.repoWriter.create(c.req.valid("json")))
   )
   .post(
     "/com.atproto.repo.putRecord",
+    writeBodyLimit,
     lexiconJsonValidator(PutRecord.mainSchema.input.schema),
-    () => {
-      // Expected response: PutRecord.$output
-      throw new Error("Not implemented");
-    }
+    withRepoWriter,
+    async (c) => c.json(await c.var.repoWriter.put(c.req.valid("json")))
   )
   .post(
     "/com.atproto.repo.deleteRecord",
+    writeBodyLimit,
     lexiconJsonValidator(DeleteRecord.mainSchema.input.schema),
-    () => {
-      // Expected response: DeleteRecord.$output
-      throw new Error("Not implemented");
-    }
+    withRepoWriter,
+    async (c) => c.json(await c.var.repoWriter.delete(c.req.valid("json")))
   )
   .post(
     "/com.atproto.repo.applyWrites",
+    writeBodyLimit,
     lexiconJsonValidator(ApplyWrites.mainSchema.input.schema),
-    () => {
-      // Expected response: ApplyWrites.$output
-      throw new Error("Not implemented");
-    }
+    withRepoWriter,
+    async (c) => c.json(await c.var.repoWriter.apply(c.req.valid("json")))
   )
   .get(
     "/com.atproto.repo.getRecord",

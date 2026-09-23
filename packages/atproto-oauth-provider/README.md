@@ -18,6 +18,10 @@ The first milestone supports public clients only:
 
 PAR requests expire after five minutes, authorization codes expire after one minute, and public-client sessions have a fixed maximum age of two weeks. Access tokens expire after five minutes. The application token callback must bind the resolved DID as `sub`, the resource origin as `aud`, and the DPoP JWK thumbprint as `cnf.jkt`.
 
+PAR accepts an omitted `prompt` or `prompt=consent`. Both require explicit user consent. Other prompt modes, including silent authorization with `prompt=none`, are not supported and return `invalid_request`.
+
+Repository scopes are dynamic: `RepoPermission` from `@atproto/oauth-scopes` validates collection NSIDs, wildcards, actions, and parameter names. Each requested scope must occur exactly in client metadata. `supportedScopes` lists static scopes for discovery (default `atproto`), not an exhaustive list of repository permissions. The provider does not resolve `include:` permission sets or infer permissions from human-readable collection labels.
+
 All request URIs, authorization codes, refresh tokens, PKCE reservations, DPoP proof identifiers, and nonces use Better Auth verification records. A Worker deployment must configure a database-backed Better Auth adapter. In-memory adapters do not provide the required cross-isolate atomic guarantees.
 
 Client metadata fetches reject redirects, local hostname forms, oversized bodies, and slow responses. Cloudflare deployments must enable the `global_fetch_strictly_public` compatibility flag so a malicious metadata hostname cannot route global `fetch()` to a same-zone Worker or private network. Other Worker platforms must supply an equivalently hardened `clientMetadataFetch` callback.

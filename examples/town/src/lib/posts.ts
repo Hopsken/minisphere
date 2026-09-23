@@ -68,7 +68,7 @@ export const getRecentPosts = async (
   did: Did
 ): Promise<Post[]> => {
   const response = await client.get("com.atproto.repo.listRecords", {
-    params: { collection, limit: 10, repo: did, reverse: true },
+    params: { collection, limit: 10, repo: did },
     signal: AbortSignal.timeout(15_000),
   });
   if (!response.ok) {

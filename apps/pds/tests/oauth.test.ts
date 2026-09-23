@@ -40,31 +40,6 @@ const getSigningKey = () => {
   return Secp256k1PrivateKey.importRaw(parsedKey.privateKeyBytes);
 };
 
-const oauthMetadataFetch: typeof fetch = async (input) => {
-  const url = new URL(new Request(input).url);
-  if (url.href === `${accountsOrigin}/.well-known/oauth-authorization-server`) {
-    return Response.json({
-      issuer: accountsOrigin,
-      jwks_uri: `${accountsOrigin}/oauth/jwks`,
-    });
-  }
-  if (url.href === `${accountsOrigin}/oauth/jwks`) {
-    const key = await getSigningKey();
-    return Response.json({
-      keys: [
-        {
-          ...(await key.exportPublicKey("jwk")),
-          alg: "ES256K",
-          key_ops: ["verify"],
-          kid: await key.exportPublicKey("did"),
-          use: "sig",
-        },
-      ],
-    });
-  }
-  return new Response("Not Found", { status: 404 });
-};
-
 const createAccessToken = async (
   overrides: Partial<typeof tokenInput> & { issuedAt?: number } = {}
 ) => {
@@ -120,8 +95,7 @@ describe("PDS OAuth resource contract", () => {
     const claims = await verifyOAuthAccessToken(
       token,
       accountsOrigin,
-      pdsOrigin,
-      oauthMetadataFetch
+      pdsOrigin
     );
 
     expect(claims).toMatchObject({
@@ -139,24 +113,14 @@ describe("PDS OAuth resource contract", () => {
   it("rejects the wrong audience during token verification", async () => {
     const token = await createAccessToken();
     await expect(
-      verifyOAuthAccessToken(
-        token,
-        accountsOrigin,
-        "https://other-pds.example",
-        oauthMetadataFetch
-      )
+      verifyOAuthAccessToken(token, accountsOrigin, "https://other-pds.example")
     ).rejects.toThrow(/aud/u);
   });
 
   it("rejects an access token with a lifetime beyond five minutes", async () => {
     const token = await createAccessToken({ expiresIn: 301 });
     await expect(
-      verifyOAuthAccessToken(
-        token,
-        accountsOrigin,
-        pdsOrigin,
-        oauthMetadataFetch
-      )
+      verifyOAuthAccessToken(token, accountsOrigin, pdsOrigin)
     ).rejects.toThrow(/lifetime/u);
   });
 
@@ -164,13 +128,7 @@ describe("PDS OAuth resource contract", () => {
     const now = Math.floor(Date.now() / 1000);
     const token = await createAccessToken({ issuedAt: now + 60 });
     await expect(
-      verifyOAuthAccessToken(
-        token,
-        accountsOrigin,
-        pdsOrigin,
-        oauthMetadataFetch,
-        now
-      )
+      verifyOAuthAccessToken(token, accountsOrigin, pdsOrigin, fetch, now)
     ).rejects.toThrow(/lifetime/u);
   });
 
@@ -181,12 +139,14 @@ describe("PDS OAuth resource contract", () => {
     const replacement = signature.startsWith("A") ? "B" : "A";
     parts[2] = `${replacement}${signature.slice(1)}`;
     await expect(
-      verifyOAuthAccessToken(
-        parts.join("."),
-        accountsOrigin,
-        pdsOrigin,
-        oauthMetadataFetch
-      )
+      verifyOAuthAccessToken(parts.join("."), accountsOrigin, pdsOrigin)
     ).rejects.toThrow(/signature/u);
+  });
+
+  it("rejects discovery redirects instead of following them", async () => {
+    const token = await createAccessToken();
+    await expect(
+      verifyOAuthAccessToken(token, "https://redirect.test", pdsOrigin)
+    ).rejects.toThrow("OAuth metadata request failed with 302");
   });
 });

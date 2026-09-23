@@ -272,6 +272,7 @@ describe("Entryway account API", () => {
       " WebMaster ",
       " CDN ",
       " Managed-Accounts ",
+      " ToWn ",
     ];
 
     await Promise.all(
@@ -302,9 +303,17 @@ describe("Entryway account API", () => {
     );
 
     const persisted = await env.DB.prepare(
-      "SELECT COUNT(*) AS count FROM atproto_account WHERE username IN (?, ?, ?, ?, ?, ?)"
+      "SELECT COUNT(*) AS count FROM atproto_account WHERE username IN (?, ?, ?, ?, ?, ?, ?)"
     )
-      .bind("pds", "admin", "api", "webmaster", "cdn", "managed-accounts")
+      .bind(
+        "pds",
+        "admin",
+        "api",
+        "webmaster",
+        "cdn",
+        "managed-accounts",
+        "town"
+      )
       .first<{ count: number }>();
     expect(persisted?.count).toBe(0);
   });

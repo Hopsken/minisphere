@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@atcute/crypto": "catalog:",
+    "@atcute/tid": "catalog:",
     "@atproto/crypto": "catalog:",
     "@atproto/lex-data": "^0.1.7",
     "@atproto/lex-json": "catalog:",
