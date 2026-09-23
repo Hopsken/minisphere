@@ -26,7 +26,7 @@ This file records the current implementation state and important architecture de
 - The private PLC Directory supports DID registration, resolution, updates, recovery, and audit logs.
 - D1 stores the append-only PLC operation log and derived DID state.
 - The PDS submits genesis operations to the configured Directory.
-- Accounts reads resolved PLC state from that Directory before activation. It does not submit operations.
+- Accounts reads resolved PLC state from that Directory before activation. Authenticated users can read and correct their own live PLC PDS endpoint through `GET/PATCH /api/account/plc` and a separate Settings page. Rotation-key editing is not supported. Updates preserve the other live PLC fields, stored genesis, and encrypted rotation key. PATCH requires same-origin headers and an expected head. Signing requires the managed key to have lowest priority at the current head, so a submission race cannot become an unintended PLC recovery. Accounts reads back after all submission attempts and never automatically resubmits. See the Accounts README for the interface and recovery limits.
 
 ### Town example
 

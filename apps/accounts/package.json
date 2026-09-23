@@ -49,6 +49,8 @@
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@atcute/cbor": "catalog:",
+    "@atcute/cid": "catalog:",
     "@cloudflare/vite-plugin": "catalog:",
     "@cloudflare/vitest-pool-workers": "catalog:",
     "@tailwindcss/vite": "catalog:",

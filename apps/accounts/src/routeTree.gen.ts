@@ -15,6 +15,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as ProtectedAuthorizeRouteImport } from './routes/_protected/authorize'
 import { Route as ProtectedDashboardRouteImport } from './routes/_protected/dashboard'
 import { Route as ProtectedOnboardingUsernameRouteImport } from './routes/_protected/onboarding/username'
+import { Route as ProtectedSettingsIndexRouteImport } from './routes/_protected/settings/index'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -46,6 +47,11 @@ const ProtectedOnboardingUsernameRoute =
     path: '/onboarding/username',
     getParentRoute: () => ProtectedRoute,
   } as any)
+const ProtectedSettingsIndexRoute = ProtectedSettingsIndexRouteImport.update({
+  id: '/settings/',
+  path: '/settings/',
+  getParentRoute: () => ProtectedRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -53,6 +59,7 @@ export interface FileRoutesByFullPath {
   '/authorize': typeof ProtectedAuthorizeRoute
   '/dashboard': typeof ProtectedDashboardRoute
   '/onboarding/username': typeof ProtectedOnboardingUsernameRoute
+  '/settings/': typeof ProtectedSettingsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -60,6 +67,7 @@ export interface FileRoutesByTo {
   '/authorize': typeof ProtectedAuthorizeRoute
   '/dashboard': typeof ProtectedDashboardRoute
   '/onboarding/username': typeof ProtectedOnboardingUsernameRoute
+  '/settings': typeof ProtectedSettingsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -69,13 +77,25 @@ export interface FileRoutesById {
   '/_protected/authorize': typeof ProtectedAuthorizeRoute
   '/_protected/dashboard': typeof ProtectedDashboardRoute
   '/_protected/onboarding/username': typeof ProtectedOnboardingUsernameRoute
+  '/_protected/settings/': typeof ProtectedSettingsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/login' | '/authorize' | '/dashboard' | '/onboarding/username'
+    | '/'
+    | '/login'
+    | '/authorize'
+    | '/dashboard'
+    | '/onboarding/username'
+    | '/settings/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/login' | '/authorize' | '/dashboard' | '/onboarding/username'
+  to:
+    | '/'
+    | '/login'
+    | '/authorize'
+    | '/dashboard'
+    | '/onboarding/username'
+    | '/settings'
   id:
     | '__root__'
     | '/'
@@ -84,6 +104,7 @@ export interface FileRouteTypes {
     | '/_protected/authorize'
     | '/_protected/dashboard'
     | '/_protected/onboarding/username'
+    | '/_protected/settings/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -136,6 +157,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProtectedOnboardingUsernameRouteImport
       parentRoute: typeof ProtectedRoute
     }
+    '/_protected/settings/': {
+      id: '/_protected/settings/'
+      path: '/settings'
+      fullPath: '/settings/'
+      preLoaderRoute: typeof ProtectedSettingsIndexRouteImport
+      parentRoute: typeof ProtectedRoute
+    }
   }
 }
 
@@ -143,12 +171,14 @@ interface ProtectedRouteChildren {
   ProtectedAuthorizeRoute: typeof ProtectedAuthorizeRoute
   ProtectedDashboardRoute: typeof ProtectedDashboardRoute
   ProtectedOnboardingUsernameRoute: typeof ProtectedOnboardingUsernameRoute
+  ProtectedSettingsIndexRoute: typeof ProtectedSettingsIndexRoute
 }
 
 const ProtectedRouteChildren: ProtectedRouteChildren = {
   ProtectedAuthorizeRoute: ProtectedAuthorizeRoute,
   ProtectedDashboardRoute: ProtectedDashboardRoute,
   ProtectedOnboardingUsernameRoute: ProtectedOnboardingUsernameRoute,
+  ProtectedSettingsIndexRoute: ProtectedSettingsIndexRoute,
 }
 
 const ProtectedRouteWithChildren = ProtectedRoute._addFileChildren(
