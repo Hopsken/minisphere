@@ -4,7 +4,7 @@ The PDS is a Hono Cloudflare Worker that exposes AT Protocol XRPC routes. It own
 
 ## Data ownership and bindings
 
-- PDS D1 stores active account DIDs, refresh-token records, short-lived account invitation codes and expiry times, and encrypted repository signing-key reservations. It does not store OIDC identities, usernames, or primary account passwords.
+- PDS D1 stores active account DIDs, refresh-token records, short-lived account invitation codes and expiry times, encrypted repository signing-key reservations, and resource-server DPoP nonce/replay state. It does not store OIDC identities, usernames, or primary account passwords.
 - [`@minisphere/repo-do`](../../packages/repo-do/README.md) owns repository data and repository signing keys.
 - PLC genesis operations and recovery reads use HTTP at `PLC_DIRECTORY`, which defaults to `https://plc.directory` when omitted. Accounts and Town must use the same directory. Invalid explicit values fail configuration validation, and failed requests do not switch to another directory.
 - `PdsControlPlane.generateInviteCode()` is a named RPC entrypoint for Accounts.
@@ -38,7 +38,22 @@ The PDS does not allocate or enforce hosted-handle uniqueness. Accounts owns tha
 
 Accounts revocation stops refresh and new token issuance. An already issued access JWT can remain valid until its five-minute expiry. On protected resource requests, the PDS must also confirm that `sub` is a local active account; token signature verification alone is not account authorization.
 
-PDS XRPC routes do not yet accept these OAuth tokens or enforce repository permissions. Resource-request DPoP verification, including `ath`, and scope enforcement are the next PDS milestone. That work must use `@atproto/oauth-scopes` for AT Protocol permission checks; OAuth client scope builders do not enforce permissions.
+Record-write routes require `Authorization: DPoP <access-token>` and an ES256 `DPoP` proof. The PDS verifies the proof's public key against `cnf.jkt`, token hash (`ath`), method, canonical PDS origin plus request path, and a maximum proof age of 60 seconds. Query strings are not part of the proof URL. Missing or expired nonces return `401` with `WWW-Authenticate: DPoP error="use_dpop_nonce"` and a fresh `DPoP-Nonce`. CORS exposes both headers. PDS D1 retains random server nonces and atomically claimed proof IDs for five minutes; nonce issuance removes expired rows. No access tokens or private DPoP keys are stored.
+
+`@atproto/oauth-scopes` checks collection/action permissions. `atproto` alone grants no writes. The resolved target DID must equal the locally registered token subject. Legacy PDS session JWTs and app passwords are not accepted by these routes. Accounts accepts generic repository permissions, but each client must declare, request, and obtain consent for the needed operations. Friendly collection labels in Accounts do not affect PDS authorization or schema validation. Permission sets (`include:`) are not supported yet.
+
+## Authenticated repository writes
+
+- `com.atproto.repo.createRecord` creates a new record, generating a TID when `rkey` is omitted. An existing key fails rather than being replaced.
+- `com.atproto.repo.putRecord` creates or replaces a record and requires both create and update permissions. An identical value is a no-op.
+- `com.atproto.repo.deleteRecord` deletes a record or ensures it is absent. Deleting an absent record without a conflicting precondition is a no-op.
+- `com.atproto.repo.applyWrites` applies up to 200 ordered create/update/delete operations in a single atomic commit. Every operation needs permission before any repository mutation. Batch updates/deletes require an existing record.
+
+`swapCommit` checks the current head. A supplied `swapRecord` checks the current record CID; `putRecord` also accepts `null` to require absence. Omission means no record precondition. Failed conditions return `InvalidSwap` and do not modify storage. No-op responses return the unchanged commit metadata.
+
+Write JSON bodies are limited to 1,000,000 bytes, record nesting to 32 levels, and commit proof blocks to 2,000,000 bytes. Data must conform to the Lexicon data model even when schema validation is skipped. `$type` defaults to the collection when absent and must otherwise match it. `app.bsky.feed.post` uses the official Atcute schema and record-key validation. With `validate` omitted, unknown collections are accepted with `validationStatus: "unknown"`; `true` requires a known valid schema, and `false` skips schema validation and returns `unknown`. Blob references are rejected until blob storage is implemented. No remote Lexicon discovery is performed.
+
+`withRepoWriter` supplies the authenticated request-scoped `RepoWriter`; RepoDO owns head/record comparisons, signing, and ordered commit application. The write queue includes the whole read/check/sign/commit sequence, not just its SQLite transaction. Blocks are inserted in bounded chunks inside the same transaction as the root update. Failed writes release the queue without changing the cached head. No subscription or relay event is emitted yet.
 
 ## Public repository reads
 
@@ -53,7 +68,7 @@ Repository reads accept a DID or handle; sync reads accept a DID. Reads do not f
 
 The PDS enables `global_fetch_strictly_public` so HTTPS identity resolution reaches public Worker routes, including the Accounts hosted-handle route in the same Cloudflare zone. Without this flag, same-zone fetches bypass Worker routes and go to the origin server instead.
 
-Tests seed disposable repositories directly in the Workers test runtime because public record mutation is not implemented. They do not create identities in the public PLC Directory.
+Tests initialize disposable repositories in the Workers test runtime. Write tests use signed OAuth tokens and DPoP proofs against the routes, with real D1 and RepoDO storage and controlled JWKS responses. They do not create identities in the public PLC Directory.
 
 The four read routes use `withRepoReader` middleware after query validation. It creates one request-scoped `RepoReader` in `ctx.var.repoReader`; other XRPC routes do not initialize it. The service receives its dependencies through its constructor and does not read Worker configuration.
 

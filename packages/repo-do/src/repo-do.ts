@@ -7,6 +7,8 @@ import { DurableObject } from "cloudflare:workers";
 
 import { CoreStorage } from "./core";
 import { createDatabase } from "./db";
+import { prepareCommit } from "./writes";
+import type { RepoWriteRequest, RepoWriteResponse } from "./writes";
 
 const importSigningKey = (signingKey: string): Promise<Secp256k1Keypair> => {
   const parsedKey = parsePrivateMultikey(signingKey);
@@ -22,6 +24,7 @@ export class RepoDO extends DurableObject<Record<string, never>> {
 
   private keypair: Secp256k1Keypair | null = null;
   private repo: Repo | null = null;
+  private writeTail: Promise<void> = Promise.resolve();
 
   constructor(ctx: DurableObjectState, env: Record<string, never>) {
     super(ctx, env);
@@ -81,8 +84,40 @@ export class RepoDO extends DurableObject<Record<string, never>> {
       throw new Error("Corrupted data, try recreate with the same DID");
     }
 
-    this.repo = await Repo.load(this.core, root);
-    return this.repo;
+    // A cold read may overlap a commit; it must not overwrite the writer's cache.
+    return Repo.load(this.core, root);
+  }
+
+  async rpcApplyWrites(input: RepoWriteRequest): Promise<RepoWriteResponse> {
+    // Hold the write queue through head checks, signing, storage and cache update.
+    const previous = this.writeTail;
+    const gate = Promise.withResolvers<undefined>();
+    this.writeTail = gate.promise;
+    await previous;
+    try {
+      const repo = await this.getRepo();
+      if (!this.keypair) {
+        throw new Error("Repository signing key is missing");
+      }
+      const prepared = await prepareCommit(repo, this.keypair, input);
+      if (prepared.error) {
+        return { error: prepared.error, message: prepared.message };
+      }
+      if (prepared.commit) {
+        await this.core.applyCommit(prepared.commit);
+        // Never keep an old cached head if loading the committed repo fails.
+        this.repo = null;
+        this.repo = await Repo.load(this.core, prepared.commit.cid);
+      }
+      const committed = this.repo ?? repo;
+      return {
+        commit: { cid: committed.cid.toString(), rev: committed.commit.rev },
+        results: prepared.results,
+      };
+    } finally {
+      // oxlint-disable-next-line unicorn/no-useless-undefined -- The undefined-valued resolver requires an argument.
+      gate.resolve(undefined);
+    }
   }
 
   async rpcGetRepoStatus(): Promise<{

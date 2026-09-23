@@ -6,7 +6,10 @@ import { z } from "zod";
 
 export const origin = "https://minisphere.test";
 export const redirectUri = "http://127.0.0.1:3000/callback";
-export const clientId = `http://localhost?redirect_uri=${encodeURIComponent("http://127.0.0.1/callback")}&scope=atproto`;
+export const postingScope = "repo?collection=app.bsky.feed.post&action=create";
+export const createClientId = (scope = "atproto") =>
+  `http://localhost?redirect_uri=${encodeURIComponent("http://127.0.0.1/callback")}&scope=${encodeURIComponent(scope)}`;
+export const clientId = createClientId();
 export const accountDid = "did:plc:aaaaaaaaaaaaaaaaaaaaaaaa";
 
 export const parResponseSchema = z.object({
@@ -99,15 +102,18 @@ export const pkceChallenge = async (verifier: string) => {
 export const parBody = (
   challenge: string,
   state: string,
-  responseMode?: "fragment" | "query"
+  responseMode?: "fragment" | "query",
+  scope = "atproto",
+  oauthClientId = clientId
 ) => {
   const parameters = new URLSearchParams({
-    client_id: clientId,
+    client_id: oauthClientId,
     code_challenge: challenge,
     code_challenge_method: "S256",
+    prompt: "consent",
     redirect_uri: redirectUri,
     response_type: "code",
-    scope: "atproto",
+    scope,
     state,
   });
   if (responseMode) {
@@ -152,13 +158,15 @@ export const createPar = async (
   challenge: string,
   state: string,
   nonce?: string,
-  responseMode?: "fragment" | "query"
+  responseMode?: "fragment" | "query",
+  scope = "atproto",
+  oauthClientId = clientId
 ) => {
   let serverNonce = nonce;
   if (!serverNonce) {
     const challengeResponse = await postOAuth(
       "/oauth/par",
-      parBody(challenge, state, responseMode),
+      parBody(challenge, state, responseMode, scope, oauthClientId),
       key
     );
     expect(challengeResponse.status).toBe(400);
@@ -171,7 +179,7 @@ export const createPar = async (
 
   const response = await postOAuth(
     "/oauth/par",
-    parBody(challenge, state, responseMode),
+    parBody(challenge, state, responseMode, scope, oauthClientId),
     key,
     serverNonce
   );
@@ -206,10 +214,11 @@ export const loginActiveUser = async () => {
 
 export const getAuthorizationConsent = async (
   requestUri: string,
-  cookie: string
+  cookie: string,
+  oauthClientId = clientId
 ) => {
   const redirect = await request(
-    `/oauth/authorize?client_id=${encodeURIComponent(clientId)}&request_uri=${encodeURIComponent(requestUri)}`,
+    `/oauth/authorize?client_id=${encodeURIComponent(oauthClientId)}&request_uri=${encodeURIComponent(requestUri)}`,
     { headers: { cookie } }
   );
   expect(redirect.status).toBe(302);
@@ -232,8 +241,16 @@ export const getAuthorizationConsent = async (
   };
 };
 
-export const authorizePar = async (requestUri: string, cookie: string) => {
-  const { consentToken } = await getAuthorizationConsent(requestUri, cookie);
+export const authorizePar = async (
+  requestUri: string,
+  cookie: string,
+  oauthClientId = clientId
+) => {
+  const { consentToken } = await getAuthorizationConsent(
+    requestUri,
+    cookie,
+    oauthClientId
+  );
 
   return request("/oauth/authorize", {
     body: new URLSearchParams({

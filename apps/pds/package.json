@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@atcute/atproto": "catalog:",
+    "@atcute/bluesky": "catalog:",
     "@atcute/car": "catalog:",
     "@atcute/cbor": "catalog:",
     "@atcute/cid": "catalog:",
@@ -26,6 +27,7 @@
     "@atcute/lexicons": "catalog:",
     "@atcute/mst": "catalog:",
     "@atcute/tid": "catalog:",
+    "@atproto/oauth-scopes": "catalog:",
     "@hono/zod-validator": "catalog:",
     "@minisphere/hono-utils": "workspace:*",
     "@minisphere/repo-do": "workspace:*",

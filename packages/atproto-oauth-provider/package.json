@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@atcute/oauth-types": "catalog:",
+    "@atproto/oauth-scopes": "catalog:",
     "better-auth": "catalog:",
     "hono": "catalog:",
     "jose": "catalog:",

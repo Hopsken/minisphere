@@ -73,7 +73,7 @@ const decodeBase64Url = (value: string): Uint8Array<ArrayBuffer> => {
 const fetchJson = async (url: string, fetcher: typeof fetch) => {
   const response = await fetcher(url, {
     headers: { Accept: "application/json" },
-    redirect: "error",
+    redirect: "manual",
   });
   if (!response.ok) {
     throw new Error(`OAuth metadata request failed with ${response.status}`);

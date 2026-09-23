@@ -5,6 +5,7 @@ import {
   authorizePar,
   accountDid,
   clientId,
+  createClientId,
   createDpopKey,
   createDpopProof,
   createPar,
@@ -17,6 +18,7 @@ import {
   pkceChallenge,
   postOAuth,
   postOAuthJson,
+  postingScope,
   redirectUri,
   request,
   tokenResponseSchema,
@@ -301,6 +303,155 @@ describe("AT Protocol OAuth authorization server", () => {
     }).toStrictEqual({ error: "access_denied", status: 400 });
   });
 
+  it.each([
+    postingScope,
+    "repo?collection=app.example.note&collection=app.example.task&action=create&action=delete",
+    "repo:*",
+  ])(
+    "preserves explicitly consented repo permissions through tokens and refresh: %s",
+    async (repoScope) => {
+      const cookie = await loginActiveUser();
+      const key = await createDpopKey();
+      const verifier = "p".repeat(64);
+      const scope = `atproto ${repoScope}`;
+      const scopedClientId = createClientId(scope);
+      const pushed = await createPar(
+        key,
+        await pkceChallenge(verifier),
+        "post-create-state",
+        undefined,
+        undefined,
+        scope,
+        scopedClientId
+      );
+      const consent = await getAuthorizationConsent(
+        pushed.par.request_uri,
+        cookie,
+        scopedClientId
+      );
+      expect(consent.details.scope).toBe(scope);
+
+      const authorization = await request("/oauth/authorize", {
+        body: new URLSearchParams({
+          consent_token: consent.consentToken,
+          decision: "allow",
+        }).toString(),
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          Origin: origin,
+          cookie,
+        },
+        method: "POST",
+      });
+      const code = new URL(
+        authorization.headers.get("location") ?? ""
+      ).searchParams.get("code");
+      const exchange = await postOAuth(
+        "/oauth/token",
+        new URLSearchParams({
+          client_id: scopedClientId,
+          code: code ?? "",
+          code_verifier: verifier,
+          grant_type: "authorization_code",
+          redirect_uri: redirectUri,
+        }).toString(),
+        key,
+        pushed.nonce
+      );
+      const tokens = tokenResponseSchema.parse(await exchange.json());
+      expect({ scope: tokens.scope, status: exchange.status }).toStrictEqual({
+        scope,
+        status: 200,
+      });
+
+      const refresh = await postOAuth(
+        "/oauth/token",
+        new URLSearchParams({
+          client_id: scopedClientId,
+          grant_type: "refresh_token",
+          refresh_token: tokens.refresh_token,
+        }).toString(),
+        key,
+        exchange.headers.get("DPoP-Nonce") ?? pushed.nonce
+      );
+      expect(tokenResponseSchema.parse(await refresh.json()).scope).toBe(scope);
+    }
+  );
+
+  it("rejects prompt=none rather than silently authorizing", async () => {
+    const key = await createDpopKey();
+    const body = new URLSearchParams(
+      parBody(await pkceChallenge("n".repeat(64)), "silent-consent-state")
+    );
+    body.set("prompt", "none");
+    const challenge = await postOAuth("/oauth/par", body.toString(), key);
+    const response = await postOAuth(
+      "/oauth/par",
+      body.toString(),
+      key,
+      challenge.headers.get("DPoP-Nonce") ?? ""
+    );
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "invalid_request",
+    });
+  });
+
+  it.each([
+    "repo:app.example.note?action=read",
+    "repo:app.example.note?unexpected=true",
+    "blob:*/*",
+    "rpc:*?aud=*",
+    "include:app.example.authFull",
+  ])(
+    "rejects unsupported or malformed permission %s",
+    async (unsupportedScope) => {
+      const key = await createDpopKey();
+      const scope = `atproto ${unsupportedScope}`;
+      const scopedClientId = createClientId(scope);
+      const body = parBody(
+        await pkceChallenge("s".repeat(64)),
+        "unsupported-scope-state",
+        undefined,
+        scope,
+        scopedClientId
+      );
+      const challenge = await postOAuth("/oauth/par", body, key);
+      const response = await postOAuth(
+        "/oauth/par",
+        body,
+        key,
+        challenge.headers.get("DPoP-Nonce") ?? ""
+      );
+      expect({
+        error: errorResponseSchema.parse(await response.json()).error,
+        status: response.status,
+      }).toStrictEqual({ error: "invalid_scope", status: 400 });
+    }
+  );
+
+  it("rejects a supported scope missing from client metadata", async () => {
+    const key = await createDpopKey();
+    const scope = `atproto ${postingScope}`;
+    const body = parBody(
+      await pkceChallenge("m".repeat(64)),
+      "undeclared-scope-state",
+      undefined,
+      scope
+    );
+    const challenge = await postOAuth("/oauth/par", body, key);
+    const response = await postOAuth(
+      "/oauth/par",
+      body,
+      key,
+      challenge.headers.get("DPoP-Nonce") ?? ""
+    );
+    expect({
+      error: errorResponseSchema.parse(await response.json()).error,
+      status: response.status,
+    }).toStrictEqual({ error: "invalid_scope", status: 400 });
+  });
+
   it("binds the active account DID through code and refresh rotation", async () => {
     const cookie = await loginActiveUser();
     const key = await createDpopKey();
@@ -384,11 +535,13 @@ describe("AT Protocol OAuth authorization server", () => {
       refreshRotated:
         refreshedTokens.refresh_token !== initialTokens.refresh_token,
       reusedCode: { error: codeReplayError, status: codeReplay.status },
+      scope: refreshedTokens.scope,
       status: refresh.status,
       sub: refreshedTokens.sub,
     }).toStrictEqual({
       refreshRotated: true,
       reusedCode: { error: "invalid_grant", status: 400 },
+      scope: "atproto",
       status: 200,
       sub: accountDid,
     });
@@ -434,6 +587,7 @@ describe("AT Protocol OAuth authorization server", () => {
         "fragment"
       )
     );
+    parameters.delete("prompt");
     const nonceChallenge = await postOAuthJson("/oauth/par", parameters, key);
     const nonce = nonceChallenge.headers.get("DPoP-Nonce") ?? "";
     expect(nonceChallenge.status).toBe(400);

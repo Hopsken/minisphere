@@ -24,6 +24,7 @@
     "@atcute/crypto": "catalog:",
     "@atcute/did-plc": "catalog:",
     "@atcute/lexicons": "catalog:",
+    "@atproto/oauth-scopes": "catalog:",
     "@base-ui/react": "catalog:",
     "@better-auth/drizzle-adapter": "catalog:",
     "@blobatar/react": "catalog:",

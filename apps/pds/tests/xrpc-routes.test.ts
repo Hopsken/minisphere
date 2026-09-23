@@ -20,13 +20,7 @@ const post = (body: JsonBody): RequestInit => ({
   method: "POST",
 });
 
-const unimplementedRoutes: [path: string, init?: RequestInit][] = [
-  [
-    "/xrpc/com.atproto.server.createSession",
-    post({ identifier: "alice.test", password: "password" }),
-  ],
-  ["/xrpc/com.atproto.server.getSession"],
-  ["/xrpc/com.atproto.server.describeServer"],
+const protectedRoutes: [path: string, init?: RequestInit][] = [
   [
     "/xrpc/com.atproto.repo.createRecord",
     post({
@@ -56,9 +50,6 @@ const unimplementedRoutes: [path: string, init?: RequestInit][] = [
     "/xrpc/com.atproto.repo.applyWrites",
     post({ repo: "alice.test", writes: [] }),
   ],
-  ["/xrpc/com.atproto.sync.getRepo?did=did:plc:alice"],
-  ["/xrpc/com.atproto.sync.getLatestCommit?did=did:plc:alice"],
-  ["/xrpc/com.atproto.sync.subscribeRepos?cursor=1"],
 ];
 
 const invalidRoutes: [path: string, init?: RequestInit][] = [
@@ -73,7 +64,7 @@ const invalidRoutes: [path: string, init?: RequestInit][] = [
   ["/xrpc/com.atproto.identity.resolveHandle?handle=not-a-handle"],
 ];
 
-describe("XRPC route stubs", () => {
+describe("XRPC request boundaries", () => {
   it("checks configuration without database access", async () => {
     await withEnv(
       { ...env, PDS_DB: undefined, PLC_DIRECTORY: undefined },
@@ -120,11 +111,12 @@ describe("XRPC route stubs", () => {
     });
   });
 
-  it.each(unimplementedRoutes)("throws for %s", async (path, init) => {
+  it.each(protectedRoutes)("requires OAuth for %s", async (path, init) => {
     const response = await request(path, init);
-
-    expect(response.status).toBe(500);
-    await expect(response.text()).resolves.toBe("Internal Server Error");
+    expect(response.status).toBe(401);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "invalid_token",
+    });
   });
 
   it.each(invalidRoutes)("validates input for %s", async (path, init) => {

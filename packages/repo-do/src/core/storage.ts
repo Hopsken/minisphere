@@ -45,24 +45,29 @@ export class CoreStorage extends BlockStorage implements RepoStorage {
     });
   }
 
-  async putMany(blocks: BlockMap, rev: string): Promise<void> {
+  putMany(blocks: BlockMap, rev: string): Promise<void> {
     if (blocks.size === 0) {
-      return;
+      return Promise.resolve();
     }
 
-    await this.db
-      .insert(blocksTable)
-      .values(
-        blocks.entries().map(({ bytes, cid }) => ({
-          bytes: Buffer.from(bytes),
-          cid: cid.toString(),
-          rev,
-        }))
-      )
-      .onConflictDoUpdate({
-        set: { bytes: sql`excluded.bytes`, rev: sql`excluded.rev` },
-        target: blocksTable.cid,
-      });
+    const rows = blocks.entries().map(({ bytes, cid }) => ({
+      bytes: Buffer.from(bytes),
+      cid: cid.toString(),
+      rev,
+    }));
+    this.db.transaction((transaction) => {
+      for (let offset = 0; offset < rows.length; offset += 25) {
+        transaction
+          .insert(blocksTable)
+          .values(rows.slice(offset, offset + 25))
+          .onConflictDoUpdate({
+            set: { bytes: sql`excluded.bytes`, rev: sql`excluded.rev` },
+            target: blocksTable.cid,
+          })
+          .run();
+      }
+    });
+    return Promise.resolve();
   }
 
   async updateRoot(cid: Cid, rev: string): Promise<void> {
@@ -91,8 +96,11 @@ export class CoreStorage extends BlockStorage implements RepoStorage {
         transaction.delete(blocksTable).run();
         transaction.delete(metadataTable).run();
       }
-      if (blocks.length > 0) {
-        transaction.insert(blocksTable).values(blocks).run();
+      for (let offset = 0; offset < blocks.length; offset += 25) {
+        transaction
+          .insert(blocksTable)
+          .values(blocks.slice(offset, offset + 25))
+          .run();
       }
       transaction
         .insert(metadataTable)
@@ -118,10 +126,11 @@ export class CoreStorage extends BlockStorage implements RepoStorage {
     }));
 
     this.db.transaction((transaction) => {
-      if (blocks.length > 0) {
+      // Three bindings per row; stay below Workers SQLite's variable limit.
+      for (let offset = 0; offset < blocks.length; offset += 25) {
         transaction
           .insert(blocksTable)
-          .values(blocks)
+          .values(blocks.slice(offset, offset + 25))
           .onConflictDoUpdate({
             set: { bytes: sql`excluded.bytes`, rev: sql`excluded.rev` },
             target: blocksTable.cid,

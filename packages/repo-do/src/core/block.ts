@@ -36,20 +36,19 @@ export class BlockStorage extends ReadableBlockstore {
 
   async getBlocks(cids: Cid[]): Promise<{ blocks: BlockMap; missing: Cid[] }> {
     const cidsInString = cids.map((cid) => cid.toString());
-
-    const rows = await this.db.query.blocksTable.findMany({
-      where: { cid: { in: cidsInString } },
-    });
-
     const blocksMap = new BlockMap();
-
-    for (const row of rows) {
-      const safeCid = parseCidSafe(row.cid);
-      // this should never happens since cid string is from validated input
-      if (!safeCid) {
-        continue;
+    for (let offset = 0; offset < cidsInString.length; offset += 90) {
+      // Keep each query below SQLite's binding limit without unbounded fan-out.
+      // oxlint-disable-next-line no-await-in-loop
+      const rows = await this.db.query.blocksTable.findMany({
+        where: { cid: { in: cidsInString.slice(offset, offset + 90) } },
+      });
+      for (const row of rows) {
+        const safeCid = parseCidSafe(row.cid);
+        if (safeCid) {
+          blocksMap.set(safeCid, new Uint8Array(row.bytes));
+        }
       }
-      blocksMap.set(safeCid, new Uint8Array(row.bytes));
     }
 
     const missing = [];

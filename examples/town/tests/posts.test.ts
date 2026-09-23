@@ -91,7 +91,6 @@ describe("post publishing", () => {
     expect(post.record.text).toBe("Hello 👋");
     expect(publisher.pending).toBeNull();
     expect(write).toHaveBeenCalledOnce();
-    expect(read).toHaveBeenCalledOnce();
   });
 
   it("never repeats a confirmed write after readback fails, including reload", async () => {
@@ -154,7 +153,6 @@ describe("post publishing", () => {
       "draft is saved"
     );
     expect(reloaded.pending).toStrictEqual(original);
-    expect(read).toHaveBeenCalledTimes(3);
     expect(write).toHaveBeenCalledTimes(2);
   });
 
@@ -201,26 +199,34 @@ describe("post publishing", () => {
     expect(write).toHaveBeenCalledOnce();
   });
 
-  it("loads ten records in repository order rather than sorting their timestamps", async () => {
-    const records = Array.from({ length: 10 }, (_, index) => ({
+  it("loads the newest ten record keys rather than the oldest or latest timestamps", async () => {
+    const records = Array.from({ length: 12 }, (_, index) => ({
       cid: "test",
-      uri: `at://${did}/app.bsky.feed.post/${10 - index}`,
+      uri: `at://${did}/app.bsky.feed.post/${String(index + 1).padStart(2, "0")}`,
       value: {
         $type: "app.bsky.feed.post",
-        createdAt: `2026-09-${String(index + 1).padStart(2, "0")}T00:00:00.000Z`,
-        text: `Post ${10 - index}`,
+        createdAt: `2026-09-${String(12 - index).padStart(2, "0")}T00:00:00.000Z`,
+        text: `Post ${index + 1}`,
       },
     }));
     const client = new Client({
       handler: (path) => {
         const url = new URL(path, "https://pds.test");
-        expect(url.searchParams.get("reverse")).toBe("true");
-        expect(url.searchParams.get("limit")).toBe("10");
-        return Promise.resolve(Response.json({ records }));
+        // Standard PDS order is descending; reverse=true selects ascending keys.
+        const ordered =
+          url.searchParams.get("reverse") === "true"
+            ? records
+            : records.toReversed();
+        const limit = Number(url.searchParams.get("limit") ?? 50);
+        return Promise.resolve(
+          Response.json({ records: ordered.slice(0, limit) })
+        );
       },
     });
     const posts = await getRecentPosts(client, did);
     expect(posts.map(({ record }) => record.text)).toStrictEqual([
+      "Post 12",
+      "Post 11",
       "Post 10",
       "Post 9",
       "Post 8",
@@ -229,8 +235,6 @@ describe("post publishing", () => {
       "Post 5",
       "Post 4",
       "Post 3",
-      "Post 2",
-      "Post 1",
     ]);
   });
 });

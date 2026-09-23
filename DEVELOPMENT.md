@@ -17,6 +17,7 @@ This file records the current implementation state and important architecture de
 - Accounts generates a separate secp256k1 PLC rotation key per account. One conditional D1 write saves the encrypted key, random IV, signed genesis operation, derived DID, and public repository key. Concurrent requests use the persisted winner; retries do not reconstruct the operation. Keys remain encrypted after activation. Activation requires matching PDS repository and PLC state.
 - Accounts provides the public-client AT Protocol OAuth authorization-code flow through a dedicated Better Auth plugin. App passwords are not implemented.
 - OAuth protocol and replay state uses database-backed Better Auth verification records. Consent binds one server-resolved active DID to the current user. A React route renders server-validated consent details; the browser does not select or submit a DID.
+- Accounts accepts `atproto` and generic repository collection/action permissions validated by `@atproto/oauth-scopes`. Static discovery scopes do not enumerate dynamic repository permissions. Client metadata must declare each requested scope; consent and refresh preserve the grant without expansion. Friendly collection names are a display-only map, not an authorization allowlist. Permission-set resolution (`include:`) and non-repository permissions remain unsupported.
 - Accounts initializes a dedicated OAuth secp256k1 key on first use and persists it in its D1 `oauth_signing_key` table. An atomic empty-table insert and a unique current-key index select one winner across Worker instances; all key queries go to the D1 primary without the Sessions API. AES-GCM encrypts private material under the independent `ACCOUNTS_ENCRYPTION_KEY`, binding purpose and `kid`. Signing fails closed on storage or decryption errors. JWKS publishes current and retired public keys without decryption and excludes disabled keys; scheduled rotation is not implemented.
 - Confidential `private_key_jwt` clients and client signing-key continuity are deferred and are not advertised.
 
@@ -49,9 +50,10 @@ This file records the current implementation state and important architecture de
 - The PDS discovers Accounts OAuth verification keys from the `jwks_uri` in authorization-server metadata. Protected-resource metadata names Accounts as the authorization server.
 - After request-shape validation, the PDS atomically claims one unexpired invitation before account side effects. Invitations are bearer credentials that are not bound to DIDs and remain spent after later failures. Invite generation opportunistically removes expired rows.
 - Successful account creation deletes its signing-key reservation in the same PDS D1 batch that writes the account and first refresh token.
-- `getRepoStatus` requires both a PDS account record and a readable initialized repository. Anonymous `describeRepo`, `listRecords`, and repo `getRecord` expose current records for local accounts, with handle/DID resolution and bidirectional handle verification in descriptions. Sync `getRecord` streams signed inclusion/exclusion CAR proofs through the existing repository library. Session creation, other session methods, record mutations, blob access, repository export, and repository subscriptions are not implemented.
-- Read tests cover more than 100 records and both pagination directions. Fixture creation uses small commits: the existing bulk block-write SQL still exceeds SQLite's bind-variable limit for sufficiently large commits, which must be addressed before implementing batch writes.
-- PDS XRPC routes do not yet validate OAuth access JWTs, DPoP `ath`, or AT Protocol repository scopes. Future enforcement will use `@atproto/oauth-scopes`.
+- `getRepoStatus` requires both a PDS account record and a readable initialized repository. Anonymous `describeRepo`, `listRecords`, and repo `getRecord` expose current records for local accounts, with handle/DID resolution and bidirectional handle verification in descriptions. Sync `getRecord` streams signed inclusion/exclusion CAR proofs through the existing repository library. Session creation, other session methods, blob access, repository export, and repository subscriptions are not implemented.
+- Authenticated `createRecord`, `putRecord`, `deleteRecord`, and `applyWrites` use one RepoDO write queue and atomic commit path, including head/record CAS checks. Batches support up to 200 ordered writes. Block SQL is chunked within the transaction to respect SQLite binding limits. Tests cover concurrency, storage rollback, readback after eviction, and signed CAR records.
+- Write requests verify Accounts access JWTs, local subjects, ES256 DPoP key/token/method/URL binding, server nonce, and proof freshness. PDS D1 owns five-minute nonce and replay records with atomic proof claims. CORS exposes challenge headers. `@atproto/oauth-scopes` enforces collection/action grants; legacy session JWTs do not authorize writes.
+- Record validation uses the official Atcute `app.bsky.feed.post` schema. Unknown Lexicons are accepted only when validation is not explicitly required, with `unknown` status. Blob references are rejected. Write bodies, nesting, and commit proof size are bounded; no remote Lexicon discovery or subscription event emission is implemented.
 
 ## Decisions
 
@@ -75,7 +77,7 @@ This file records the current implementation state and important architecture de
 ## Next
 
 1. Run a deployed end-to-end account creation test through Accounts, PDS, PLC Directory, repository storage, and Accounts handle publication.
-2. Add PDS OAuth resource-request DPoP and scope enforcement, then implement confidential `private_key_jwt` clients with signing-key continuity.
-3. Implement the remaining PDS session methods, authenticated record mutations, repository export, and repository event subscriptions.
+2. Implement confidential `private_key_jwt` clients with signing-key continuity.
+3. Implement the remaining PDS session methods, repository export, blob storage, and repository event subscriptions.
 4. Convert durable decisions in this file into ADRs.
 5. Build the minimal Relay.
