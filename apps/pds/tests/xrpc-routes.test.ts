@@ -56,12 +56,6 @@ const unimplementedRoutes: [path: string, init?: RequestInit][] = [
     "/xrpc/com.atproto.repo.applyWrites",
     post({ repo: "alice.test", writes: [] }),
   ],
-  [
-    "/xrpc/com.atproto.repo.getRecord?repo=alice.test&collection=app.bsky.feed.post&rkey=record",
-  ],
-  [
-    "/xrpc/com.atproto.repo.listRecords?repo=alice.test&collection=app.bsky.feed.post&limit=10&reverse=true",
-  ],
   ["/xrpc/com.atproto.sync.getRepo?did=did:plc:alice"],
   ["/xrpc/com.atproto.sync.getLatestCommit?did=did:plc:alice"],
   ["/xrpc/com.atproto.sync.subscribeRepos?cursor=1"],

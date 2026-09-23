@@ -48,7 +48,8 @@ This file records the current implementation state and important architecture de
 - The PDS discovers Accounts OAuth verification keys from the `jwks_uri` in authorization-server metadata. Protected-resource metadata names Accounts as the authorization server.
 - After request-shape validation, the PDS atomically claims one unexpired invitation before account side effects. Invitations are bearer credentials that are not bound to DIDs and remain spent after later failures. Invite generation opportunistically removes expired rows.
 - Successful account creation deletes its signing-key reservation in the same PDS D1 batch that writes the account and first refresh token.
-- `getRepoStatus` requires both a PDS account record and a readable initialized repository. Sync `getRecord` reads initialized repositories. Session creation, other session methods, record mutations, repository export, and repository subscriptions are not implemented.
+- `getRepoStatus` requires both a PDS account record and a readable initialized repository. Anonymous `describeRepo`, `listRecords`, and repo `getRecord` expose current records for local accounts, with handle/DID resolution and bidirectional handle verification in descriptions. Sync `getRecord` streams signed inclusion/exclusion CAR proofs through the existing repository library. Session creation, other session methods, record mutations, blob access, repository export, and repository subscriptions are not implemented.
+- Read tests cover more than 100 records and both pagination directions. Fixture creation uses small commits: the existing bulk block-write SQL still exceeds SQLite's bind-variable limit for sufficiently large commits, which must be addressed before implementing batch writes.
 - PDS XRPC routes do not yet validate OAuth access JWTs, DPoP `ath`, or AT Protocol repository scopes. Future enforcement will use `@atproto/oauth-scopes`.
 
 ## Decisions

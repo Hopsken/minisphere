@@ -14,6 +14,8 @@ Initial repository creation writes the private signing key, initial blocks, and 
 
 The PDS owns global account and refresh-token state. That data does not belong in `RepoDO`.
 
+Public reads use the existing `@atproto/repo` MST and proof APIs. Collection enumeration reads MST leaves without decoding record bodies. Ascending pagination seeks to the cursor; descending pagination scans the target collection up to the cursor, retaining only one page plus a lookahead because the library has no reverse iterator. Large descending scans may need a record-path index in a later change. `@atproto/lex-json` converts record links and bytes to plain JSON, and record-proof CARs cross the Durable Object RPC boundary as streams.
+
 ## Migrations
 
 Define repository tables in `src/db/schema.ts` and generate a bundled migration with a descriptive name:

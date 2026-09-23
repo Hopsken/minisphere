@@ -226,6 +226,9 @@ catalogs:
     '@atcute/did-plc':
       specifier: ^1.0.1
       version: 1.0.1
+    '@atcute/identity':
+      specifier: ^2.0.2
+      version: 2.0.2
     '@atcute/identity-resolver':
       specifier: ^2.0.1
       version: 2.0.1
@@ -247,6 +250,12 @@ catalogs:
     '@atproto/crypto':
       specifier: ^0.4.5
       version: 0.4.5
+    '@atproto/lex-json':
+      specifier: ^0.1.6
+      version: 0.1.6
+    '@atproto/repo':
+      specifier: ^0.10.11
+      version: 0.10.11
     '@base-ui/react':
       specifier: ^1.7.0
       version: 1.7.0
@@ -593,6 +602,9 @@ importers:
       '@atcute/did-plc':
         specifier: 'catalog:'
         version: 1.0.1(@atcute/cbor@2.3.6(@atcute/cid@2.4.2))(@atcute/cid@2.4.2)(@atcute/identity@2.0.2(@atcute/lexicons@2.1.0)(typescript@7.0.2))(@atcute/lexicons@2.1.0)(typescript@7.0.2)
+      '@atcute/identity':
+        specifier: 'catalog:'
+        version: 2.0.2(@atcute/lexicons@2.1.0)(typescript@7.0.2)
       '@atcute/identity-resolver':
         specifier: 'catalog:'
         version: 2.0.1(@atcute/identity@2.0.2(@atcute/lexicons@2.1.0)(typescript@7.0.2))(@atcute/lexicons@2.1.0)(typescript@7.0.2)
@@ -627,6 +639,12 @@ importers:
         specifier: 'catalog:'
         version: 4.4.3
     devDependencies:
+      '@atproto/crypto':
+        specifier: 'catalog:'
+        version: 0.4.5
+      '@atproto/repo':
+        specifier: 'catalog:'
+        version: 0.10.11
       '@cloudflare/vitest-pool-workers':
         specifier: 'catalog:'
         version: 0.22.0(@cloudflare/workers-types@5.20260821.1)(@vitest/runner@4.1.11)(@vitest/snapshot@4.1.11)(vitest@4.1.11(@types/node@26.2.0)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.1)(jiti@2.7.0)(yaml@2.9.0)))
@@ -765,6 +783,9 @@ importers:
       '@atproto/lex-data':
         specifier: ^0.1.7
         version: 0.1.7
+      '@atproto/lex-json':
+        specifier: 'catalog:'
+        version: 0.1.6
       '@atproto/repo':
         specifier: ^0.10.11
         version: 0.10.11

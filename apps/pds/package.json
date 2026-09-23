@@ -21,6 +21,7 @@
     "@atcute/cid": "catalog:",
     "@atcute/crypto": "catalog:",
     "@atcute/did-plc": "catalog:",
+    "@atcute/identity": "catalog:",
     "@atcute/identity-resolver": "catalog:",
     "@atcute/lexicons": "catalog:",
     "@atcute/mst": "catalog:",
@@ -34,6 +35,8 @@
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@atproto/crypto": "catalog:",
+    "@atproto/repo": "catalog:",
     "@cloudflare/vitest-pool-workers": "catalog:",
     "@types/node": "catalog:",
     "drizzle-kit": "catalog:",

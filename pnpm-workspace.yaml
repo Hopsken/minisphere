@@ -13,6 +13,7 @@ catalog:
   "@atcute/client": ^5.1.1
   "@atcute/crypto": ^2.4.4
   "@atcute/did-plc": ^1.0.1
+  "@atcute/identity": ^2.0.2
   "@atcute/identity-resolver": ^2.0.1
   "@atcute/lexicons": ^2.1.0
   "@atcute/mst": ^1.0.3
@@ -21,6 +22,8 @@ catalog:
   "@atcute/oauth-types": ^1.0.1
   "@atcute/tid": ^1.1.4
   "@atproto/crypto": ^0.4.5
+  "@atproto/lex-json": ^0.1.6
+  "@atproto/repo": ^0.10.11
   "@base-ui/react": ^1.7.0
   "@better-auth/drizzle-adapter": ^1.7.1
   "@blobatar/react": 2.7.0
