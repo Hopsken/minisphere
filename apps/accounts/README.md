@@ -27,7 +27,7 @@ The frontend uses Vite, React, TanStack Router, TanStack Query, Tailwind CSS, an
 
 Accounts D1 contains the ordinary Better Auth tables and one optional `atproto_account` row per Better Auth user. That row owns the normalized username, status, immutable DID, public repository signing key, signed genesis PLC operation, and encrypted per-account PLC rotation private key with its random IV. A hosted handle is derived as `<username>.<handleDomain>`, using the base origin's hostname or the explicit `PUBLIC_HANDLE_DOMAIN` override. Accounts is the source of truth for the active handle-to-DID mapping.
 
-The PDS owns its account, session, repository state, and repository private signing keys. The PLC Directory owns DID documents. Accounts creates accounts through the retained PDS binding and reads PDS and PLC state before activation. PLC reads use HTTP at `PLC_DIRECTORY`, which defaults to `https://plc.directory` when omitted. An invalid explicit value fails configuration validation, and request failures never switch directories. The PDS remains responsible for submitting the PLC operation. Handle publication is derived from the active Accounts mapping and is not an activation input.
+The PDS owns its account, session, repository state, and repository private signing keys. The PLC Directory owns DID documents. Accounts creates accounts through the retained PDS binding and reads PDS and PLC state before activation. PLC requests use HTTP at `PLC_DIRECTORY`, which defaults to `https://plc.directory` when omitted. An invalid explicit value fails configuration validation, and request failures never switch directories. The PDS submits genesis operations; Accounts submits authenticated self-service updates. Handle publication is derived from the active Accounts mapping and is not an activation input.
 
 ## AT Protocol accounts
 
@@ -59,6 +59,35 @@ Accounts exposes the active mapping without login or session state:
 Only the XRPC endpoint adds CORS. Both accept only hosted handles under the configured suffix and return no mapping for incomplete, unknown, or external accounts.
 
 The worker's categorized reserved-name list is the sole reservation-policy source of truth. The repository checks it both when reporting availability and during the atomic reservation, after username normalization. An exact reserved match is intentionally indistinguishable from a taken name: availability is `false` and registration returns generic `409`. Similar non-exact names are unaffected. The frontend schema does not own or duplicate this policy.
+
+## Self-service PLC corrections
+
+An active account can read and correct its own PLC data through its existing login session. The DID comes only from the user's Accounts row. These routes do not accept a DID or user ID in the body.
+
+- `GET /api/account/plc` returns `{ did, head, rotationKeys, verificationMethods, alsoKnownAs, services, expectedPdsEndpoint }`. `expectedPdsEndpoint` is the resolved server configuration's `pdsOrigin`, including any `PDS_ORIGIN` override; it is not directory data. `head` is the current effective operation CID. Accounts validates the directory audit log with `@atcute/did-plc`, including hashes, signatures, and recovery, before using its canonical head. A deactivated or unreadable identity returns `502`.
+- `PATCH /api/account/plc` accepts exactly `expectedHead` and `pdsEndpoint`, both required. Unknown fields are rejected, including rotation-key editing or removal fields. The response has the GET fields plus `changed`: `true` after a verified update, or `false` if the requested endpoint already exists. Both responses use `Cache-Control: no-store`.
+
+For example, after GET, submit the returned `head` as `expectedHead` with `pdsEndpoint: "https://pds.example.com"`. The endpoint must be a canonical HTTPS origin without credentials, path, trailing slash, query, or fragment. It need not match the configured PDS. **This changes a public DID service endpoint only. It does not copy a repository, create a PDS account, transfer credentials, or perform an account migration.** An incorrect endpoint can break account access.
+
+Only `services.atproto_pds.endpoint` changes (a missing PDS service gets the standard type). Rotation keys, their order, unrelated services, aliases, and verification methods remain as they are in the current directory operation. Rotation-key management is not supported. Accounts keeps the encrypted key and genesis record unchanged and does not export the private key.
+
+The account menu links to a separate `/settings` page. When the directory endpoint matches the configured endpoint, it shows that address and a green check. A mismatch shows both addresses, a warning, and a `Fix` button that submits the configured endpoint with the displayed `expectedHead`. There is no free-text editor. A configured non-HTTPS endpoint is displayed but cannot be submitted. After any write failure, another attempt requires a fresh read. Confirmed success updates the displayed state and shows a Sonner toast. Mutations never retry automatically, and query data is scoped to the logged-in user. The API still permits other valid HTTPS origins; this UI does not perform account migration.
+
+PATCH requires an `Origin` header equal to configured `MINISPHERE_ORIGIN`. If `Sec-Fetch-Site` is present, it must be `same-origin`. This applies to non-browser clients too. Missing login returns `401`; failed same-origin checks return `403`. An incomplete account returns `409`.
+
+### Concurrency and recovery limits
+
+`expectedHead` must match the current head, even for a no-op; otherwise the response is `409`. Accounts checks again immediately before submission. It decrypts the managed rotation key inside the Worker using the original user-bound AES-GCM authenticated data and signs an operation based on the live head, never the stored genesis. The API makes no D1 writes.
+
+PLC does not provide compare-and-swap submission: a higher-priority key can overwrite a lower-priority update during the 72-hour recovery window. A second read alone cannot close that race. **Accounts therefore signs actual changes only when its key is last (lowest priority) in the current head's rotation keys.** Missing authority or a higher-priority managed key returns `409`. If external tools change the key order, Accounts does not reorder it to bypass this restriction. A no-op requires no signing authority.
+
+Under PLC recovery rules, this lowest-priority signer cannot overwrite a competing append using stale `prev`, including one signed by the same key. No distributed lock or local database lease is needed for that guarantee. Higher-priority holders can still recover over an accepted Accounts update; success describes the observed head at verification time, not irreversible finality. The service trusts the configured directory's ordering and availability.
+
+After every submission attempt, including a timeout or rejection, Accounts reads the validated chain again. It reports success only if the submitted signed operation is the current head. A different head returns `409`. An unchanged head returns `503` with an unknown-outcome message; an unavailable read returns `502`. These errors do not prove that the write failed. Accounts never automatically resubmits within the request. Read again before retrying and use the new head; a satisfied target returns `changed: false` without another operation. Concurrent changes after acceptance can cause `409` even if this request briefly succeeded.
+
+Directory and cryptographic errors are not returned or logged by these routes. The operation history, including PDS endpoints and public rotation keys, is public and permanent. There is no recovery workflow, bulk administrator endpoint, key-management UI, or private-key export. Tests use a controlled directory and disposable D1 only. Never test writes against the public directory with disposable identities.
+
+Protocol reference: [DID PLC specification](https://web.plc.directory/spec/v0.1/did-plc), especially key rotation and account recovery.
 
 ## Email login
 

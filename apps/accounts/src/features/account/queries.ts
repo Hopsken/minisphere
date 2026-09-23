@@ -5,10 +5,28 @@ import { api } from "@/lib/api";
 
 export const accountKeys = {
   account: ["account"] as const,
+  plc: (userId: string) => ["account", "plc", userId] as const,
   username: (username: string) => ["account", "username", username] as const,
 };
 
 export type Account = InferResponseType<typeof api.account.$get>;
+export type PlcAccount = InferResponseType<typeof api.account.plc.$get>;
+
+export const plcAccountQuery = (userId: string) =>
+  queryOptions({
+    meta: { skipGlobalError: true },
+    queryFn: async () => {
+      const response = await api.account.plc.$get();
+      if (!response.ok) {
+        throw new Error(
+          "Could not read your PDS endpoint from the PLC Directory."
+        );
+      }
+      return response.json();
+    },
+    queryKey: accountKeys.plc(userId),
+    retry: false,
+  });
 
 export const accountQuery = queryOptions({
   queryFn: async () => {

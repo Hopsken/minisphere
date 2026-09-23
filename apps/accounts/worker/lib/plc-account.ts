@@ -46,6 +46,29 @@ const importEncryptionKey = async (secret: string) => {
   ]);
 };
 
+export const decryptPlcRotationKey = async (
+  userId: string,
+  encryptionSecret: string,
+  stored: {
+    encryptedRotationKey: string | null;
+    rotationKeyIv: string | null;
+  }
+) => {
+  if (!stored.encryptedRotationKey || !stored.rotationKeyIv) {
+    throw new Error("Missing PLC rotation key");
+  }
+  const bytes = await crypto.subtle.decrypt(
+    {
+      additionalData: rotationKeyAad(userId),
+      iv: decodeBase64(stored.rotationKeyIv),
+      name: "AES-GCM",
+    },
+    await importEncryptionKey(encryptionSecret),
+    decodeBase64(stored.encryptedRotationKey)
+  );
+  return Secp256k1PrivateKey.importRaw(new Uint8Array(bytes));
+};
+
 export const createPlcAccountMaterial = async (
   userId: string,
   encryptionSecret: string,
@@ -109,16 +132,7 @@ export const restorePlcAccountMaterial = async (
       "Provisioning account is missing its PLC identity material"
     );
   }
-  const bytes = await crypto.subtle.decrypt(
-    {
-      additionalData: rotationKeyAad(userId),
-      iv: decodeBase64(stored.rotationKeyIv),
-      name: "AES-GCM",
-    },
-    await importEncryptionKey(encryptionSecret),
-    decodeBase64(stored.encryptedRotationKey)
-  );
-  const key = await Secp256k1PrivateKey.importRaw(new Uint8Array(bytes));
+  const key = await decryptPlcRotationKey(userId, encryptionSecret, stored);
   const publicKey = await key.exportPublicKey("did");
   const did = await deriveDidFromGenesisOp(stored.operation);
   if (

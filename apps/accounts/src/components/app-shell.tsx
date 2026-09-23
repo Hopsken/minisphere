@@ -45,6 +45,19 @@ export const AppShell = ({ children, user }: AppShellProps) => {
                 <div className="border-border bg-popover absolute top-11 right-0 z-20 min-w-36 rounded-xl border p-1 shadow-md">
                   <Button
                     className="w-full justify-start"
+                    render={<Link to="/settings" />}
+                    onClick={(event) =>
+                      event.currentTarget
+                        .closest("details")
+                        ?.removeAttribute("open")
+                    }
+                    size="sm"
+                    variant="ghost"
+                  >
+                    Settings
+                  </Button>
+                  <Button
+                    className="w-full justify-start"
                     onClick={signOut}
                     size="sm"
                     variant="ghost"
