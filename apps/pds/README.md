@@ -40,6 +40,21 @@ Accounts revocation stops refresh and new token issuance. An already issued acce
 
 PDS XRPC routes do not yet accept these OAuth tokens or enforce repository permissions. Resource-request DPoP verification, including `ath`, and scope enforcement are the next PDS milestone. That work must use `@atproto/oauth-scopes` for AT Protocol permission checks; OAuth client scope builders do not enforce permissions.
 
+## Public repository reads
+
+The following methods accept anonymous requests for locally registered accounts:
+
+- `com.atproto.repo.describeRepo` returns the DID document, claimed handle, reverse-handle verification result, and collections with current records. DID documents use `PLC_DIRECTORY` for `did:plc` and HTTPS resolution for `did:web`; handles use DNS-over-HTTPS and HTTPS resolution through Atcute.
+- `com.atproto.repo.listRecords` returns current records in descending rkey order by default, or ascending order with `reverse=true`. The default limit is 50, the maximum is 100, and the cursor is an exclusive rkey boundary. An empty collection returns an empty list. Pagination follows the current repository on each request; it is not a historical snapshot.
+- `com.atproto.repo.getRecord` returns the current record's URI, CID, and Lexicon JSON value. An optional CID must match the current version; this is not a historical record API.
+- `com.atproto.sync.getRecord` streams a CAR containing the signed commit, MST path, and the requested record block. An absent record produces an exclusion proof, not a JSON null response.
+
+Repository reads accept a DID or handle; sync reads accept a DID. Reads do not forward to remote PDS servers or expose repositories left behind by incomplete provisioning. PDSls can use the first three methods without login, then use the CAR endpoint to verify a record. Blob browsing and full repository export are not implemented yet.
+
+Tests seed disposable repositories directly in the Workers test runtime because public record mutation is not implemented. They do not create identities in the public PLC Directory.
+
+The four read routes use `withRepoReader` middleware after query validation. It creates one request-scoped `RepoReader` in `ctx.var.repoReader`; other XRPC routes do not initialize it. The service receives its dependencies through its constructor and does not read Worker configuration.
+
 ## D1
 
 Create the production D1 database, then copy its ID into `wrangler.jsonc`:

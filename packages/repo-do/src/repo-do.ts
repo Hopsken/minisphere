@@ -1,11 +1,12 @@
 import { parsePrivateMultikey } from "@atcute/crypto";
 import { Secp256k1Keypair } from "@atproto/crypto";
-import { Repo } from "@atproto/repo";
+import { lexToJson } from "@atproto/lex-json";
+import { getRecords, Repo } from "@atproto/repo";
+import type { Leaf } from "@atproto/repo";
 import { DurableObject } from "cloudflare:workers";
 
 import { CoreStorage } from "./core";
 import { createDatabase } from "./db";
-import { serializeRecord } from "./serialize-record";
 
 const importSigningKey = (signingKey: string): Promise<Secp256k1Keypair> => {
   const parsedKey = parsePrivateMultikey(signingKey);
@@ -105,12 +106,9 @@ export class RepoDO extends DurableObject<Record<string, never>> {
   }> {
     const repo = await this.getRepo();
 
-    // NEXT: cache this
     const seen = new Set<string>();
-    for await (const record of repo.walkRecords()) {
-      if (!seen.has(record.collection)) {
-        seen.add(record.collection);
-      }
+    for await (const leaf of repo.data.walkLeavesFrom("")) {
+      seen.add(leaf.key.slice(0, leaf.key.indexOf("/")));
     }
 
     return {
@@ -134,16 +132,86 @@ export class RepoDO extends DurableObject<Record<string, never>> {
       return null;
     }
 
-    const record = await repo.getRecord(collection, rkey);
-    if (!record) {
-      // record not exist in repo records, should be error
-      throw new Error(`Missing data: ${collection}/${rkey}`);
-    }
+    const record = await repo.storage.readRecord(recordCid);
 
     return {
       cid: recordCid.toString(),
-      record: serializeRecord(record),
+      record: lexToJson(record),
     };
+  }
+
+  async rpcListRecords(options: {
+    collection: string;
+    limit: number;
+    cursor: string | undefined;
+    reverse: boolean;
+  }): Promise<{
+    cursor: string | undefined;
+    records: { cid: string; uri: string; value: Rpc.Serializable<unknown> }[];
+  }> {
+    const repo = await this.getRepo();
+    const { collection, limit, cursor, reverse } = options;
+    const prefix = `${collection}/`;
+    const boundary = cursor ? `${prefix}${cursor}` : undefined;
+    let leaves: Leaf[];
+
+    if (reverse) {
+      leaves = await repo.data.list(
+        limit + 1,
+        boundary ?? prefix,
+        `${prefix}\uFFFF`
+      );
+    } else {
+      // The library has no reverse iterator. Retain only one page plus a lookahead
+      // while scanning this collection; never decode records outside the page.
+      leaves = [];
+      for await (const leaf of repo.data.walkLeavesFrom(prefix)) {
+        if (
+          !leaf.key.startsWith(prefix) ||
+          (boundary && leaf.key >= boundary)
+        ) {
+          break;
+        }
+        leaves.push(leaf);
+        if (leaves.length > limit + 1) {
+          leaves.shift();
+        }
+      }
+      leaves.reverse();
+    }
+
+    const hasMore = leaves.length > limit;
+    const page = leaves.slice(0, limit);
+    const records = await Promise.all(
+      page.map(async (leaf) => ({
+        cid: leaf.value.toString(),
+        uri: `at://${repo.did}/${leaf.key}`,
+        value: lexToJson(await repo.storage.readRecord(leaf.value)),
+      }))
+    );
+    return {
+      cursor: hasMore ? page.at(-1)?.key.slice(prefix.length) : undefined,
+      records,
+    };
+  }
+
+  async rpcGetRecordProof(collection: string, rkey: string) {
+    const repo = await this.getRepo();
+    const chunks = getRecords(repo.storage, repo.cid, [{ collection, rkey }]);
+    const iterator = chunks[Symbol.asyncIterator]();
+    return new ReadableStream<Uint8Array>({
+      async cancel() {
+        await iterator.return?.();
+      },
+      async pull(controller) {
+        const chunk = await iterator.next();
+        if (chunk.done) {
+          controller.close();
+        } else {
+          controller.enqueue(chunk.value);
+        }
+      },
+    });
   }
 
   rpcHealthCheck(): Promise<{ ok: true }> {
