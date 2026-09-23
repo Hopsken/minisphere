@@ -41,3 +41,18 @@ pnpm turbo test typecheck build --filter=@minisphere/directory
 The local Directory listens on port `8788`. Its inspector port is assigned dynamically.
 
 `pnpm setup:local` generates Worker types and applies local D1 migrations for the complete stack.
+
+## Copy a genesis operation
+
+For a DID with no updates, copy its signed genesis without private keys or Cloudflare credentials:
+
+```sh
+pnpm --filter @minisphere/directory migrate:genesis \
+  --from https://old-plc.example.com --to https://plc.directory --did did:plc:YOUR_DID
+```
+
+This is read-only. Review the target, handle, PDS endpoint, and keys in the output, then repeat with `--apply` to publish. Public PLC records are public and persistent. The script does not support directories behind additional access authentication.
+
+Both directories must expose `/DID/log/audit`. The script validates the genesis signature, DID, and CID; rejects updates, recovery history, and tombstones; skips an identical target; and verifies the result after submission. After a timeout, rerun without `--apply` to check the target before retrying. Original audit timestamps are not preserved.
+
+Keep the source available and pause identity updates during migration. Copy and verify every required DID before changing `PLC_DIRECTORY` in Accounts, PDS, and Town. This does not move repository data or update handles, PDS endpoints, or keys. Accounts with later operations need a separate full-history migration.

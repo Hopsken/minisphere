@@ -9,6 +9,8 @@ Run commands from the repository root. Use Node.js 24, pnpm 11, a Cloudflare acc
 
 Use the same mode for Accounts, PDS, and Town. Public PLC writes are public, persistent identity records. Do not use it for disposable local tests or switch an existing private network without an identity migration plan.
 
+For existing DIDs with only a genesis operation, use the [local migration script](../apps/directory/README.md#copy-a-genesis-operation) before switching directories.
+
 ## 1. Create resources
 
 ```sh
