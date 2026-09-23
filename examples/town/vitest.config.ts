@@ -20,11 +20,21 @@ export default defineConfig({
               "https://cloudflare-dns.com/*",
               "https://accounts.test/*",
               "https://plc.test/*",
+              "https://plc.directory/*",
             ],
             script: `
               export default {
                 fetch(request) {
                   const url = new URL(request.url);
+                  if (url.hostname === "plc.directory") {
+                    return Response.json({
+                      "@context": ["https://www.w3.org/ns/did/v1"],
+                      id: url.pathname.slice(1),
+                      alsoKnownAs: ["at://public.example.com"],
+                      service: [],
+                      verificationMethod: []
+                    });
+                  }
                   if (
                     url.hostname === "accounts.test" &&
                     url.pathname === "/xrpc/com.atproto.identity.resolveHandle" &&
@@ -54,18 +64,6 @@ export default defineConfig({
                         serviceEndpoint: "https://pds.hopsken.dev"
                       }],
                       verificationMethod: []
-                    });
-                  }
-                  if (
-                    url.hostname === "plc.test" &&
-                    url.pathname === "/did:plc:aaaaaaaaaaaaaaaaaaaaaaaa/data"
-                  ) {
-                    return Response.json({
-                      did: "did:plc:aaaaaaaaaaaaaaaaaaaaaaaa",
-                      alsoKnownAs: ["at://alice.r2d2.test"],
-                      services: {},
-                      verificationMethods: {},
-                      rotationKeys: []
                     });
                   }
                   return Response.json({ message: "DID not registered" }, { status: 404 });

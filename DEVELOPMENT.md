@@ -22,7 +22,7 @@ This file records the current implementation state and important architecture de
 
 ### PLC Directory
 
-- Accounts, PDS, and Town use HTTP for PLC access, without Directory service bindings. Accounts and PDS default an omitted `PLC_DIRECTORY` to `https://plc.directory` in their own Zod schemas; Town still requires it explicitly. Invalid explicit values fail validation, and request failures never switch directories. Local templates explicitly use `http://localhost:8788` to avoid persistent public writes.
+- Accounts, PDS, and Town use HTTP for PLC access, without Directory service bindings. Each defaults an omitted `PLC_DIRECTORY` to `https://plc.directory` in its own Zod schema. Invalid explicit values fail validation, and request failures never switch directories. Local templates explicitly use `http://localhost:8788` to avoid persistent public writes.
 - The private PLC Directory supports DID registration, resolution, updates, recovery, and audit logs.
 - D1 stores the append-only PLC operation log and derived DID state.
 - The PDS submits genesis operations to the configured Directory.
@@ -31,9 +31,10 @@ This file records the current implementation state and important architecture de
 ### Town example
 
 - Town is a minimal external AT Protocol OAuth browser client on React, TanStack Router, Atcute, Vite, and a Hono Worker.
-- It accepts a handle, resolves the DID, reads the PDS from the PLC DID document, discovers that PDS's authorization server, completes the OAuth flow through `@atcute/oauth-browser-client`, and displays the active user's handle.
+- It accepts a handle, DID, or PDS URL, uses standard identity and authorization-server discovery through `@atcute/oauth-browser-client`, and requests only `atproto` plus create permission for `app.bsky.feed.post`. Older read-only sessions need fresh consent.
 - Town selects one PLC Directory origin and reaches it through HTTP. Its same-origin handle endpoint uses standard DNS and HTTPS resolution for public handles and a local XRPC adapter for `.test` handles.
-- Town has no database or durable storage. DID documents and OAuth metadata discover the PDS and authorization server.
+- Town has no server database. The browser stores OAuth sessions through Atcute, plus per-DID drafts and pending record keys in local storage. `@atcute/client` and `OAuthUserAgent` write pure-text posts directly to the real account PDS; public reads use that same PDS. Official Bluesky schemas validate records. Stable TID keys and readback checks prevent blind duplicate writes after uncertain results; confirmed writes retry reads only. Reloads load the most recent 10 posts in descending repository-key order; successful posts refresh that list.
+- The simplified composer and recovery paths are covered by automated tests and mock browser checks. Real account OAuth and posting still require user verification; an orb portal must be temporarily public so external authorization servers can fetch client metadata. See the Town README.
 
 ### PDS
 
@@ -58,7 +59,7 @@ This file records the current implementation state and important architecture de
 - Every AT Protocol identity uses the same account model. The system does not store an account type or classification.
 - The PLC Directory is the source of truth for DID documents. The PDS is the source of truth for its account and session state. Accounts owns users, primary authentication, usernames, and hosted handle-to-DID mappings.
 - A PLC `alsoKnownAs` value is a handle claim, not proof of the reverse mapping. Accounts completes reverse verification directly from its active mapping.
-- Accounts and PDS each own their configuration resolver and Zod schema. Both require `MINISPHERE_ORIGIN` and derive the Accounts and `pds.<hostname>` origins. Only Accounts configures the hosted-handle suffix. Local development overrides the PDS origin and Accounts handle suffix. Each `resolveConfig()` reads `cloudflare:workers` environment bindings on demand. Their schemas default an omitted `PLC_DIRECTORY` to `https://plc.directory`; explicit invalid values still fail, and neither request failures nor explicit private origins fall back to another directory. Town remains unchanged and requires `PLC_DIRECTORY`.
+- Accounts and PDS each own their configuration resolver and Zod schema. Both require `MINISPHERE_ORIGIN` and derive the Accounts and `pds.<hostname>` origins. Only Accounts configures the hosted-handle suffix. Local development overrides the PDS origin and Accounts handle suffix. Each `resolveConfig()` reads `cloudflare:workers` environment bindings on demand. Their schemas default an omitted `PLC_DIRECTORY` to `https://plc.directory`; explicit invalid values still fail, and neither request failures nor explicit private origins fall back to another directory. Town applies the same directory default and failure rules in its own configuration schema.
 - Accounts and PDS expose `GET /health` as configuration-validation probes. A successful response means only that current configuration is valid, not that databases, service bindings, the PLC Directory, or other dependencies are available. Invalid configuration returns a generic error.
 - Accounts owns OAuth authorization, refresh state, and access-token signing. The PDS is the resource server and verifies the Accounts signature, configured issuer and audience, DPoP binding, scope, and local active subject before granting access.
 - Primary account authentication does not use a PDS password. Future app-password compatibility is a separate capability.
