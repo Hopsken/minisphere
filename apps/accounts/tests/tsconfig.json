@@ -6,7 +6,6 @@
       "node",
       "vite/client",
       "../worker-configuration.d.ts",
-      "../../directory/worker-configuration.d.ts",
       "../../pds/worker-configuration.d.ts"
     ]
   },

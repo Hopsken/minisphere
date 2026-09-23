@@ -126,8 +126,8 @@ describe("Entryway account API", () => {
         material.operation
       )
     ).resolves.toBe(material.operation.rotationKeys[0]);
-    const response = await env.DIRECTORY.fetch(
-      new Request(`https://directory.test/${material.did}/data`)
+    const response = await fetch(
+      new Request(`${env.PLC_DIRECTORY}/${material.did}/data`)
     );
     const { sig: _sig, ...expectedState } = material.operation;
     await expect(response.json()).resolves.toStrictEqual({

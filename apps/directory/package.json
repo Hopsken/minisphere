@@ -11,6 +11,7 @@
     "db:migrate:remote": "wrangler d1 migrations apply DB --remote",
     "deploy": "wrangler deploy",
     "dev": "wrangler dev",
+    "migrate:genesis": "node scripts/migrate-genesis.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tests/tsconfig.json"
   },

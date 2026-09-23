@@ -52,7 +52,7 @@ export class AccountService {
     this.users = users;
     this.env = env;
     this.pds = new PdsClient(env.PDS);
-    this.directory = new PlcDirectoryClient(env.DIRECTORY);
+    this.directory = new PlcDirectoryClient(env.PLC_DIRECTORY);
   }
 
   async getAccount(userId: string) {

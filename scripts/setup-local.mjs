@@ -11,6 +11,7 @@ const contracts = new Map([
       "PUBLIC_URL=http://localhost:8790",
       "PUBLIC_HANDLE_DOMAIN=r2d2.test",
       "PDS_ORIGIN=http://localhost:8787",
+      "PLC_DIRECTORY=http://localhost:8788",
     ],
   ],
   [
@@ -18,13 +19,14 @@ const contracts = new Map([
     [
       "ACCOUNTS_ORIGIN=http://localhost:8790",
       "PDS_ORIGIN=http://localhost:8787",
+      "PLC_DIRECTORY=http://localhost:8788",
     ],
   ],
   [
     "examples/town/.dev.vars.example",
     [
       "DEV_HANDLE_RESOLVER_ORIGIN=http://localhost:8789",
-      "PLC_DIRECTORY_ORIGIN=http://localhost:8788",
+      "PLC_DIRECTORY=http://localhost:8788",
       "PUBLIC_URL=http://127.0.0.1:5174",
     ],
   ],
