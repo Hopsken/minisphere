@@ -49,36 +49,13 @@ export default defineConfig(async () => {
             RESEND_API_KEY: "test-resend-key",
             TEST_MIGRATIONS: migrations,
           },
-          outboundService: "minisphere-test-email",
+          outboundService: "minisphere-test-http",
           workers: [
             {
-              modules: true,
-              name: "minisphere-directory",
-              routes: ["https://directory.test/*"],
-              script: `
-                const operations = new Map();
-
-                export default {
-                  async fetch(request) {
-                    const url = new URL(request.url);
-                    const [did, endpoint] = url.pathname.split("/").filter(Boolean);
-                    if (request.method === "POST" && did && !endpoint) {
-                      operations.set(decodeURIComponent(did), await request.json());
-                      return Response.json({ ok: true });
-                    }
-                    const operation = did ? operations.get(decodeURIComponent(did)) : null;
-                    if (request.method !== "GET" || endpoint !== "data" || !operation) {
-                      return Response.json({ message: "DID not registered" }, { status: 404 });
-                    }
-                    const { sig, ...state } = operation;
-                    return Response.json({ did: decodeURIComponent(did), ...state });
-                  }
-                };
-              `,
-            },
-            {
+              bindings: { PLC_DIRECTORY: "https://directory.test" },
               modules: true,
               name: "minisphere-pds",
+              outboundService: "minisphere-test-http",
               script: `
                 import { WorkerEntrypoint } from "cloudflare:workers";
 
@@ -124,8 +101,8 @@ export default defineConfig(async () => {
                   accounts.add(input.did);
                   inviteCodes.delete(input.inviteCode);
                   if (!input.handle.startsWith("pds-only.")) {
-                    await env.PLC_TEST_BACKEND.fetch(
-                      new Request(\`https://directory.test/\${encodeURIComponent(input.did)}\`, {
+                    await fetch(
+                      new Request(\`\${env.PLC_DIRECTORY}/\${encodeURIComponent(input.did)}\`, {
                         body: JSON.stringify(input.plcOp),
                         headers: { "Content-Type": "application/json" },
                         method: "POST"
@@ -161,19 +138,31 @@ export default defineConfig(async () => {
                   }
                 }
               `,
-              serviceBindings: { PLC_TEST_BACKEND: "minisphere-directory" },
             },
             {
               modules: true,
-              name: "minisphere-test-email",
-              routes: ["https://api.resend.com/*"],
-              script: `const emails = new Map();
+              name: "minisphere-test-http",
+              script: `const operations = new Map();
+              const emails = new Map();
               const deliveryCounts = new Map();
               export default {
-                async fetch(request, env) {
+                async fetch(request) {
                   const url = new URL(request.url);
-                  if (url.hostname === "directory.test") {
-                    return env.PLC_TEST_BACKEND.fetch(request);
+                  if (url.origin === "https://directory.test") {
+                    const [did, endpoint] = url.pathname.split("/").filter(Boolean);
+                    if (request.method === "POST" && did && !endpoint) {
+                      operations.set(decodeURIComponent(did), await request.json());
+                      return Response.json({ ok: true });
+                    }
+                    const operation = did ? operations.get(decodeURIComponent(did)) : null;
+                    if (request.method !== "GET" || endpoint !== "data" || !operation) {
+                      return Response.json({ message: "DID not registered" }, { status: 404 });
+                    }
+                    const { sig, ...state } = operation;
+                    return Response.json({ did: decodeURIComponent(did), ...state });
+                  }
+                  if (url.origin !== "https://api.resend.com") {
+                    return new Response("Unexpected HTTP origin", { status: 400 });
                   }
                   if (url.pathname === "/emails" && request.method === "POST") {
                     if (request.headers.get("authorization") !== "Bearer test-resend-key") {
@@ -196,7 +185,6 @@ export default defineConfig(async () => {
                   return new Response("Not Found", { status: 404 });
                 }
               }`,
-              serviceBindings: { PLC_TEST_BACKEND: "minisphere-directory" },
             },
           ],
         },
