@@ -69,8 +69,8 @@ export class AccountService {
     if (account?.status !== "active" || !account.did) {
       return null;
     }
-    // Accounts provisions PLC identities only.
-    const did: DidPlcString = `did:plc:${account.did.slice(8)}`;
+    // SAFETY: Active accounts contain a PLC DID verified during provisioning.
+    const did = account.did as DidPlcString;
     try {
       const head = await this.directory.getHead(did);
       const endpoint = head.operation.services.atproto_pds?.endpoint;
