@@ -1,5 +1,8 @@
 /* oxlint-disable vitest/max-expects, eslint/no-await-in-loop -- Ordered integration flows verify responses, persisted records, and unchanged heads at each boundary. */
+/* oxlint-disable unicorn/no-await-expression-member -- Keep each HTTP response assertion next to its request in these integration flows. */
 import * as CreateRecord from "@atcute/atproto/types/repo/createRecord";
+import * as UploadBlob from "@atcute/atproto/types/repo/uploadBlob";
+import * as ListBlobs from "@atcute/atproto/types/sync/listBlobs";
 import { fromUint8Array } from "@atcute/car";
 import {
   parsePrivateMultikey,
@@ -128,6 +131,41 @@ const setup = async (scope = `atproto repo:${COLLECTION}`, register = true) => {
     );
   const write = async (method: string, body: WriteBody) =>
     send(method, body, await proof(method));
+  const upload = async (
+    bytes:
+      | Uint8Array
+      | ReadableStream<Uint8Array>
+      | null = new TextEncoder().encode("avatar fixture"),
+    mime = "image/png",
+    headers: Record<string, string> = {}
+  ) =>
+    worker.fetch(
+      new Request(`${ORIGIN}/xrpc/com.atproto.repo.uploadBlob`, {
+        body: bytes,
+        headers: {
+          Authorization: `DPoP ${token}`,
+          "Content-Type": mime,
+          DPoP: await proof("uploadBlob"),
+          ...headers,
+        },
+        method: "POST",
+      }),
+      env
+    );
+  const readBlob = (cid: string, subject = did) =>
+    worker.fetch(
+      new Request(
+        `${ORIGIN}/xrpc/com.atproto.sync.getBlob?${new URLSearchParams({ cid, did: subject })}`
+      ),
+      env
+    );
+  const listBlobs = (params: Record<string, string> = {}) =>
+    worker.fetch(
+      new Request(
+        `${ORIGIN}/xrpc/com.atproto.sync.listBlobs?${new URLSearchParams({ did, ...params })}`
+      ),
+      env
+    );
   const create = async (rkey: string, text = rkey) => {
     const response = await write("createRecord", {
       collection: COLLECTION,
@@ -140,15 +178,401 @@ const setup = async (scope = `atproto repo:${COLLECTION}`, register = true) => {
   return {
     create,
     did,
+    listBlobs,
     proof,
     publicKey: await repoKey.exportPublicKey("did"),
+    readBlob,
     send,
     state,
     stub,
     token,
+    upload,
     write,
   };
 };
+
+// Failure cases, specified before blob implementation:
+// - Upload authority confused with record authority; incorrect MIME scope.
+// - Temporary/expired/foreign blobs published, forged size or MIME accepted.
+// - Commit failure publishes a blob, batch intermediate deletion loses a shared blob.
+// - Repeat uploads replace metadata; final removal still permits public access.
+// - Revision filtering uses upload time instead of the current record revision.
+// - Oversized uploads exceed the buffer limit; eviction loses metadata or references.
+const parseUpload = async (response: Response) => {
+  expect(response.status).toBe(200);
+  const { blob } = parse(
+    UploadBlob.mainSchema.output.schema,
+    await response.json()
+  );
+  return { ...blob, ref: { ...blob.ref } };
+};
+
+describe("blob lifecycle through authenticated XRPC and real R2/SQLite", () => {
+  const profile = "app.bsky.actor.profile";
+  const scope = `atproto blob:image/* repo:${profile} repo:${COLLECTION}`;
+
+  // Buffer/parser replacement failures: trust a forged length, read past the
+  // limit without cancellation, change subarray bytes, register partial bodies,
+  // reject valid MIME tokens, accept wildcards, or log buffered upload data.
+  it("preserves streamed subarrays and normalized MIME through publication", async () => {
+    const account = await setup(scope);
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new Uint8Array([99, 17, 239, 88]).subarray(1, 3));
+        controller.enqueue(new Uint8Array([0, 127, 255]));
+        controller.close();
+      },
+    });
+    const blob = await parseUpload(
+      await account.upload(body, 'Image/PNG; note="a;b"', {
+        "Content-Length": "5",
+      })
+    );
+    expect(blob).toMatchObject({ mimeType: "image/png", size: 5 });
+    expect(
+      (
+        await account.write("createRecord", {
+          collection: COLLECTION,
+          record: { attachment: blob },
+        })
+      ).status
+    ).toBe(200);
+    const downloaded = await account.readBlob(blob.ref.$link);
+    expect(new Uint8Array(await downloaded.arrayBuffer())).toStrictEqual(
+      new Uint8Array([17, 239, 0, 127, 255])
+    );
+    expect((await parseUpload(await account.upload(null))).size).toBe(0);
+  });
+
+  it("bounds actual stream bytes despite a forged length and cancels overflow", async () => {
+    const account = await setup(scope);
+    let cancelled = false;
+    let reads = 0;
+    const body = new ReadableStream<Uint8Array>(
+      {
+        cancel() {
+          cancelled = true;
+        },
+        pull(controller) {
+          reads += 1;
+          controller.enqueue(new Uint8Array(reads <= 2 ? 5_000_000 : 1));
+        },
+      },
+      { highWaterMark: 0 }
+    );
+    expect(
+      (await account.upload(body, "image/png", { "Content-Length": "1" }))
+        .status
+    ).toBe(413);
+    expect(cancelled).toBeTruthy();
+    expect(reads).toBe(3);
+    expect(
+      (await env.BLOBS.list({ prefix: `${account.did}/` })).objects
+    ).toHaveLength(0);
+  });
+
+  it("rejects malformed and mismatched lengths without storing partial bodies", async () => {
+    const account = await setup(scope);
+    for (const length of ["-1", "1.5", "abc", "1", "3"]) {
+      const body = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(new Uint8Array([17, 239]));
+          controller.close();
+        },
+      });
+      expect(
+        (await account.upload(body, "image/png", { "Content-Length": length }))
+          .status
+      ).toBe(400);
+    }
+    const broken = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        controller.error(new Error("source failure"));
+      },
+    });
+    expect((await account.upload(broken)).status).toBe(400);
+    expect(
+      (await env.BLOBS.list({ prefix: `${account.did}/` })).objects
+    ).toHaveLength(0);
+  });
+
+  it("uses MIME token grammar while rejecting wildcard upload types", async () => {
+    const account = await setup(`atproto blob:*/*`);
+    for (const mime of [
+      "image/*",
+      "*/png",
+      "image/png/extra",
+      "image",
+      "image/p ng",
+    ]) {
+      expect((await account.upload(new Uint8Array([1]), mime)).status).toBe(
+        400
+      );
+    }
+    const blob = await parseUpload(
+      await account.upload(
+        new Uint8Array([17]),
+        "application/vnd.example%data+json"
+      )
+    );
+    expect(blob.mimeType).toBe("application/vnd.example%data+json");
+  });
+
+  it("publishes a profile avatar only on commit, survives eviction, and hides the last removed reference", async () => {
+    const account = await setup(scope);
+    const bytes = new TextEncoder().encode("avatar fixture");
+    const blob = await parseUpload(await account.upload(bytes));
+    expect(blob.size).toBe(bytes.length);
+    expect(blob.mimeType).toBe("image/png");
+    // Computed independently using Python hashlib and base32, not the CID implementation.
+    expect(blob.ref.$link).toBe(
+      "bafkreiaxcaz7mmw37iwvfyo6ovxnuor3r7imhi3p4ezrpn3flzy4nhshze"
+    );
+    await expect(account.readBlob(blob.ref.$link)).resolves.toMatchObject({
+      status: 400,
+    });
+    await expect((await account.listBlobs()).json()).resolves.toStrictEqual({
+      cids: [],
+    });
+    const saved = await account.write("putRecord", {
+      collection: profile,
+      record: { $type: profile, avatar: blob, displayName: "Blob E2E" },
+      rkey: "self",
+      validate: true,
+    });
+    expect(saved.status).toBe(200);
+    const created = parse(
+      CreateRecord.mainSchema.output.schema,
+      await saved.json()
+    );
+    expect(created.validationStatus).toBe("valid");
+    await evictDurableObject(account.stub);
+    const downloaded = await account.readBlob(blob.ref.$link);
+    expect(downloaded.status).toBe(200);
+    expect(downloaded.headers.get("Content-Type")).toBe("image/png");
+    expect(downloaded.headers.get("Content-Length")).toBe(String(bytes.length));
+    expect(downloaded.headers.get("Content-Security-Policy")).toContain(
+      "sandbox"
+    );
+    expect(new Uint8Array(await downloaded.arrayBuffer())).toStrictEqual(bytes);
+    await expect((await account.listBlobs()).json()).resolves.toStrictEqual({
+      cids: [blob.ref.$link],
+    });
+    await expect(
+      (await account.listBlobs({ since: created.commit?.rev ?? "" })).json()
+    ).resolves.toStrictEqual({ cids: [] });
+    await expect(
+      parseUpload(await account.upload(bytes, "image/jpeg"))
+    ).resolves.toStrictEqual(blob);
+    const updated = await account.write("putRecord", {
+      collection: profile,
+      record: { $type: profile, avatar: blob, displayName: "Changed" },
+      rkey: "self",
+    });
+    expect(updated.status).toBe(200);
+    await expect(
+      (await account.listBlobs({ since: created.commit?.rev ?? "" })).json()
+    ).resolves.toStrictEqual({ cids: [blob.ref.$link] });
+    expect(
+      (
+        await account.write("deleteRecord", {
+          collection: profile,
+          rkey: "self",
+        })
+      ).status
+    ).toBe(200);
+    await expect(account.readBlob(blob.ref.$link)).resolves.toMatchObject({
+      status: 400,
+    });
+    await expect((await account.listBlobs()).json()).resolves.toStrictEqual({
+      cids: [],
+    });
+    // Logical deletion must not let an old descriptor resurrect a removed blob.
+    expect(
+      (
+        await account.write("putRecord", {
+          collection: profile,
+          record: { avatar: blob },
+          rkey: "self",
+        })
+      ).status
+    ).toBe(400);
+    await parseUpload(await account.upload(bytes));
+    expect(
+      (
+        await account.write("putRecord", {
+          collection: profile,
+          record: { avatar: blob },
+          rkey: "self",
+        })
+      ).status
+    ).toBe(200);
+  });
+
+  it("rejects missing scopes, excessive bodies, foreign/expired blobs and forged descriptors", async () => {
+    for (const denied of [
+      "atproto",
+      `atproto repo:${profile}`,
+      "atproto blob:audio/*",
+    ]) {
+      const account = await setup(denied);
+      expect((await account.upload()).status).toBe(403);
+    }
+    const account = await setup(scope);
+    expect((await account.upload(new Uint8Array(10_000_001))).status).toBe(413);
+    const largeBytes = new Uint8Array(10_000_000);
+    largeBytes[0] = 17;
+    largeBytes[largeBytes.length - 1] = 239;
+    const largeBlob = await parseUpload(await account.upload(largeBytes));
+    expect(largeBlob.size).toBe(10_000_000);
+    expect(
+      (
+        await account.write("createRecord", {
+          collection: COLLECTION,
+          record: { attachment: largeBlob },
+        })
+      ).status
+    ).toBe(200);
+    const downloaded = await account.readBlob(largeBlob.ref.$link);
+    expect(downloaded.status).toBe(200);
+    await expect(
+      crypto.subtle.digest("SHA-256", await downloaded.arrayBuffer())
+    ).resolves.toStrictEqual(await crypto.subtle.digest("SHA-256", largeBytes));
+    const blob = await parseUpload(await account.upload());
+    const foreign = await setup(scope);
+    expect(
+      (
+        await foreign.write("putRecord", {
+          collection: profile,
+          record: { avatar: blob },
+          rkey: "self",
+        })
+      ).status
+    ).toBe(400);
+    for (const avatar of [
+      { ...blob, size: blob.size + 1 },
+      { ...blob, mimeType: "image/jpeg" },
+    ]) {
+      expect(
+        (
+          await account.write("putRecord", {
+            collection: profile,
+            record: { avatar },
+            rkey: "self",
+            validate: false,
+          })
+        ).status
+      ).toBe(400);
+    }
+    const head = await account.stub.rpcGetRepoStatus();
+    await runInDurableObject(account.stub, (_instance, state) => {
+      state.storage.sql.exec("UPDATE blobs SET expires_at = 0");
+    });
+    expect(
+      (
+        await account.write("putRecord", {
+          collection: profile,
+          record: { avatar: blob },
+          rkey: "self",
+        })
+      ).status
+    ).toBe(400);
+    await expect(account.stub.rpcGetRepoStatus()).resolves.toStrictEqual(head);
+    const tooLargeAvatar = await parseUpload(
+      await account.upload(new Uint8Array(1_000_001))
+    );
+    expect(
+      (
+        await account.write("putRecord", {
+          collection: profile,
+          record: { avatar: tooLargeAvatar },
+          rkey: "self",
+          validate: true,
+        })
+      ).status
+    ).toBe(400);
+  });
+
+  it("rolls back blob publication with the commit and preserves batch reference transfers", async () => {
+    const account = await setup(scope);
+    const blob = await parseUpload(await account.upload());
+    await runInDurableObject(account.stub, (_instance, state) => {
+      state.storage.sql.exec(
+        "CREATE TRIGGER fail_blob_commit BEFORE UPDATE ON metadata BEGIN SELECT RAISE(ABORT, 'test rollback'); END"
+      );
+    });
+    const create = (rkey: string) =>
+      account.write("createRecord", {
+        collection: COLLECTION,
+        record: { file: blob },
+        rkey,
+      });
+    expect((await create("a")).status).toBe(500);
+    await expect((await account.listBlobs()).json()).resolves.toStrictEqual({
+      cids: [],
+    });
+    await runInDurableObject(account.stub, (_instance, state) => {
+      state.storage.sql.exec("DROP TRIGGER fail_blob_commit");
+    });
+    expect((await create("a")).status).toBe(200);
+    expect(
+      (
+        await account.write("applyWrites", {
+          writes: [
+            {
+              $type: "com.atproto.repo.applyWrites#delete",
+              collection: COLLECTION,
+              rkey: "a",
+            },
+            {
+              $type: "com.atproto.repo.applyWrites#create",
+              collection: COLLECTION,
+              rkey: "b",
+              value: { file: blob },
+            },
+          ],
+        })
+      ).status
+    ).toBe(200);
+    expect((await account.readBlob(blob.ref.$link)).status).toBe(200);
+    expect((await create("c")).status).toBe(200);
+    expect(
+      (
+        await account.write("deleteRecord", {
+          collection: COLLECTION,
+          rkey: "b",
+        })
+      ).status
+    ).toBe(200);
+    expect((await account.readBlob(blob.ref.$link)).status).toBe(200);
+    const second = await parseUpload(
+      await account.upload(new TextEncoder().encode("second avatar"))
+    );
+    expect(
+      (
+        await account.write("putRecord", {
+          collection: COLLECTION,
+          record: { file: second },
+          rkey: "d",
+        })
+      ).status
+    ).toBe(200);
+    const firstPage = parse(
+      ListBlobs.mainSchema.output.schema,
+      await (await account.listBlobs({ limit: "1" })).json()
+    );
+    assert(firstPage.cursor);
+    const nextPage = parse(
+      ListBlobs.mainSchema.output.schema,
+      await (
+        await account.listBlobs({ cursor: firstPage.cursor, limit: "1" })
+      ).json()
+    );
+    expect([...firstPage.cids, ...nextPage.cids]).toStrictEqual(
+      [blob.ref.$link, second.ref.$link].toSorted()
+    );
+  });
+});
 
 describe("authenticated repository writes", () => {
   it("creates, replaces with CAS, deletes, and reads signed records after eviction", async () => {

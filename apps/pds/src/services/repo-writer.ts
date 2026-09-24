@@ -2,7 +2,6 @@ import type * as ApplyWrites from "@atcute/atproto/types/repo/applyWrites";
 import type * as CreateRecord from "@atcute/atproto/types/repo/createRecord";
 import type * as DeleteRecord from "@atcute/atproto/types/repo/deleteRecord";
 import type * as PutRecord from "@atcute/atproto/types/repo/putRecord";
-import * as Post from "@atcute/bluesky/types/app/feed/post";
 import { HandleResolutionError } from "@atcute/identity-resolver";
 import type { HandleResolver } from "@atcute/identity-resolver";
 import { isDid } from "@atcute/lexicons/syntax";
@@ -13,6 +12,7 @@ import type { RepoDO, RepoWrite } from "@minisphere/repo-do";
 import { z } from "zod";
 
 import { resourceError } from "../auth/resource";
+import { collectionSchemas } from "../collections";
 import { xrpcError } from "../utils/xrpc-error";
 
 const recordSchema = z.record(z.string(), z.unknown());
@@ -27,9 +27,6 @@ const checkRecordValues = (value: unknown, depth = 0): void => {
     throw xrpcError("InvalidRecord", "Record numbers must be safe integers");
   }
   if (value && typeof value === "object") {
-    if ("$type" in value && value.$type === "blob") {
-      throw xrpcError("InvalidRecord", "Blob writes are not supported");
-    }
     for (const child of Object.values(value)) {
       checkRecordValues(child, depth + 1);
     }
@@ -56,15 +53,13 @@ const prepareRecord = (
   checkRecordValues(record);
   let validationStatus: "valid" | "unknown" = "unknown";
   if (validate !== false) {
-    if (collection === "app.bsky.feed.post") {
+    const schema = collectionSchemas.get(collection);
+    if (schema) {
       if (
-        !safeParse(Post.mainSchema, record).ok ||
-        (rkey !== undefined && !safeParse(Post.mainSchema.key, rkey).ok)
+        !safeParse(schema, record, { strict: true }).ok ||
+        (rkey !== undefined && !safeParse(schema.key, rkey).ok)
       ) {
-        throw xrpcError(
-          "InvalidRecord",
-          "Invalid app.bsky.feed.post record or key"
-        );
+        throw xrpcError("InvalidRecord", `Invalid ${collection} record or key`);
       }
       validationStatus = "valid";
     } else if (validate === true) {

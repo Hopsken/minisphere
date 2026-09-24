@@ -31,7 +31,9 @@
     "@hono/zod-validator": "catalog:",
     "@minisphere/hono-utils": "workspace:*",
     "@minisphere/repo-do": "workspace:*",
+    "content-type": "catalog:",
     "drizzle-orm": "catalog:",
+    "get-stream": "catalog:",
     "hono": "catalog:",
     "jose": "catalog:",
     "zod": "catalog:"

@@ -16,6 +16,12 @@
   },
   "workers_dev": false,
   "keep_vars": true,
+  "r2_buckets": [
+    {
+      "binding": "BLOBS",
+      "bucket_name": "minisphere-pds-blobs",
+    },
+  ],
   "d1_databases": [
     {
       "binding": "PDS_DB",
