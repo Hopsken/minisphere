@@ -1,5 +1,5 @@
 /* oxlint-disable eslint/func-style, eslint/no-use-before-define -- TanStack file routes export Route before their component declarations. */
-import { RepoPermission } from "@atproto/oauth-scopes";
+import { BlobPermission, RepoPermission } from "@atproto/oauth-scopes";
 import { queryOptions } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
@@ -38,12 +38,19 @@ const authorizationDetailsQuery = (consentToken: string) =>
   });
 
 // Display names only: adding a label never grants permission or enables a schema.
-const collectionLabels = new Map([["app.bsky.feed.post", "Bluesky posts"]]);
+const collectionLabels = new Map([
+  ["app.bsky.feed.post", "Bluesky posts"],
+  ["app.bsky.actor.profile", "Bluesky profile"],
+]);
 const permissionList = new Intl.ListFormat("en", { type: "conjunction" });
 
 const scopeLabel = (scope: string) => {
   if (scope === "atproto") {
     return "Access your AT Protocol account";
+  }
+  const blob = BlobPermission.fromString(scope);
+  if (blob) {
+    return `Upload files (${permissionList.format(blob.accept)})`;
   }
   const permission = RepoPermission.fromString(scope);
   if (permission) {

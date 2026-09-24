@@ -1,4 +1,4 @@
-import { RepoPermission } from "@atproto/oauth-scopes";
+import { BlobPermission, RepoPermission } from "@atproto/oauth-scopes";
 import type { AuthContext } from "better-auth";
 import { isDpopProofError } from "better-auth/oauth2";
 import type { HonoRequest } from "hono";
@@ -98,7 +98,9 @@ const parseAuthorizationRequest = async (
     scope.some(
       (value) =>
         !metadata.scopes.includes(value) ||
-        (!supportedScopes.includes(value) && !RepoPermission.fromString(value))
+        (!supportedScopes.includes(value) &&
+          !RepoPermission.fromString(value) &&
+          !BlobPermission.fromString(value))
     )
   ) {
     throw new OAuthError("invalid_scope", "Requested scope is not supported");
