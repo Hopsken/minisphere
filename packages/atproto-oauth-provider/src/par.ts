@@ -1,3 +1,4 @@
+import type { OAuthParResponse } from "@atcute/oauth-types";
 import { BlobPermission, RepoPermission } from "@atproto/oauth-scopes";
 import type { AuthContext } from "better-auth";
 import { isDpopProofError } from "better-auth/oauth2";
@@ -24,7 +25,6 @@ import {
   REQUEST_URI_PREFIX,
 } from "./oauth-state";
 import type { AuthorizationRequest } from "./oauth-state";
-import { assertParResponse } from "./protocol-validation";
 import { createUniqueRecord, reserveRecord } from "./storage";
 import type {
   AtprotoClientMetadata,
@@ -195,8 +195,7 @@ export const handlePar = async (
     const responseBody = {
       expires_in: PAR_LIFETIME_MS / 1000,
       request_uri: `${REQUEST_URI_PREFIX}${parToken}`,
-    };
-    assertParResponse(responseBody);
+    } satisfies OAuthParResponse;
     return jsonResponse(responseBody, 201, responseNonce);
   } catch (error) {
     if (

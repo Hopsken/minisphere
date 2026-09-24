@@ -1,28 +1,20 @@
 import { describe, expect, it } from "vitest";
-import { ZodError } from "zod";
 
 import app from "../worker";
-import { configurationSchema } from "../worker/configuration";
 
 const PUBLIC_URL = "https://town.example.com";
 describe("Town configuration", () => {
   it.each(["", "ftp://plc.test"])(
-    "rejects explicit invalid directory %s",
-    (PLC_DIRECTORY) => {
-      expect(() =>
-        configurationSchema.parse({ PLC_DIRECTORY, PUBLIC_URL })
-      ).toThrow(ZodError);
+    "rejects explicit invalid directory %j",
+    async (PLC_DIRECTORY) => {
+      const response = await app.request(
+        "https://town.example.com/api/configuration",
+        undefined,
+        { PLC_DIRECTORY, PUBLIC_URL }
+      );
+      expect(response.status).toBe(500);
     }
   );
-
-  it("rejects invalid configuration at the HTTP boundary", async () => {
-    const response = await app.request(
-      "https://town.example.com/api/configuration",
-      undefined,
-      { PLC_DIRECTORY: "", PUBLIC_URL }
-    );
-    expect(response.status).toBe(500);
-  });
 
   it("reads the public directory when omitted", async () => {
     const response = await app.request(

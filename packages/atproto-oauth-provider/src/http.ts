@@ -1,3 +1,4 @@
+import type { AtprotoAuthorizationServerMetadata } from "@atcute/oauth-types";
 import type { AuthContext } from "better-auth";
 import { isDpopProofError } from "better-auth/oauth2";
 import type { HonoRequest } from "hono";
@@ -5,7 +6,6 @@ import { z } from "zod";
 
 import { DpopNonceError } from "./dpop";
 import { DPOP_NONCE_LIFETIME_MS } from "./oauth-state";
-import { assertAuthorizationServerMetadata } from "./protocol-validation";
 import { createUniqueRecord } from "./storage";
 
 const FORM_CONTENT_TYPE = "application/x-www-form-urlencoded";
@@ -257,7 +257,6 @@ export const metadataResponse = (
     scopes_supported: supportedScopes,
     token_endpoint: endpoint(issuer, "/oauth/token"),
     token_endpoint_auth_methods_supported: ["none"],
-  };
-  assertAuthorizationServerMetadata(body);
+  } satisfies AtprotoAuthorizationServerMetadata;
   return Response.json(body, { headers, status: 200 });
 };

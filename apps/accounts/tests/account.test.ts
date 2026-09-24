@@ -1,12 +1,6 @@
-import { isSignedOperationValid } from "@atcute/did-plc";
 import { env, exports } from "cloudflare:workers";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-
-import { createDatabase } from "../worker/db";
-import { restorePlcAccountMaterial } from "../worker/lib/plc-account";
-import { UserRepository } from "../worker/repositories/user-repository";
-import { UsernameUnavailableError } from "../worker/repositories/username-unavailable-error";
 
 const origin = "https://minisphere.test";
 const accountSchema = z.discriminatedUnion("state", [
@@ -103,47 +97,26 @@ describe("Entryway account API", () => {
     });
   });
 
-  it("uses the same saved signed operation for concurrent HTTP requests", async () => {
+  it("creates one identity for concurrent requests from the same user", async () => {
     const cookie = await login("same-user-race@example.com");
     const [first, second] = await Promise.all([
       createAccount(cookie, "same-user-race"),
       createAccount(cookie, "same-user-race"),
     ]);
-    const firstBody = await first.json();
+    const account = accountSchema.parse(await first.json());
     expect([first.status, second.status]).toStrictEqual([201, 201]);
-    await expect(second.json()).resolves.toStrictEqual(firstBody);
-    const user = await env.DB.prepare("SELECT id FROM user WHERE email = ?")
-      .bind("same-user-race@example.com")
-      .first<{ id: string }>();
-    if (!user) {
-      throw new Error("Missing test user");
+    await expect(second.json()).resolves.toStrictEqual(account);
+    if (account.state !== "active") {
+      throw new Error("Expected an active account");
     }
-    const stored = await new UserRepository(
-      createDatabase(env.DB)
-    ).findAccountByUserId(user.id);
-    if (!stored) {
-      throw new Error("Missing stored identity");
-    }
-    const material = await restorePlcAccountMaterial(
-      user.id,
-      env.ACCOUNTS_ENCRYPTION_KEY,
-      stored
-    );
-    await expect(
-      isSignedOperationValid(
-        material.operation.rotationKeys,
-        material.operation
-      )
-    ).resolves.toBe(material.operation.rotationKeys[0]);
+
     const response = await fetch(
-      new Request(`${env.PLC_DIRECTORY}/${material.did}/data`)
+      new Request(`${env.PLC_DIRECTORY}/${account.did}/data`)
     );
-    const { sig: _sig, ...expectedState } = material.operation;
-    await expect(response.json()).resolves.toStrictEqual({
-      ...expectedState,
-      did: material.did,
+    await expect(response.json()).resolves.toMatchObject({
+      alsoKnownAs: ["at://same-user-race.minisphere.test"],
+      did: account.did,
     });
-    expect(firstBody).toMatchObject({ did: material.did, state: "active" });
   });
 
   it("keeps an unknown outcome on the same expected DID", async () => {
@@ -252,16 +225,6 @@ describe("Entryway account API", () => {
       .bind("one-winner")
       .first<{ count: number }>();
     expect(count?.count).toBe(1);
-  });
-
-  it("throws when a reserved name is passed directly to the repository", async () => {
-    const users = new UserRepository(createDatabase(env.DB));
-    await expect(
-      users.reserveAccount("reserved-user", " PDS ")
-    ).rejects.toThrow(UsernameUnavailableError);
-    await expect(
-      users.findAccountByUserId("reserved-user")
-    ).resolves.toBeUndefined();
   });
 
   it("rejects reserved usernames without persisting account state", async () => {

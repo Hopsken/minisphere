@@ -15,9 +15,9 @@ pnpm --filter @minisphere/accounts exec wrangler d1 create minisphere-accounts
 pnpm --filter @minisphere/pds exec wrangler r2 bucket create minisphere-pds-blobs
 ```
 
-Keep the R2 bucket private and bound as `BLOBS` in the PDS Wrangler configuration. Do not enable a public bucket URL or attach a lifecycle rule that could delete referenced objects. Physical blob reclamation is deferred; see [PDS blob limits and follow-up](../apps/pds/README.md#blobs).
+Keep the R2 bucket private and bound as `BLOBS` in the PDS Wrangler configuration. Do not enable a public bucket URL or attach a lifecycle rule that could delete referenced objects. Physical blob reclamation is deferred; see [PDS blobs](../apps/pds/README.md#blobs).
 
-Existing deployments must retain database IDs and secrets. Back up D1 and encryption keys before applying migrations; see the [Accounts migration warning](../apps/accounts/README.md#database).
+Existing deployments must keep their database IDs and secrets. Back up D1 and encryption keys before you apply migrations.
 
 ## 2. Set runtime variables and secrets
 
@@ -42,7 +42,7 @@ Optional overrides:
 - `PDS_ORIGIN` — defaults to `https://pds.example.com` in both Workers.
 - `PUBLIC_HANDLE_DOMAIN` — Accounts only; defaults to `example.com`.
 
-Omit unused overrides; do not set empty values. Origins must have no path or trailing slash. Accounts `PUBLIC_URL` and PDS `ACCOUNTS_ORIGIN` are no longer used.
+Omit unused overrides; do not set empty values. Origins must have no path or trailing slash.
 
 ## 3. Configure domains
 
@@ -54,7 +54,7 @@ In **Settings → Domains & Routes**:
 | PDS      | Custom Domain | `pds.example.com`                       |
 | Accounts | Worker Route  | `*.example.com/.well-known/atproto-did` |
 
-The wildcard needs proxied DNS and TLS coverage. Do not use `*.example.com/*`: it would capture PDS traffic. For an existing registry, defer the route switch until verification below.
+The wildcard needs proxied DNS and TLS coverage. Do not use `*.example.com/*`: it would capture PDS traffic.
 
 ## 4. Build and deploy
 
@@ -85,6 +85,4 @@ Optional services:
 - Accounts `/xrpc/com.atproto.identity.resolveHandle?handle=<user>.example.com` and `https://<user>.example.com/.well-known/atproto-did` return the active DID; unknown and incomplete accounts do not resolve.
 - Login, account creation, and optional Town OAuth work. `/__dev/log-me-in/dev@example.com` returns `404`.
 
-**Replacing Handle Registry:** audit existing usernames against the [reserved list](../apps/accounts/worker/lib/reserved-usernames.ts), especially `pds`. Plan a maintenance window: the new Accounts Worker removes the RPC entrypoint used by the old registry. Verify Accounts XRPC first, switch the narrow wildcard route, verify well-known resolution, then remove the old Worker. Do not silently rename or delete existing accounts.
-
-Review [current limitations](../DEVELOPMENT.md) before accepting real users. Account-creation checks write persistent identity data.
+Review the [current status](../README.md#status) before you accept real users. Account-creation checks write persistent identity data.

@@ -10,7 +10,6 @@
     "db:migrate:local": "wrangler d1 migrations apply DB --local",
     "db:migrate:remote": "wrangler d1 migrations apply DB --remote",
     "auth:generate": "pnpm dlx auth@latest generate --config better-auth.config.ts --output ./worker/db/schema/better-auth.ts",
-    "auth:create:admin": "pnpm dlx auth@latest create-admin --email admin@example.com --name 'Admin' --role admin --config better-auth.config.ts",
     "deploy": "wrangler deploy",
     "dev": "vite dev",
     "preview": "vite preview",

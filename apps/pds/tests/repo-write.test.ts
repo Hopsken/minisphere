@@ -52,7 +52,17 @@ interface ProofOverrides {
   nonce?: string | undefined;
 }
 
-const setup = async (scope = `atproto repo:${COLLECTION}`, register = true) => {
+interface TokenOverrides {
+  claims?: (issuedAt: number) => Record<string, string | number>;
+  // Signs with another key while keeping the Accounts key ID in the header.
+  signWithUntrustedKey?: boolean;
+}
+
+const setup = async (
+  scope = `atproto repo:${COLLECTION}`,
+  register = true,
+  tokenOverrides: TokenOverrides = {}
+) => {
   const suffix = Array.from(
     crypto.getRandomValues(new Uint8Array(24)),
     (byte) => "abcdefghijklmnopqrstuvwxyz234567"[byte % 32]
@@ -88,10 +98,14 @@ const setup = async (scope = `atproto repo:${COLLECTION}`, register = true) => {
       jti: crypto.randomUUID(),
       scope,
       sub: did,
+      ...tokenOverrides.claims?.(now),
     })
   );
   const signingInput = `${header}.${payload}`;
-  const token = `${signingInput}.${base64url.encode(await oauthKey.sign(new TextEncoder().encode(signingInput)))}`;
+  const tokenKey = tokenOverrides.signWithUntrustedKey
+    ? await Secp256k1PrivateKeyExportable.createKeypair()
+    : oauthKey;
+  const token = `${signingInput}.${base64url.encode(await tokenKey.sign(new TextEncoder().encode(signingInput)))}`;
   const state = new DpopStateRepository(db);
   const nonce = await state.createNonce();
   const proof = async (method: string, overrides: ProofOverrides = {}) =>
@@ -949,6 +963,42 @@ describe("authenticated repository writes", () => {
       ).resolves.toMatchObject({ status: 403 });
     }
   );
+
+  it.each<[string, TokenOverrides]>([
+    ["another audience", { claims: () => ({ aud: "https://other-pds.test" }) }],
+    [
+      "another issuer",
+      { claims: () => ({ iss: "https://other-accounts.test" }) },
+    ],
+    [
+      "a lifetime beyond five minutes",
+      { claims: (now) => ({ exp: now + 301 }) },
+    ],
+    [
+      "a future issue time",
+      { claims: (now) => ({ exp: now + 360, iat: now + 60 }) },
+    ],
+    ["a signature from an untrusted key", { signWithUntrustedKey: true }],
+  ])("rejects an access token with %s", async (_name, overrides) => {
+    const { stub, write } = await setup(
+      `atproto repo:${COLLECTION}`,
+      true,
+      overrides
+    );
+    const head = await stub.rpcGetRepoStatus();
+    const response = await write("createRecord", {
+      collection: COLLECTION,
+      record: record("denied"),
+    });
+    expect({
+      body: await response.json(),
+      status: response.status,
+    }).toStrictEqual({
+      body: { error: "invalid_token", message: "Invalid access token" },
+      status: 401,
+    });
+    await expect(stub.rpcGetRepoStatus()).resolves.toStrictEqual(head);
+  });
 
   it("rejects unregistered token subjects", async () => {
     const { write } = await setup(`atproto repo:${COLLECTION}`, false);

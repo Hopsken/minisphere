@@ -35,7 +35,7 @@ A minimal Relay is planned.
 
 ## Requirements
 
-- Node.js 22 or later
+- Node.js 24
 - pnpm 11
 
 ## Setup
@@ -49,7 +49,7 @@ The setup command validates the fixed local topology, creates each missing `.env
 
 Shared external dependencies, core toolchain packages, and direct `@atcute/*` dependencies are defined in the pnpm catalog in `pnpm-workspace.yaml`. Workspace manifests reference them with the `catalog:` protocol, and `pnpm add` prefers matching catalog entries.
 
-The example Worker secrets are for local development only. Configure production runtime variables and secrets in Cloudflare's Worker settings, and configure domains and routes there as well. Deployments preserve these values; production secrets must differ from the examples. See [configuration ownership](./docs/LOCAL_DEVELOPMENT.md#configuration-ownership) for Workers Builds setup.
+The example Worker secrets are for local development only. See the [deployment guide](./docs/DEPLOYMENT.md) for production configuration.
 
 ## Commands
 
@@ -89,13 +89,21 @@ pnpm --filter @minisphere/pds db:migrate:local
 
 GitHub Actions runs `pnpm check` for pull requests, merge queue entries, and pushes to `main`. The `Checks` status must be required in the `main` branch rules before it can block a pull request merge.
 
+## Status
+
+Minisphere is in development. Not yet implemented:
+
+- a deployed end-to-end account-creation test;
+- confidential OAuth clients (`private_key_jwt`) and OAuth permission sets (`include:`);
+- PDS session methods, repository export, and repository event subscriptions;
+- physical blob reclamation and storage quotas;
+- the Relay.
+
 ## Documentation
 
-- [Accounts Entryway product requirements](./docs/product/accounts-entryway.md)
-- [Local development environment](./docs/LOCAL_DEVELOPMENT.md)
-- [Deployment guide](./docs/DEPLOYMENT.md)
-- [Development status and decision log](./DEVELOPMENT.md)
-- [Coding style](./docs/CODING_STYLE.md)
 - [Architecture Decision Records](./docs/adr/README.md)
+- [Local development](./docs/LOCAL_DEVELOPMENT.md)
+- [Deployment](./docs/DEPLOYMENT.md)
+- [Coding style](./docs/CODING_STYLE.md)
 
-Project-specific architecture, setup, bindings, database, and deployment instructions live in each project's README.
+Each project's README describes its interface, configuration, and commands.
