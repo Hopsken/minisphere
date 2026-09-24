@@ -20,6 +20,14 @@ const app = new Hono<WorkerEnv>()
     const service = new AccountService(users, ctx.env);
     return ctx.json(await service.getAccount(ctx.var.session.user.id));
   })
+  .get("/profile", async (ctx) => {
+    const users = new UserRepository(ctx.var.database);
+    const service = new AccountService(users, ctx.env);
+    ctx.header("Cache-Control", "no-store");
+    return ctx.json({
+      profile: await service.getProfile(ctx.var.session.user.id),
+    });
+  })
   .get(
     "/usernames/:username",
     zValidator("param", z.object({ username: usernameSchema })),

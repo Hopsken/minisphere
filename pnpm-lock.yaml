@@ -426,6 +426,9 @@ importers:
       '@atcute/atproto':
         specifier: 'catalog:'
         version: 4.0.4(@atcute/lexicons@2.1.0)
+      '@atcute/bluesky':
+        specifier: 'catalog:'
+        version: 4.0.22(@atcute/lexicons@2.1.0)
       '@atcute/client':
         specifier: 'catalog:'
         version: 5.1.1(@atcute/lexicons@2.1.0)(typescript@7.0.2)
