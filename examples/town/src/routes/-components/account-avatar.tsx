@@ -7,17 +7,17 @@ export const AccountAvatar = ({
   name: string;
   src: string | undefined;
 }) => {
-  const [failed, setFailed] = useState(false);
+  const [failedSrc, setFailedSrc] = useState<string>();
   return (
     <span
       className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-blue-100 font-semibold text-blue-950"
       aria-hidden="true"
     >
-      {src && !failed ? (
+      {src && src !== failedSrc ? (
         <img
           alt=""
           className="size-full object-cover"
-          onError={() => setFailed(true)}
+          onError={() => setFailedSrc(src)}
           src={src}
         />
       ) : (

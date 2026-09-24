@@ -54,6 +54,7 @@ export const loadAccount = async () => {
     name: record?.displayName,
     oauth,
     reader,
+    service: session.info.aud,
     writer,
   };
 };

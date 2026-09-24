@@ -711,9 +711,15 @@ importers:
       '@atcute/oauth-browser-client':
         specifier: 'catalog:'
         version: 5.0.0(@atcute/identity-resolver@2.0.1(@atcute/identity@2.0.2(@atcute/lexicons@2.1.0)(typescript@7.0.2))(@atcute/lexicons@2.1.0)(typescript@7.0.2))(@atcute/lexicons@2.1.0)(typescript@7.0.2)
+      '@atcute/oauth-types':
+        specifier: 'catalog:'
+        version: 1.0.1(typescript@7.0.2)
       '@atcute/tid':
         specifier: 'catalog:'
         version: 1.1.4
+      '@atproto/oauth-scopes':
+        specifier: 'catalog:'
+        version: 0.5.12
       '@base-ui/react':
         specifier: 'catalog:'
         version: 1.7.0(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)

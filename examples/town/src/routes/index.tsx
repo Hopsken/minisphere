@@ -5,10 +5,12 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import type { FormEvent } from "react";
 
-import { loadAccount } from "@/lib/account";
+import { getAvatarUrl, loadAccount } from "@/lib/account";
+import type { Account } from "@/lib/account";
 
 import { AccountMenu } from "./-components/account-menu";
 import { PostComposer } from "./-components/post-composer";
+import { ProfileEditor } from "./-components/profile-editor";
 
 export const Route = createFileRoute("/")({
   component: TownPage,
@@ -29,7 +31,9 @@ function TownPage() {
   const { account: loadedAccount, error: initialError } = Route.useLoaderData();
   const [signedOut, setSignedOut] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
-  const account = signedOut ? null : loadedAccount;
+  const [editing, setEditing] = useState(false);
+  const [updatedAccount, setUpdatedAccount] = useState<Account | null>(null);
+  const account = signedOut ? null : (updatedAccount ?? loadedAccount);
   const [message, setError] = useState<string | null>(initialError);
   const [handle, setHandle] = useState("");
   const [isPending, setIsPending] = useState(false);
@@ -95,6 +99,7 @@ function TownPage() {
         {account ? (
           <AccountMenu
             account={account}
+            onEditProfile={() => setEditing(true)}
             onLogout={() => {
               void logout();
             }}
@@ -102,6 +107,26 @@ function TownPage() {
           />
         ) : null}
       </header>
+      {account && editing ? (
+        <ProfileEditor
+          account={account}
+          onClose={() => setEditing(false)}
+          onSaved={(saved) => {
+            setUpdatedAccount({
+              ...account,
+              avatar: saved.avatar
+                ? getAvatarUrl(
+                    account.service,
+                    account.did,
+                    saved.avatar.ref.$link
+                  )
+                : undefined,
+              name: saved.displayName,
+            });
+            setEditing(false);
+          }}
+        />
+      ) : null}
       {loggingOut ? (
         <p className="p-6 text-sm text-gray-500" role="status">
           Logging out…

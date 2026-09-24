@@ -26,7 +26,8 @@ describe("Town server", () => {
       grant_types: ["authorization_code", "refresh_token"],
       redirect_uris: ["https://town.hopsken.dev/oauth/callback"],
       response_types: ["code"],
-      scope: "atproto repo?collection=app.bsky.feed.post&action=create",
+      scope:
+        "atproto repo?collection=app.bsky.feed.post&action=create repo?collection=app.bsky.actor.profile&action=create&action=update blob?accept=image/png&accept=image/jpeg",
       token_endpoint_auth_method: "none",
     });
   });
@@ -38,7 +39,8 @@ describe("Town server", () => {
     await expect(response.json()).resolves.toStrictEqual({
       clientId: "https://town.hopsken.dev/oauth-client-metadata.json",
       redirectUri: "https://town.hopsken.dev/oauth/callback",
-      scope: "atproto repo?collection=app.bsky.feed.post&action=create",
+      scope:
+        "atproto repo?collection=app.bsky.feed.post&action=create repo?collection=app.bsky.actor.profile&action=create&action=update blob?accept=image/png&accept=image/jpeg",
     });
   });
 
