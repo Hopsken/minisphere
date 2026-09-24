@@ -1,3 +1,4 @@
+import type { DidPlcString } from "@atcute/did-plc";
 import { HTTPException } from "hono/http-exception";
 
 import { PdsClient } from "../clients/pds-client";
@@ -61,6 +62,25 @@ export class AccountService {
   async getAccount(userId: string) {
     const account = await this.users.findAccountByUserId(userId);
     return accountView(account, this.config.handleDomain);
+  }
+
+  async getProfile(userId: string) {
+    const account = await this.users.findAccountByUserId(userId);
+    if (account?.status !== "active" || !account.did) {
+      return null;
+    }
+    // SAFETY: Active accounts contain a PLC DID verified during provisioning.
+    const did = account.did as DidPlcString;
+    try {
+      const head = await this.directory.getHead(did);
+      const endpoint = head.operation.services.atproto_pds?.endpoint;
+      return endpoint
+        ? await this.pds.getProfile(did, endpoint, this.config.pdsOrigin)
+        : null;
+    } catch {
+      // Profile availability must not block account access or OAuth consent.
+      return null;
+    }
   }
 
   async createAccount(userId: string, username: string) {

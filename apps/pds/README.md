@@ -6,6 +6,7 @@ The PDS is a Hono Cloudflare Worker that exposes AT Protocol XRPC routes. It own
 
 - PDS D1 stores active account DIDs, refresh-token records, short-lived account invitation codes and expiry times, encrypted repository signing-key reservations, and resource-server DPoP nonce/replay state. It does not store OIDC identities, usernames, or primary account passwords.
 - [`@minisphere/repo-do`](../../packages/repo-do/README.md) owns repository data and repository signing keys.
+- The private `BLOBS` R2 binding stores original blob bytes. RepoDO owns blob metadata and current record references; there is no blob index in D1.
 - PLC genesis operations and recovery reads use HTTP at `PLC_DIRECTORY`, which defaults to `https://plc.directory` when omitted. Accounts and Town must use the same directory. Invalid explicit values fail configuration validation, and failed requests do not switch to another directory.
 - `PdsControlPlane.generateInviteCode()` is a named RPC entrypoint for Accounts.
 - `PdsControlPlane.fetch()` exposes the standard PDS XRPC routes to trusted service bindings.
@@ -51,9 +52,31 @@ Record-write routes require `Authorization: DPoP <access-token>` and an ES256 `D
 
 `swapCommit` checks the current head. A supplied `swapRecord` checks the current record CID; `putRecord` also accepts `null` to require absence. Omission means no record precondition. Failed conditions return `InvalidSwap` and do not modify storage. No-op responses return the unchanged commit metadata.
 
-Write JSON bodies are limited to 1,000,000 bytes, record nesting to 32 levels, and commit proof blocks to 2,000,000 bytes. Data must conform to the Lexicon data model even when schema validation is skipped. `$type` defaults to the collection when absent and must otherwise match it. `app.bsky.feed.post` uses the official Atcute schema and record-key validation. With `validate` omitted, unknown collections are accepted with `validationStatus: "unknown"`; `true` requires a known valid schema, and `false` skips schema validation and returns `unknown`. Blob references are rejected until blob storage is implemented. No remote Lexicon discovery is performed.
+Write JSON bodies are limited to 1,000,000 bytes, record nesting to 32 levels, and commit proof blocks to 2,000,000 bytes. Data must conform to the Lexicon data model even when schema validation is skipped. `$type` defaults to the collection when absent and must otherwise match it. `app.bsky.feed.post` and `app.bsky.actor.profile` use official Atcute schemas with strict blob constraints and record-key validation. With `validate` omitted, unknown collections are accepted with `validationStatus: "unknown"`; `true` requires a known valid schema, and `false` skips schema validation and returns `unknown`. All modes check modern blob descriptors recursively for local ownership, availability, CID, actual size, and stored MIME. No remote Lexicon discovery is performed.
 
 `withRepoWriter` supplies the authenticated request-scoped `RepoWriter`; RepoDO owns head/record comparisons, signing, and ordered commit application. The write queue includes the whole read/check/sign/commit sequence, not just its SQLite transaction. Blocks are inserted in bounded chunks inside the same transaction as the root update. Failed writes release the queue without changing the cached head. No subscription or relay event is emitted yet.
+
+[`src/collections.ts`](./src/collections.ts) is the registry of collections with local schema validation. To support validation for another collection, import its official record schema and add its NSID/schema entry there; the record schema includes its key constraints. All record-write routes use this registry through `RepoWriter`. It is not a write-permission allowlist and does not control Accounts consent labels or client-side validation.
+
+## Blobs
+
+- `com.atproto.repo.uploadBlob` accepts a raw body of at most 10,000,000 bytes, including an empty body. It uses the same OAuth/DPoP authentication as record writes and checks `ScopePermissions.allowsBlob()` against the MIME type. Clients must obtain explicit blob permission from Accounts; repository permission alone does not permit uploads. Both declared and returned MIME must be allowed.
+- Uploads use bounded buffering, count actual bytes, reject a mismatched `Content-Length`, and calculate CIDv1/raw/SHA-256. MIME is the normalized declared `Content-Type`, or `application/octet-stream` when omitted; it is not sniffed or proof of a file's format. Files are never modified or transcoded.
+- Upload succeeds only after R2 storage and RepoDO registration. Unreferenced uploads remain private and can be referenced for 24 hours. A record commit publishes its final references atomically with blocks/root. Multiple records can share a blob; removing the last current reference removes its logical metadata. Upload the bytes again before reusing that descriptor.
+- `com.atproto.sync.getBlob` anonymously streams only currently referenced blobs of local accounts. Responses use `no-store`, `nosniff`, and a sandbox CSP. Keep the R2 bucket private; no public bucket URL may bypass these checks.
+- `com.atproto.sync.listBlobs` lists distinct, currently referenced CIDs in ascending order. The default limit is 500, maximum 1000; the cursor is an exclusive CID boundary. `since` filters the revisions of current referencing records, not upload timestamps or historical references. Pagination is not a snapshot.
+
+Published duplicate uploads reuse the existing object and MIME. Other uploads use a unique `DID/CID/generation` object key; concurrent registration selects one logical blob. R2 I/O runs outside the repository write queue. There is no cross-account deduplication.
+
+**Deferred reclamation:** there are no R2 deletes, cleanup alarms, orphan scans, or deletion-task tables in this version. Expired temporary blobs, removed blobs, and interrupted/duplicate upload objects can remain in storage indefinitely. Logical access restrictions still apply. Add safe physical cleanup before increasing usage, including recovery for R2 success followed by registration failure and late writes. Account-wide quotas, dedicated upload rate limiting, large-file uploads, and account lifecycle cleanup are also deferred; the per-request size bound does not cap cumulative storage.
+
+Create the production bucket separately before deployment:
+
+```sh
+pnpm --filter @minisphere/pds exec wrangler r2 bucket create minisphere-pds-blobs
+```
+
+Local Wrangler and Workers tests emulate R2 without creating a cloud bucket. `pnpm setup:local` generates the binding types; RepoDO applies its bundled SQLite migration on initialization.
 
 ## Public repository reads
 
@@ -64,7 +87,7 @@ The following methods accept anonymous requests for locally registered accounts:
 - `com.atproto.repo.getRecord` returns the current record's URI, CID, and Lexicon JSON value. An optional CID must match the current version; this is not a historical record API.
 - `com.atproto.sync.getRecord` streams a CAR containing the signed commit, MST path, and the requested record block. An absent record produces an exclusion proof, not a JSON null response.
 
-Repository reads accept a DID or handle; sync reads accept a DID. Reads do not forward to remote PDS servers or expose repositories left behind by incomplete provisioning. PDSls can use the first three methods without login, then use the CAR endpoint to verify a record. Blob browsing and full repository export are not implemented yet.
+Repository reads accept a DID or handle; sync reads accept a DID. Reads do not forward to remote PDS servers or expose repositories left behind by incomplete provisioning. PDSls can use the first three methods without login, then use the CAR endpoint to verify a record. Full repository export is not implemented yet.
 
 The PDS enables `global_fetch_strictly_public` so HTTPS identity resolution reaches public Worker routes, including the Accounts hosted-handle route in the same Cloudflare zone. Without this flag, same-zone fetches bypass Worker routes and go to the origin server instead.
 

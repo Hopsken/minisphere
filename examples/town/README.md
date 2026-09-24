@@ -1,6 +1,6 @@
 # Town
 
-Town is a minimal AT Protocol OAuth browser client for an existing account, including a public Bluesky account. It creates plain-text posts on that account's PDS. It does not need Minisphere Accounts or Minisphere PDS write APIs.
+Town is a minimal AT Protocol OAuth browser client for an existing account, including a public Bluesky account. It creates plain-text posts and edits the public Bluesky profile on that account's PDS. It does not need Minisphere-specific write APIs.
 
 The planned production origin is `https://town.r2d2.party`. Accounts reserves the username `town` to keep that application hostname separate from user handles. Configure `PUBLIC_URL` and the custom domain when deploying; this reservation does not configure DNS or deploy Town.
 
@@ -30,7 +30,15 @@ The Worker enables `global_fetch_strictly_public` so outbound HTTP requests use 
 
 Set production `PUBLIC_URL` and, if needed, `PLC_DIRECTORY` in the Worker's **Settings → Variables and Secrets**, and its custom domain in **Settings → Domains & Routes**. Do not set the development resolver in production. Deployments preserve these settings. Type generation reads `.dev.vars.example`, not private local values. See the [deployment guide](../../docs/DEPLOYMENT.md).
 
-`/oauth-client-metadata.json` is Town's public client metadata document. Metadata, authorization requests, and the loopback Client ID use `atproto repo?collection=app.bsky.feed.post&action=create`, as defined by the [AT Protocol permission specification](https://atproto.com/specs/permission). There are no update, delete, blob, or AppView RPC permissions. An older `atproto`-only session must use **Authorize posting** to get fresh consent; refresh does not upgrade its scope.
+`/oauth-client-metadata.json` is Town's public client metadata document. Metadata, authorization requests, and the loopback Client ID share `townScope` in `worker/configuration.ts`, built with `@atcute/oauth-types`: `atproto`, post creation, profile creation/update, and PNG/JPEG uploads. There are no delete or AppView RPC permissions.
+
+## Profile editing
+
+Click the profile row in the header account menu to edit the display name, description, and avatar. There is no banner editor or separate menu item. The editor reads `app.bsky.actor.profile/self`, preserves other record fields, and validates the draft with the official Bluesky schema. Avatar selection accepts JPEG or PNG up to the Lexicon's 1,000,000-byte limit; the PDS's general blob upload limit is separate.
+
+Save uploads a selected image with `com.atproto.repo.uploadBlob`, then writes the profile with `com.atproto.repo.putRecord`. `swapRecord` uses the loaded CID (or `null` for a missing profile) to prevent stale edits from overwriting another writer. Cancel makes no writes. Duplicate saves are blocked while a request is pending. A failed record write requires a fresh profile read before another save; the editor does not retry an uncertain write automatically. Drafts are not persisted across navigation. An uploaded blob can remain unreferenced after a conflict; blob cleanup is deferred.
+
+Accounts displays the same public profile avatar. Town does not copy the image into Accounts or change authentication identity data.
 
 ## Posts and recovery
 
@@ -74,4 +82,4 @@ Use the exact portal URL printed by Amp. `PUBLIC_URL` is supplied by the supervi
 
 **Amp portals are private by default.** External authorization servers need unauthenticated access to `/oauth-client-metadata.json`. The owner must open **Portal Options → Make Public** and choose a short duration before trying real OAuth. Making a portal public changes access and needs the owner's approval. Requests inside the orb bypass the portal access gate, so an internal `curl` cannot prove external metadata access. A normal public HTTPS deployment is an alternative, but requires separate approval and domain configuration.
 
-The user signs in on their provider's page, confirms create-post permission, returns to Town, and manually posts a short test message. Reload Town to verify that the PDS record is still visible. Never supply a password or token to an agent. Mock UI checks establish layout and recovery behavior only; they do not establish real OAuth success.
+The user signs in on their provider's page, confirms the requested post, profile, and image-upload permissions, returns to Town, and manually posts a short test message. Reload Town to verify that the PDS record is still visible. Never supply a password or token to an agent. Mock UI checks establish layout and recovery behavior only; they do not establish real OAuth success.

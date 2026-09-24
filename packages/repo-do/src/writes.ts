@@ -5,6 +5,9 @@ import { lexParse } from "@atproto/lex-json";
 import { BlockMap, WriteOpAction } from "@atproto/repo";
 import type { Repo, RecordWriteOp } from "@atproto/repo";
 
+import { checkRecordBlobs } from "./blobs";
+import type { BlobMetadata, RecordBlobChanges } from "./blobs";
+
 export interface RepoWrite {
   action: "create" | "update" | "put" | "delete";
   collection: RecordWriteOp["collection"];
@@ -25,7 +28,10 @@ export interface RepoWriteResult {
 }
 
 export type RepoWriteResponse =
-  | { error: "InvalidSwap" | "InvalidRequest"; message: string }
+  | {
+      error: "InvalidSwap" | "InvalidRequest" | "InvalidRecord";
+      message: string;
+    }
   | { results: RepoWriteResult[]; commit: { cid: string; rev: string } };
 
 const decodeRecord = (recordJson: string | undefined) => {
@@ -63,7 +69,8 @@ const checkRecordPrecondition = (write: RepoWrite, previous: string | null) => {
 export const prepareCommit = async (
   repo: Repo,
   keypair: Secp256k1Keypair,
-  input: RepoWriteRequest
+  input: RepoWriteRequest,
+  lookupBlob: (cid: string) => BlobMetadata | undefined
 ) => {
   if (
     input.swapCommit !== undefined &&
@@ -77,6 +84,7 @@ export const prepareCommit = async (
   const current = new Map<string, string | null>();
   const operations: RecordWriteOp[] = [];
   const results: RepoWriteResult[] = [];
+  const references: RecordBlobChanges = new Map();
   for (const write of input.writes) {
     const rkey = write.rkey ?? now();
     const path = `${write.collection}/${rkey}`;
@@ -94,6 +102,7 @@ export const prepareCommit = async (
     const result: RepoWriteResult = { uri: `at://${repo.did}/${path}` };
     if (write.action === "delete") {
       if (previous) {
+        references.set(path, new Set());
         operations.push({
           action: WriteOpAction.Delete,
           collection: write.collection,
@@ -112,8 +121,16 @@ export const prepareCommit = async (
       // oxlint-disable-next-line no-await-in-loop -- Preserve ordered batch semantics.
       const recordCid = await new BlockMap().add(record);
       const cid = recordCid.toString();
+      const blobs = new Set<string>();
+      if (!checkRecordBlobs(record, lookupBlob, blobs)) {
+        return {
+          error: "InvalidRecord",
+          message: "Blob is missing, expired, or has invalid metadata",
+        } as const;
+      }
       result.cid = cid;
       if (previous !== cid) {
+        references.set(path, blobs);
         operations.push({
           action: previous ? WriteOpAction.Update : WriteOpAction.Create,
           collection: write.collection,
@@ -131,5 +148,5 @@ export const prepareCommit = async (
   if (commit && commit.relevantBlocks.byteSize > 2_000_000) {
     return { error: "InvalidRequest", message: "Commit is too large" } as const;
   }
-  return { commit, results };
+  return { commit, references, results };
 };

@@ -20,7 +20,7 @@ PAR requests expire after five minutes, authorization codes expire after one min
 
 PAR accepts an omitted `prompt` or `prompt=consent`. Both require explicit user consent. Other prompt modes, including silent authorization with `prompt=none`, are not supported and return `invalid_request`.
 
-Repository scopes are dynamic: `RepoPermission` from `@atproto/oauth-scopes` validates collection NSIDs, wildcards, actions, and parameter names. Each requested scope must occur exactly in client metadata. `supportedScopes` lists static scopes for discovery (default `atproto`), not an exhaustive list of repository permissions. The provider does not resolve `include:` permission sets or infer permissions from human-readable collection labels.
+Repository and blob scopes are dynamic: `RepoPermission` and `BlobPermission` from `@atproto/oauth-scopes` validate collection/action permissions and MIME upload permissions respectively. Each requested scope must occur exactly in client metadata and receive explicit consent. `supportedScopes` lists static scopes for discovery (default `atproto`), not an exhaustive list of dynamic permissions. The resource server must enforce these permissions independently. The provider does not resolve `include:` permission sets or infer permissions from human-readable collection labels.
 
 All request URIs, authorization codes, refresh tokens, PKCE reservations, DPoP proof identifiers, and nonces use Better Auth verification records. A Worker deployment must configure a database-backed Better Auth adapter. In-memory adapters do not provide the required cross-isolate atomic guarantees.
 

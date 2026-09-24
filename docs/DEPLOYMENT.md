@@ -12,7 +12,10 @@ pnpm check
 pnpm exec wrangler login
 pnpm --filter @minisphere/pds exec wrangler d1 create minisphere-pds
 pnpm --filter @minisphere/accounts exec wrangler d1 create minisphere-accounts
+pnpm --filter @minisphere/pds exec wrangler r2 bucket create minisphere-pds-blobs
 ```
+
+Keep the R2 bucket private and bound as `BLOBS` in the PDS Wrangler configuration. Do not enable a public bucket URL or attach a lifecycle rule that could delete referenced objects. Physical blob reclamation is deferred; see [PDS blob limits and follow-up](../apps/pds/README.md#blobs).
 
 Existing deployments must retain database IDs and secrets. Back up D1 and encryption keys before applying migrations; see the [Accounts migration warning](../apps/accounts/README.md#database).
 

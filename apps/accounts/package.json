@@ -20,6 +20,7 @@
   },
   "dependencies": {
     "@atcute/atproto": "catalog:",
+    "@atcute/bluesky": "catalog:",
     "@atcute/client": "catalog:",
     "@atcute/crypto": "catalog:",
     "@atcute/did-plc": "catalog:",

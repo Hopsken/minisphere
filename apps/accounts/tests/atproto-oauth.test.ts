@@ -307,8 +307,10 @@ describe("AT Protocol OAuth authorization server", () => {
     postingScope,
     "repo?collection=app.example.note&collection=app.example.task&action=create&action=delete",
     "repo:*",
+    "blob:image/*",
+    "blob:*/*",
   ])(
-    "preserves explicitly consented repo permissions through tokens and refresh: %s",
+    "preserves explicitly consented permissions through tokens and refresh: %s",
     async (repoScope) => {
       const cookie = await loginActiveUser();
       const key = await createDpopKey();
@@ -400,7 +402,7 @@ describe("AT Protocol OAuth authorization server", () => {
   it.each([
     "repo:app.example.note?action=read",
     "repo:app.example.note?unexpected=true",
-    "blob:*/*",
+    "blob:image/png?unexpected=true",
     "rpc:*?aud=*",
     "include:app.example.authFull",
   ])(

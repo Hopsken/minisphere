@@ -4,6 +4,7 @@ import type { Client } from "@atcute/client";
 import { parse } from "@atcute/lexicons";
 import type { Did } from "@atcute/lexicons";
 import { now } from "@atcute/tid";
+import { ScopePermissions } from "@atproto/oauth-scopes";
 import { z } from "zod";
 
 const collection = "app.bsky.feed.post";
@@ -34,20 +35,7 @@ export const postValidationError = (text: string) => {
 };
 
 export const canCreatePost = (scope: string) =>
-  scope.split(" ").some((value) => {
-    const [resource, query] = value.split("?");
-    const params = new URLSearchParams(query);
-    let collections: string[] = [];
-    if (resource === "repo") {
-      collections = params.getAll("collection");
-    } else if (resource?.startsWith("repo:")) {
-      collections = [resource.slice(5)];
-    }
-    return (
-      collections.includes(collection) &&
-      params.getAll("action").includes("create")
-    );
-  });
+  new ScopePermissions(scope).allowsRepo({ action: "create", collection });
 
 export interface Post {
   uri: string;

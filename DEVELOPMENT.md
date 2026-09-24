@@ -32,9 +32,10 @@ This file records the current implementation state and important architecture de
 ### Town example
 
 - Town is a minimal external AT Protocol OAuth browser client on React, TanStack Router, Atcute, Vite, and a Hono Worker.
-- It accepts a handle, DID, or PDS URL, uses standard identity and authorization-server discovery through `@atcute/oauth-browser-client`, and requests only `atproto` plus create permission for `app.bsky.feed.post`. Older read-only sessions need fresh consent.
+- It accepts a handle, DID, or PDS URL, uses standard identity and authorization-server discovery through `@atcute/oauth-browser-client`, and requests `atproto`, post creation, profile creation/update, and JPEG/PNG blob upload permissions.
 - Town selects one PLC Directory origin and reaches it through HTTP. Its same-origin handle endpoint uses standard DNS and HTTPS resolution for public handles and a local XRPC adapter for `.test` handles.
 - Town has no server database. The browser stores OAuth sessions through Atcute, plus per-DID drafts and pending record keys in local storage. `@atcute/client` and `OAuthUserAgent` write pure-text posts directly to the real account PDS; public reads use that same PDS. Official Bluesky schemas validate records. Stable TID keys and readback checks prevent blind duplicate writes after uncertain results; confirmed writes retry reads only. Reloads load the most recent 10 posts in descending repository-key order; successful posts refresh that list.
+- The existing account-menu profile row opens an editor for display name, description, and avatar, without a banner. Saves preserve other profile fields and use `swapRecord` to detect concurrent edits. Record-write failures require a fresh read before another attempt. Accounts reads the same public profile avatar from the current PLC-selected PDS; it stores no image copy and retains a generated fallback.
 - The simplified composer and recovery paths are covered by automated tests and mock browser checks. Real account OAuth and posting still require user verification; an orb portal must be temporarily public so external authorization servers can fetch client metadata. See the Town README.
 
 ### PDS
@@ -50,10 +51,11 @@ This file records the current implementation state and important architecture de
 - The PDS discovers Accounts OAuth verification keys from the `jwks_uri` in authorization-server metadata. Protected-resource metadata names Accounts as the authorization server.
 - After request-shape validation, the PDS atomically claims one unexpired invitation before account side effects. Invitations are bearer credentials that are not bound to DIDs and remain spent after later failures. Invite generation opportunistically removes expired rows.
 - Successful account creation deletes its signing-key reservation in the same PDS D1 batch that writes the account and first refresh token.
-- `getRepoStatus` requires both a PDS account record and a readable initialized repository. Anonymous `describeRepo`, `listRecords`, and repo `getRecord` expose current records for local accounts, with handle/DID resolution and bidirectional handle verification in descriptions. Sync `getRecord` streams signed inclusion/exclusion CAR proofs through the existing repository library. Session creation, other session methods, blob access, repository export, and repository subscriptions are not implemented.
+- `getRepoStatus` requires both a PDS account record and a readable initialized repository. Anonymous `describeRepo`, `listRecords`, and repo `getRecord` expose current records for local accounts, with handle/DID resolution and bidirectional handle verification in descriptions. Sync `getRecord` streams signed inclusion/exclusion CAR proofs through the existing repository library. Session creation, other session methods, repository export, and repository subscriptions are not implemented.
 - Authenticated `createRecord`, `putRecord`, `deleteRecord`, and `applyWrites` use one RepoDO write queue and atomic commit path, including head/record CAS checks. Batches support up to 200 ordered writes. Block SQL is chunked within the transaction to respect SQLite binding limits. Tests cover concurrency, storage rollback, readback after eviction, and signed CAR records.
 - Write requests verify Accounts access JWTs, local subjects, ES256 DPoP key/token/method/URL binding, server nonce, and proof freshness. PDS D1 owns five-minute nonce and replay records with atomic proof claims. CORS exposes challenge headers. `@atproto/oauth-scopes` enforces collection/action grants; legacy session JWTs do not authorize writes.
-- Record validation uses the official Atcute `app.bsky.feed.post` schema. Unknown Lexicons are accepted only when validation is not explicitly required, with `unknown` status. Blob references are rejected. Write bodies, nesting, and commit proof size are bounded; no remote Lexicon discovery or subscription event emission is implemented.
+- Record validation uses the official Atcute `app.bsky.feed.post` and `app.bsky.actor.profile` schemas with strict blob constraints. Unknown Lexicons are accepted only when validation is not explicitly required, with `unknown` status. All modes verify blob ownership and metadata. Write bodies, nesting, and commit proof size are bounded; no remote Lexicon discovery or subscription event emission is implemented.
+- Blob upload uses Accounts-consented MIME permissions, existing OAuth/DPoP authentication, a 10,000,000-byte bound, and private R2 storage. RepoDO owns temporary metadata and current record references, published atomically with commits. Anonymous `getBlob` and `listBlobs` expose only current references; `since` uses current record revisions. Temporary references expire after 24 hours; last-reference removal revokes logical access. Physical reclamation is deliberately deferred for current low usage, so stale rows and orphan/removed objects can remain indefinitely.
 
 ## Decisions
 
@@ -78,6 +80,8 @@ This file records the current implementation state and important architecture de
 
 1. Run a deployed end-to-end account creation test through Accounts, PDS, PLC Directory, repository storage, and Accounts handle publication.
 2. Implement confidential `private_key_jwt` clients with signing-key continuity.
-3. Implement the remaining PDS session methods, repository export, blob storage, and repository event subscriptions.
+3. Implement the remaining PDS session methods, repository export, and repository event subscriptions.
 4. Convert durable decisions in this file into ADRs.
 5. Build the minimal Relay.
+6. Add physical blob reclamation when usage grows: temporary expiry, last-reference deletion, and orphan recovery across R2/SQLite failures and late PUT completion. No cleanup scheduler or deletion queue is implemented yet. Add cumulative storage controls before opening uploads more widely.
+7. Support OAuth permission sets (`include:`): Accounts must resolve and validate the referenced Lexicons and obtain consent for their permissions; PDS must enforce the resulting grants. Neither parsing nor execution is implemented yet.

@@ -10,6 +10,7 @@ import { bodyLimit } from "hono/body-limit";
 
 import { withRepoReader } from "../../middlewares/with-repo-reader";
 import { withRepoWriter } from "../../middlewares/with-repo-writer";
+import { withResourceAuth } from "../../middlewares/with-resource-auth";
 import {
   lexiconJsonValidator,
   lexiconQueryValidator,
@@ -28,6 +29,7 @@ const app = new Hono<{ Bindings: Env }>()
     "/com.atproto.repo.createRecord",
     writeBodyLimit,
     lexiconJsonValidator(CreateRecord.mainSchema.input.schema),
+    withResourceAuth,
     withRepoWriter,
     async (c) => c.json(await c.var.repoWriter.create(c.req.valid("json")))
   )
@@ -35,6 +37,7 @@ const app = new Hono<{ Bindings: Env }>()
     "/com.atproto.repo.putRecord",
     writeBodyLimit,
     lexiconJsonValidator(PutRecord.mainSchema.input.schema),
+    withResourceAuth,
     withRepoWriter,
     async (c) => c.json(await c.var.repoWriter.put(c.req.valid("json")))
   )
@@ -42,6 +45,7 @@ const app = new Hono<{ Bindings: Env }>()
     "/com.atproto.repo.deleteRecord",
     writeBodyLimit,
     lexiconJsonValidator(DeleteRecord.mainSchema.input.schema),
+    withResourceAuth,
     withRepoWriter,
     async (c) => c.json(await c.var.repoWriter.delete(c.req.valid("json")))
   )
@@ -49,6 +53,7 @@ const app = new Hono<{ Bindings: Env }>()
     "/com.atproto.repo.applyWrites",
     writeBodyLimit,
     lexiconJsonValidator(ApplyWrites.mainSchema.input.schema),
+    withResourceAuth,
     withRepoWriter,
     async (c) => c.json(await c.var.repoWriter.apply(c.req.valid("json")))
   )

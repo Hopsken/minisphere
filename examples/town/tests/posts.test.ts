@@ -62,6 +62,14 @@ describe("post validation", () => {
       canCreatePost("atproto repo:app.bsky.feed.post?action=create")
     ).toBeTruthy();
   });
+
+  // Manual parsing misses implicit all-actions grants and collection wildcards.
+  it("accepts standard broad repo grants without confusing action or collection", () => {
+    expect(canCreatePost("atproto repo:app.bsky.feed.post")).toBeTruthy();
+    expect(canCreatePost("atproto repo:*?action=create")).toBeTruthy();
+    expect(canCreatePost("atproto repo:*?action=update")).toBeFalsy();
+    expect(canCreatePost("atproto repo:app.bsky.feed.like")).toBeFalsy();
+  });
 });
 
 describe("post publishing", () => {

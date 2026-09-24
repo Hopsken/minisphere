@@ -1,4 +1,11 @@
-import { blob, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import {
+  blob,
+  index,
+  integer,
+  primaryKey,
+  sqliteTable,
+  text,
+} from "drizzle-orm/sqlite-core";
 
 export const metadataTable = sqliteTable("metadata", {
   id: integer().primaryKey().default(1),
@@ -14,3 +21,26 @@ export const blocksTable = sqliteTable("blocks", {
   bytes: blob({ mode: "buffer" }).notNull(),
   rev: text().notNull(),
 });
+
+export const blobsTable = sqliteTable("blobs", {
+  cid: text().primaryKey(),
+  expiresAt: integer("expires_at").notNull(),
+  key: text().notNull(),
+  mimeType: text("mime_type").notNull(),
+  size: integer().notNull(),
+});
+
+export const recordBlobsTable = sqliteTable(
+  "record_blobs",
+  {
+    cid: text()
+      .notNull()
+      .references(() => blobsTable.cid),
+    path: text().notNull(),
+    rev: text().notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.path, table.cid] }),
+    index("record_blobs_cid").on(table.cid),
+  ]
+);

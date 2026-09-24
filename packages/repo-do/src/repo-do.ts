@@ -5,6 +5,7 @@ import { getRecords, Repo } from "@atproto/repo";
 import type { Leaf } from "@atproto/repo";
 import { DurableObject } from "cloudflare:workers";
 
+import type { BlobMetadata } from "./blobs";
 import { CoreStorage } from "./core";
 import { createDatabase } from "./db";
 import { prepareCommit } from "./writes";
@@ -88,23 +89,55 @@ export class RepoDO extends DurableObject<Record<string, never>> {
     return Repo.load(this.core, root);
   }
 
-  async rpcApplyWrites(input: RepoWriteRequest): Promise<RepoWriteResponse> {
-    // Hold the write queue through head checks, signing, storage and cache update.
+  private async serializeWrite<T>(operation: () => Promise<T> | T): Promise<T> {
     const previous = this.writeTail;
     const gate = Promise.withResolvers<undefined>();
     this.writeTail = gate.promise;
     await previous;
     try {
+      return await operation();
+    } finally {
+      // oxlint-disable-next-line unicorn/no-useless-undefined -- The undefined-valued resolver requires an argument.
+      gate.resolve(undefined);
+    }
+  }
+
+  rpcRegisterBlob(blob: BlobMetadata) {
+    return this.serializeWrite(async () => {
+      await this.getRepo();
+      return this.core.registerBlob(blob);
+    });
+  }
+
+  async rpcGetBlob(cid: string, publishedOnly = true) {
+    await this.getRepo();
+    return this.core.getBlob(cid, publishedOnly) ?? null;
+  }
+
+  async rpcListBlobs(options: {
+    limit: number;
+    cursor?: string | undefined;
+    since?: string | undefined;
+  }) {
+    await this.getRepo();
+    return this.core.listBlobs(options);
+  }
+
+  rpcApplyWrites(input: RepoWriteRequest): Promise<RepoWriteResponse> {
+    // Blob registration shares this queue; R2 network I/O never holds it.
+    return this.serializeWrite(async () => {
       const repo = await this.getRepo();
       if (!this.keypair) {
         throw new Error("Repository signing key is missing");
       }
-      const prepared = await prepareCommit(repo, this.keypair, input);
+      const prepared = await prepareCommit(repo, this.keypair, input, (cid) =>
+        this.core.getBlob(cid)
+      );
       if (prepared.error) {
         return { error: prepared.error, message: prepared.message };
       }
       if (prepared.commit) {
-        await this.core.applyCommit(prepared.commit);
+        await this.core.applyCommit(prepared.commit, prepared.references);
         // Never keep an old cached head if loading the committed repo fails.
         this.repo = null;
         this.repo = await Repo.load(this.core, prepared.commit.cid);
@@ -114,10 +147,7 @@ export class RepoDO extends DurableObject<Record<string, never>> {
         commit: { cid: committed.cid.toString(), rev: committed.commit.rev },
         results: prepared.results,
       };
-    } finally {
-      // oxlint-disable-next-line unicorn/no-useless-undefined -- The undefined-valued resolver requires an argument.
-      gate.resolve(undefined);
-    }
+    });
   }
 
   async rpcGetRepoStatus(): Promise<{
