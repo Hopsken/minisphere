@@ -3,14 +3,16 @@ import { Buffer } from "node:buffer";
 import { parseCid } from "@atproto/lex-data";
 import type { Cid } from "@atproto/lex-data";
 import type { BlockMap, CommitData, RepoStorage } from "@atproto/repo";
-import {
-  eq,
-  // inArray,
-  sql,
-} from "drizzle-orm";
+import { and, eq, gt, sql } from "drizzle-orm";
 
+import type { BlobMetadata, RecordBlobChanges } from "../blobs";
 import type { Database } from "../db";
-import { blocksTable, metadataTable } from "../db/schema";
+import {
+  blobsTable,
+  blocksTable,
+  metadataTable,
+  recordBlobsTable,
+} from "../db/schema";
 import { BlockStorage } from "./block";
 import type { RootState } from "./type";
 
@@ -118,7 +120,10 @@ export class CoreStorage extends BlockStorage implements RepoStorage {
   /**
    * Apply a commit atomically: add new blocks, remove old blocks, update root.
    */
-  applyCommit(commit: CommitData): Promise<void> {
+  applyCommit(
+    commit: CommitData,
+    references: RecordBlobChanges = new Map()
+  ): Promise<void> {
     const blocks = commit.newBlocks.entries().map(({ bytes, cid }) => ({
       bytes: Buffer.from(bytes),
       cid: cid.toString(),
@@ -138,6 +143,41 @@ export class CoreStorage extends BlockStorage implements RepoStorage {
           .run();
       }
 
+      // Publish only the final reference set, never intermediate batch states.
+      const previous = new Set<string>();
+      for (const [path, cids] of references) {
+        for (const row of transaction
+          .select()
+          .from(recordBlobsTable)
+          .where(eq(recordBlobsTable.path, path))
+          .all()) {
+          previous.add(row.cid);
+        }
+        transaction
+          .delete(recordBlobsTable)
+          .where(eq(recordBlobsTable.path, path))
+          .run();
+        for (const cid of cids) {
+          transaction
+            .insert(recordBlobsTable)
+            .values({ cid, path, rev: commit.rev })
+            .run();
+        }
+      }
+      for (const cid of previous) {
+        const referenced = transaction
+          .select()
+          .from(recordBlobsTable)
+          .where(eq(recordBlobsTable.cid, cid))
+          .limit(1)
+          .get();
+        if (!referenced) {
+          // Physical R2 reclamation is deferred. Removing metadata prevents an
+          // old descriptor from resurrecting the blob without another upload.
+          transaction.delete(blobsTable).where(eq(blobsTable.cid, cid)).run();
+        }
+      }
+
       // May not need to delete outdated cids for backward verifications
       // const removedCids = commit.removedCids
       //   .toList()
@@ -150,6 +190,64 @@ export class CoreStorage extends BlockStorage implements RepoStorage {
         .run();
     });
     return Promise.resolve();
+  }
+
+  getBlob(cid: string, publishedOnly = false): BlobMetadata | undefined {
+    const blob = this.db
+      .select()
+      .from(blobsTable)
+      .where(eq(blobsTable.cid, cid))
+      .get();
+    if (!blob) {
+      return undefined;
+    }
+    const referenced = this.db
+      .select()
+      .from(recordBlobsTable)
+      .where(eq(recordBlobsTable.cid, cid))
+      .limit(1)
+      .get();
+    return referenced || (!publishedOnly && blob.expiresAt > Date.now())
+      ? blob
+      : undefined;
+  }
+
+  registerBlob(blob: BlobMetadata): BlobMetadata {
+    const existing = this.getBlob(blob.cid);
+    const selected = existing ?? blob;
+    this.db
+      .insert(blobsTable)
+      .values({ ...selected, expiresAt: Date.now() + 24 * 60 * 60 * 1000 })
+      .onConflictDoUpdate({
+        set: { ...selected, expiresAt: Date.now() + 24 * 60 * 60 * 1000 },
+        target: blobsTable.cid,
+      })
+      .run();
+    return selected;
+  }
+
+  listBlobs(options: {
+    limit: number;
+    cursor?: string | undefined;
+    since?: string | undefined;
+  }) {
+    const rows = this.db
+      .selectDistinct({ cid: recordBlobsTable.cid })
+      .from(recordBlobsTable)
+      .where(
+        and(
+          options.cursor ? gt(recordBlobsTable.cid, options.cursor) : undefined,
+          options.since ? gt(recordBlobsTable.rev, options.since) : undefined
+        )
+      )
+      .orderBy(recordBlobsTable.cid)
+      .limit(options.limit + 1)
+      .all();
+    const cids = rows.slice(0, options.limit).map((row) => row.cid);
+    return {
+      cids,
+      cursor: rows.length > options.limit ? cids.at(-1) : undefined,
+    };
   }
 
   healthCheck() {
