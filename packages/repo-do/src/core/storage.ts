@@ -250,6 +250,15 @@ export class CoreStorage extends BlockStorage implements RepoStorage {
     };
   }
 
+  getBlockCidsSince(since: string): Set<string> {
+    const rows = this.db
+      .select({ cid: blocksTable.cid })
+      .from(blocksTable)
+      .where(gt(blocksTable.rev, since))
+      .all();
+    return new Set(rows.map((row) => row.cid));
+  }
+
   healthCheck() {
     this.db.run(sql`SELECT 1`);
     return { ok: true };

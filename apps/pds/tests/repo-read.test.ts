@@ -12,7 +12,16 @@ import type { HandleResolver } from "@atcute/identity-resolver";
 import type { Did } from "@atcute/lexicons/syntax";
 import { parse } from "@atcute/lexicons/validations";
 import { Secp256k1Keypair } from "@atproto/crypto";
-import { verifyProofs, verifyRecords, WriteOpAction } from "@atproto/repo";
+import {
+  MemoryBlockstore,
+  readCar,
+  Repo,
+  verifyDiffCar,
+  verifyProofs,
+  verifyRecords,
+  verifyRepoCar,
+  WriteOpAction,
+} from "@atproto/repo";
 import type { RecordCreateOp } from "@atproto/repo";
 import { RepoDO } from "@minisphere/repo-do";
 import { evictDurableObject, runInDurableObject } from "cloudflare:test";
@@ -44,6 +53,16 @@ const query = (method: string, params: Record<string, string>) =>
       }
     )
   );
+
+const exportRepo = async (did: Did, since?: string) => {
+  const response = await query(
+    "sync.getRepo",
+    since === undefined ? { did } : { did, since }
+  );
+  expect(response.status).toBe(200);
+  expect(response.headers.get("Content-Type")).toBe("application/vnd.ipld.car");
+  return new Uint8Array(await response.arrayBuffer());
+};
 
 const seedRepo = async (keys: string[] = KEYS, registerAccount = true) => {
   const alphabet = "abcdefghijklmnopqrstuvwxyz234567";
@@ -282,6 +301,90 @@ describe("public repository reads", () => {
     }
   );
 
+  it("reports the latest commit", async () => {
+    const { did, stub } = await seedRepo(["a"]);
+    const status = await stub.rpcGetRepoStatus();
+    const response = await query("sync.getLatestCommit", { did });
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toStrictEqual({
+      cid: status.head,
+      rev: status.rev,
+    });
+  });
+
+  it("exports the signed current repository without deleted records", async () => {
+    const { did, publicKey, stub } = await seedRepo(["a", "m", "z"]);
+    const removed = await stub.rpcGetRecord(COLLECTION, "m");
+    assert.isNotNull(removed);
+    await stub.rpcApplyWrites({
+      writes: [{ action: "delete", collection: COLLECTION, rkey: "m" }],
+    });
+    const status = await stub.rpcGetRepoStatus();
+
+    const bytes = await exportRepo(did);
+    const car = await readCar(bytes);
+    expect(car.roots.map(String)).toStrictEqual([status.head]);
+    // The deleted record block is still stored but no longer reachable.
+    expect(car.blocks.entries().map(({ cid }) => cid.toString())).not.toContain(
+      removed.cid
+    );
+    const verified = await verifyRepoCar(bytes, did, publicKey);
+    expect(verified.commit.cid.toString()).toBe(status.head);
+    expect(
+      verified.creates
+        .filter((create) => create.collection === COLLECTION)
+        .map((create) => create.rkey)
+    ).toStrictEqual(["a", "z"]);
+  });
+
+  it("exports blocks written after a revision as a verifiable diff", async () => {
+    const { did, publicKey, stub } = await seedRepo(["a", "m"]);
+    const base = await readCar(await exportRepo(did));
+    const { rev } = await stub.rpcGetRepoStatus();
+    await stub.rpcApplyWrites({
+      writes: [
+        {
+          action: "create",
+          collection: COLLECTION,
+          recordJson: JSON.stringify(recordValue("z")),
+          rkey: "z",
+        },
+        { action: "delete", collection: COLLECTION, rkey: "m" },
+      ],
+    });
+    const head = await stub.rpcGetRepoStatus();
+
+    const diff = await exportRepo(did, rev);
+    const [baseRoot] = base.roots;
+    assert.isDefined(baseRoot);
+    const baseRepo = await Repo.load(
+      new MemoryBlockstore(base.blocks),
+      baseRoot
+    );
+    const verified = await verifyDiffCar(baseRepo, diff, did, publicKey, {
+      ensureLeaves: true,
+    });
+    expect(verified.commit.cid.toString()).toBe(head.head);
+    expect(
+      verified.writes.map((write) => `${write.action} ${write.rkey}`).toSorted()
+    ).toStrictEqual([`${WriteOpAction.Create} z`, `${WriteOpAction.Delete} m`]);
+    const [kept, created] = await Promise.all(
+      ["a", "z"].map((rkey) => stub.rpcGetRecord(COLLECTION, rkey))
+    );
+    const diffCar = await readCar(diff);
+    const diffCids = diffCar.blocks.entries().map(({ cid }) => cid.toString());
+    expect(diffCids).toContain(created?.cid);
+    expect(diffCids).not.toContain(kept?.cid);
+  });
+
+  it("exports only the commit root when nothing changed after a revision", async () => {
+    const { did, stub } = await seedRepo(["a"]);
+    const head = await stub.rpcGetRepoStatus();
+    const unchanged = await readCar(await exportRepo(did, head.rev));
+    expect(unchanged.roots.map(String)).toStrictEqual([head.head]);
+    expect(unchanged.blocks.size).toBe(0);
+  });
+
   it("preserves nested CID links and bytes in JSON records and lists", async () => {
     const { did, initialCid } = await seedRepo(["a"]);
     const collection = `${COLLECTION}.extra`;
@@ -311,6 +414,8 @@ describe("public repository reads", () => {
       ["repo.listRecords", { collection: COLLECTION, repo: did }],
       ["repo.getRecord", { collection: COLLECTION, repo: did, rkey: "self" }],
       ["sync.getRecord", { collection: COLLECTION, did, rkey: "self" }],
+      ["sync.getLatestCommit", { did }],
+      ["sync.getRepo", { did }],
     ];
     await Promise.all(
       requests.map(async ([method, params]) => {

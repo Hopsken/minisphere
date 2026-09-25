@@ -94,6 +94,17 @@ export class RepoReader {
     return this.repositories.getByName(did).rpcGetRecordProof(collection, rkey);
   }
 
+  async getLatestCommit(did: Did) {
+    await this.resolveLocalDid(did);
+    const status = await this.repositories.getByName(did).rpcGetRepoStatus();
+    return { cid: status.head, rev: status.rev };
+  }
+
+  async exportRepo(did: Did, since: string | undefined) {
+    await this.resolveLocalDid(did);
+    return this.repositories.getByName(did).rpcExportRepo(since);
+  }
+
   private async resolveLocalDid(identifier: ActorIdentifier): Promise<Did> {
     let did: Did;
     try {

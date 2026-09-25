@@ -1,8 +1,8 @@
 import { parsePrivateMultikey } from "@atcute/crypto";
 import { Secp256k1Keypair } from "@atproto/crypto";
 import { lexToJson } from "@atproto/lex-json";
-import { getRecords, Repo } from "@atproto/repo";
-import type { Leaf } from "@atproto/repo";
+import { getRecords, Repo, writeCarStream } from "@atproto/repo";
+import type { CarBlock, Leaf } from "@atproto/repo";
 import { DurableObject } from "cloudflare:workers";
 
 import type { BlobMetadata } from "./blobs";
@@ -18,6 +18,41 @@ const importSigningKey = (signingKey: string): Promise<Secp256k1Keypair> => {
   }
 
   return Secp256k1Keypair.import(parsedKey.privateKeyBytes);
+};
+
+const toReadableStream = (chunks: AsyncIterable<Uint8Array>) => {
+  const iterator = chunks[Symbol.asyncIterator]();
+  return new ReadableStream<Uint8Array>({
+    async cancel() {
+      await iterator.return?.();
+    },
+    async pull(controller) {
+      const chunk = await iterator.next();
+      if (chunk.done) {
+        controller.close();
+      } else {
+        controller.enqueue(chunk.value);
+      }
+    },
+  });
+};
+
+const iterateRepoBlocks = async function* iterateRepoBlocks(
+  repo: Repo,
+  changed: Set<string> | null
+): AsyncGenerator<CarBlock> {
+  const commit = await repo.storage.getBytes(repo.cid);
+  if (!commit) {
+    throw new Error("Repository commit block is missing");
+  }
+  if (!changed || changed.has(repo.cid.toString())) {
+    yield { bytes: commit, cid: repo.cid };
+  }
+  for await (const block of repo.data.carBlockStream()) {
+    if (!changed || changed.has(block.cid.toString())) {
+      yield block;
+    }
+  }
 };
 
 export class RepoDO extends DurableObject<Record<string, never>> {
@@ -262,21 +297,25 @@ export class RepoDO extends DurableObject<Record<string, never>> {
 
   async rpcGetRecordProof(collection: string, rkey: string) {
     const repo = await this.getRepo();
-    const chunks = getRecords(repo.storage, repo.cid, [{ collection, rkey }]);
-    const iterator = chunks[Symbol.asyncIterator]();
-    return new ReadableStream<Uint8Array>({
-      async cancel() {
-        await iterator.return?.();
-      },
-      async pull(controller) {
-        const chunk = await iterator.next();
-        if (chunk.done) {
-          controller.close();
-        } else {
-          controller.enqueue(chunk.value);
-        }
-      },
-    });
+    return toReadableStream(
+      getRecords(repo.storage, repo.cid, [{ collection, rkey }])
+    );
+  }
+
+  /**
+   * Stream the current repository as a CAR, or only its blocks written after
+   * `since`. Superseded blocks stay in storage, so export walks the current
+   * tree instead of the block table. Each commit rewrites every block that
+   * becomes reachable with its rev, so a reachable block with an older rev has
+   * stayed reachable since then and is already held by the consumer.
+   */
+  async rpcExportRepo(since?: string) {
+    const repo = await this.getRepo();
+    const changed =
+      since === undefined ? null : this.core.getBlockCidsSince(since);
+    return toReadableStream(
+      writeCarStream(repo.cid, iterateRepoBlocks(repo, changed))
+    );
   }
 
   rpcHealthCheck(): Promise<{ ok: true }> {

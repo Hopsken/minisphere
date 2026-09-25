@@ -2,7 +2,7 @@ import { now } from "@atcute/tid";
 import type { Secp256k1Keypair } from "@atproto/crypto";
 import { isLexMap } from "@atproto/lex-data";
 import { lexParse } from "@atproto/lex-json";
-import { BlockMap, WriteOpAction } from "@atproto/repo";
+import { BlockMap, blocksToCarFile, WriteOpAction } from "@atproto/repo";
 import type { Repo, RecordWriteOp } from "@atproto/repo";
 
 import { checkRecordBlobs } from "./blobs";
@@ -145,8 +145,15 @@ export const prepareCommit = async (
   const commit = operations.length
     ? await repo.formatCommit(operations, keypair)
     : null;
-  if (commit && commit.relevantBlocks.byteSize > 2_000_000) {
-    return { error: "InvalidRequest", message: "Commit is too large" } as const;
+  if (commit) {
+    // Firehose commit events carry these blocks as a CAR of at most 2,000,000 bytes.
+    const car = await blocksToCarFile(commit.cid, commit.relevantBlocks);
+    if (car.byteLength > 2_000_000) {
+      return {
+        error: "InvalidRequest",
+        message: "Commit is too large",
+      } as const;
+    }
   }
   return { commit, references, results };
 };

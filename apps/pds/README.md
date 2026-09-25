@@ -31,7 +31,7 @@ A missing or expired nonce returns `401` with `WWW-Authenticate: DPoP error="use
 
 - `swapCommit` and `swapRecord` are checked atomically. A failed check returns `InvalidSwap` and changes nothing.
 - `app.bsky.feed.post` and `app.bsky.actor.profile` are validated with the official schemas. Other collections are accepted with `validationStatus: "unknown"` unless `validate: true` is set. To validate another collection, add its schema to [`src/collections.ts`](./src/collections.ts).
-- Request bodies are limited to 1,000,000 bytes.
+- Request bodies are limited to 1,000,000 bytes, and a commit's block CAR to 2,000,000 bytes (`Commit is too large`).
 
 No repository events are emitted yet.
 
@@ -54,8 +54,10 @@ These methods need no authentication and serve only accounts hosted here:
 - `com.atproto.repo.getRecord` — the current record.
 - `com.atproto.sync.getRecord` — a CAR proof of the record, or of its absence.
 - `com.atproto.sync.getRepoStatus`.
+- `com.atproto.sync.getLatestCommit` — the current commit CID and revision.
+- `com.atproto.sync.getRepo` — the current repository as a CAR rooted at the signed commit. With `since`, only the current blocks written after that revision, to apply on top of the repository at `since`. Deleted records are never included.
 
-Session methods and repository export are not implemented.
+Session methods are not implemented.
 
 Keep the `global_fetch_strictly_public` compatibility flag enabled. Without it, handle resolution cannot reach Accounts routes in the same Cloudflare zone.
 
