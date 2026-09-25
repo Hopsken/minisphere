@@ -672,6 +672,9 @@ importers:
       '@atproto/crypto':
         specifier: 'catalog:'
         version: 0.4.5
+      '@atproto/lex-data':
+        specifier: ^0.1.7
+        version: 0.1.7
       '@atproto/repo':
         specifier: 'catalog:'
         version: 0.10.11
@@ -849,6 +852,9 @@ importers:
       '@atproto/crypto':
         specifier: 'catalog:'
         version: 0.4.5
+      '@atproto/lex-cbor':
+        specifier: ^0.1.6
+        version: 0.1.6
       '@atproto/lex-data':
         specifier: ^0.1.7
         version: 0.1.7

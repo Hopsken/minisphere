@@ -1,12 +1,14 @@
 import { now } from "@atcute/tid";
 import type { Secp256k1Keypair } from "@atproto/crypto";
 import { isLexMap } from "@atproto/lex-data";
+import type { Cid } from "@atproto/lex-data";
 import { lexParse } from "@atproto/lex-json";
 import { BlockMap, blocksToCarFile, WriteOpAction } from "@atproto/repo";
 import type { Repo, RecordWriteOp } from "@atproto/repo";
 
 import { checkRecordBlobs } from "./blobs";
 import type { BlobMetadata, RecordBlobChanges } from "./blobs";
+import type { RepoEventOp } from "./events";
 
 export interface RepoWrite {
   action: "create" | "update" | "put" | "delete";
@@ -66,6 +68,26 @@ const checkRecordPrecondition = (write: RepoWrite, previous: string | null) => {
   return null;
 };
 
+const netRecordOps = (
+  initialCids: Map<string, Cid | null>,
+  finalCids: Map<string, Cid | null>
+) => {
+  const ops: RepoEventOp[] = [];
+  for (const [path, cid] of finalCids) {
+    const prev = initialCids.get(path);
+    if (cid && prev) {
+      if (cid.toString() !== prev.toString()) {
+        ops.push({ action: "update", cid, path, prev });
+      }
+    } else if (cid) {
+      ops.push({ action: "create", cid, path });
+    } else if (prev) {
+      ops.push({ action: "delete", cid, path, prev });
+    }
+  }
+  return ops;
+};
+
 export const prepareCommit = async (
   repo: Repo,
   keypair: Secp256k1Keypair,
@@ -82,6 +104,9 @@ export const prepareCommit = async (
     } as const;
   }
   const current = new Map<string, string | null>();
+  // Net record changes per path; the firehose reports these, not batch steps.
+  const initialCids = new Map<string, Cid | null>();
+  const finalCids = new Map<string, Cid | null>();
   const operations: RecordWriteOp[] = [];
   const results: RepoWriteResult[] = [];
   const references: RecordBlobChanges = new Map();
@@ -92,6 +117,7 @@ export const prepareCommit = async (
       // Later operations in a batch observe earlier operations on this path.
       // oxlint-disable-next-line no-await-in-loop
       const previousCid = await repo.data.get(path);
+      initialCids.set(path, previousCid ?? null);
       current.set(path, previousCid?.toString() ?? null);
     }
     const previous = current.get(path) ?? null;
@@ -110,6 +136,7 @@ export const prepareCommit = async (
         });
       }
       current.set(path, null);
+      finalCids.set(path, null);
     } else {
       const record = decodeRecord(write.recordJson);
       if (!record) {
@@ -139,21 +166,21 @@ export const prepareCommit = async (
         });
       }
       current.set(path, cid);
+      finalCids.set(path, recordCid);
     }
     results.push(result);
   }
   const commit = operations.length
     ? await repo.formatCommit(operations, keypair)
     : null;
-  if (commit) {
-    // Firehose commit events carry these blocks as a CAR of at most 2,000,000 bytes.
-    const car = await blocksToCarFile(commit.cid, commit.relevantBlocks);
-    if (car.byteLength > 2_000_000) {
-      return {
-        error: "InvalidRequest",
-        message: "Commit is too large",
-      } as const;
-    }
+  if (!commit) {
+    return { commit, references, results };
   }
-  return { commit, references, results };
+  // Firehose commit events carry these blocks as a CAR of at most 2,000,000 bytes.
+  const car = await blocksToCarFile(commit.cid, commit.relevantBlocks);
+  if (car.byteLength > 2_000_000) {
+    return { error: "InvalidRequest", message: "Commit is too large" } as const;
+  }
+  const ops = netRecordOps(initialCids, finalCids);
+  return { car, commit, ops, references, results };
 };

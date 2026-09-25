@@ -12,7 +12,7 @@ Accounts creates accounts through the Worker service binding:
 - `com.atproto.server.reserveSigningKey` reserves a repository signing key and returns its public `did:key`.
 - `com.atproto.server.createAccount` takes the invite, DID, handle, and signed genesis PLC operation. It creates the repository, submits the operation to the PLC Directory, and records the account.
 
-A claimed invite stays spent if a later step fails. The same DID can retry with a new invite; another DID cannot claim its signing key.
+After creation, the PDS announces the account on the [firehose](#firehose). A claimed invite stays spent if a later step fails. The same DID can retry with a new invite; another DID cannot claim its signing key.
 
 ## Authentication
 
@@ -33,7 +33,7 @@ A missing or expired nonce returns `401` with `WWW-Authenticate: DPoP error="use
 - `app.bsky.feed.post` and `app.bsky.actor.profile` are validated with the official schemas. Other collections are accepted with `validationStatus: "unknown"` unless `validate: true` is set. To validate another collection, add its schema to [`src/collections.ts`](./src/collections.ts).
 - Request bodies are limited to 1,000,000 bytes, and a commit's block CAR to 2,000,000 bytes (`Commit is too large`).
 
-No repository events are emitted yet.
+Every commit is published on the [firehose](#firehose). A write succeeds even if the event cannot be published immediately; it is published later.
 
 ## Blobs
 
@@ -61,9 +61,21 @@ Session methods are not implemented.
 
 Keep the `global_fetch_strictly_public` compatibility flag enabled. Without it, handle resolution cannot reach Accounts routes in the same Cloudflare zone.
 
+## Firehose
+
+`com.atproto.sync.subscribeRepos` streams repository events over a WebSocket. A request without a WebSocket upgrade receives `426`. See [ADR 0012](../../docs/adr/0012-sequence-repository-events-in-one-durable-object.md).
+
+- `#commit` events follow sync 1.1: `since` and `prevData` name the previous commit, and `ops` are the net change per record path, with `prev` on updates and deletes. The CAR contains everything needed to verify the signature and invert the ops onto `prevData`.
+- A new account emits `#identity`, `#account` (active), and `#sync` with its current commit.
+- `seq` increases across the whole PDS and is never reused.
+- Without `cursor`, a consumer receives new events only. With `cursor`, it first receives every retained event after that `seq`.
+- Events are retained for 72 hours. An older cursor first receives `#info` `OutdatedCursor`, then the oldest retained events; the consumer must resynchronize with `com.atproto.sync.getRepo`. A cursor beyond the latest `seq` receives a `FutureCursor` error and close code `1008`.
+
+Handle changes and account status changes do not emit events yet.
+
 ## Configuration
 
-Bindings: `PDS_DB` (D1), `REPO` (repository Durable Objects), and `BLOBS` (R2).
+Bindings: `PDS_DB` (D1), `REPO` (repository Durable Objects), `SEQUENCER` (the firehose Durable Object), and `BLOBS` (R2).
 
 Variables:
 
@@ -93,4 +105,10 @@ To change the D1 schema in `src/db/schema.ts`, create and apply a named migratio
 ```sh
 pnpm --filter @minisphere/pds db:generate add-account-column
 pnpm --filter @minisphere/pds db:migrate:local
+```
+
+To change the firehose schema in `src/sequencer/schema.ts`, generate a named migration; the Durable Object applies it on startup:
+
+```sh
+pnpm --filter @minisphere/pds db:generate:sequencer add-event-column
 ```

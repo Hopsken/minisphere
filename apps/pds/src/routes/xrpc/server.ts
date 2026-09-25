@@ -158,6 +158,8 @@ app.post(
           )
         ),
     ]);
+    // Relays learn about the account only after its identity and record exist.
+    await repo.rpcAnnounceAccount(handle);
 
     return c.json({
       accessJwt: session.accessJwt,

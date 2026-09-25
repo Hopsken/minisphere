@@ -1,3 +1,5 @@
+import * as SubscribeRepos from "@atcute/atproto/types/sync/subscribeRepos";
+import { fromBytes } from "@atcute/cbor";
 import { parseDidKey, Secp256k1PrivateKeyExportable } from "@atcute/crypto";
 import { deriveDidFromGenesisOp, signOperation } from "@atcute/did-plc";
 import type {
@@ -5,10 +7,14 @@ import type {
   Operation,
   UnsignedOperation,
 } from "@atcute/did-plc";
+import { parse } from "@atcute/lexicons/validations";
+import { readCarWithRoot } from "@atproto/repo";
 import { env, exports } from "cloudflare:workers";
 import { jwtVerify } from "jose";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import z from "zod";
+
+import { aboutRepo, subscribe } from "./firehose-client";
 
 const REQUEST_ORIGIN = "https://service-binding.test";
 
@@ -191,6 +197,32 @@ describe("com.atproto.server.createAccount", () => {
         verificationMethods: input.plcOp.verificationMethods,
       }),
     ]);
+  });
+
+  it("announces the account identity, status, and commit to relays", async () => {
+    const firehose = await subscribe();
+    const response = await postAccount({ handle: "announced.pds.test" });
+    const { did } = createAccountResponseSchema.parse(await response.json());
+    const [identity, account, sync] = await firehose.take(3, aboutRepo(did));
+    firehose.close();
+    const head = await env.REPO.getByName(did).rpcGetRepoStatus();
+    const syncEvent = parse(SubscribeRepos.syncSchema, sync?.body);
+    const car = await readCarWithRoot(fromBytes(syncEvent.blocks));
+    expect({
+      account: parse(SubscribeRepos.accountSchema, account?.body),
+      headers: [identity, account, sync].map((frame) => frame?.header),
+      identity: parse(SubscribeRepos.identitySchema, identity?.body),
+      sync: { rev: syncEvent.rev, root: car.root.toString() },
+    }).toMatchObject({
+      account: { active: true, did },
+      headers: [
+        { op: 1, t: "#identity" },
+        { op: 1, t: "#account" },
+        { op: 1, t: "#sync" },
+      ],
+      identity: { did, handle: "announced.pds.test" },
+      sync: { rev: head.rev, root: head.head },
+    });
   });
 
   it("requires a non-empty invite", async () => {

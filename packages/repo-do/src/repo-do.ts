@@ -8,6 +8,12 @@ import { DurableObject } from "cloudflare:workers";
 import type { BlobMetadata } from "./blobs";
 import { CoreStorage } from "./core";
 import { createDatabase } from "./db";
+import {
+  accountAnnouncementEvents,
+  commitEvent,
+  SEQUENCER_NAME,
+} from "./events";
+import type { RepoEnv } from "./events";
 import { exportRepoCar } from "./export";
 import { prepareCommit } from "./writes";
 import type { RepoWriteRequest, RepoWriteResponse } from "./writes";
@@ -20,6 +26,11 @@ const importSigningKey = (signingKey: string): Promise<Secp256k1Keypair> => {
 
   return Secp256k1Keypair.import(parsedKey.privateKeyBytes);
 };
+
+// Retry interval for events the sequencer has not acknowledged.
+const OUTBOX_RETRY_MS = 30_000;
+// Commit events are at most about 2 MB; stay well below the RPC size limit.
+const OUTBOX_BATCH_SIZE = 8;
 
 const toReadableStream = (chunks: AsyncIterable<Uint8Array>) => {
   const iterator = chunks[Symbol.asyncIterator]();
@@ -38,14 +49,14 @@ const toReadableStream = (chunks: AsyncIterable<Uint8Array>) => {
   });
 };
 
-export class RepoDO extends DurableObject<Record<string, never>> {
+export class RepoDO extends DurableObject<RepoEnv> {
   private readonly core: CoreStorage;
 
   private keypair: Secp256k1Keypair | null = null;
   private repo: Repo | null = null;
   private writeTail: Promise<void> = Promise.resolve();
 
-  constructor(ctx: DurableObjectState, env: Record<string, never>) {
+  constructor(ctx: DurableObjectState, env: RepoEnv) {
     super(ctx, env);
 
     // initialize db and run migrations
@@ -155,9 +166,22 @@ export class RepoDO extends DurableObject<Record<string, never>> {
         return { error: prepared.error, message: prepared.message };
       }
       if (prepared.commit) {
-        await this.core.applyCommit(prepared.commit, prepared.references);
+        const event = commitEvent(
+          repo.did,
+          prepared.commit,
+          prepared.car,
+          repo.commit.data,
+          prepared.ops
+        );
+        await this.core.applyCommit(
+          prepared.commit,
+          prepared.references,
+          event
+        );
         // Never keep an old cached head if loading the committed repo fails.
         this.repo = null;
+        // Arm redelivery before any other I/O can interrupt this write.
+        await this.deliverEvents();
         this.repo = await Repo.load(this.core, prepared.commit.cid);
       }
       const committed = this.repo ?? repo;
@@ -166,6 +190,46 @@ export class RepoDO extends DurableObject<Record<string, never>> {
         results: prepared.results,
       };
     });
+  }
+
+  /** Emit the events that introduce a newly hosted account to relays. */
+  rpcAnnounceAccount(handle: string): Promise<void> {
+    return this.serializeWrite(async () => {
+      const repo = await this.getRepo();
+      this.core.enqueueEvents(await accountAnnouncementEvents(repo, handle));
+      await this.deliverEvents();
+    });
+  }
+
+  override async alarm(): Promise<void> {
+    await this.serializeWrite(() => this.deliverEvents());
+  }
+
+  /**
+   * Send queued events to the sequencer in order. The alarm is armed before
+   * each attempt, so events committed before a crash or failed delivery are
+   * retried; the write that queued them still succeeds.
+   */
+  private async deliverEvents(): Promise<void> {
+    await this.ctx.storage.setAlarm(Date.now() + OUTBOX_RETRY_MS);
+    try {
+      const metadata = await this.core.getMetadata();
+      if (!metadata) {
+        return;
+      }
+      const sequencer = this.env.SEQUENCER.getByName(SEQUENCER_NAME);
+      let events = this.core.getOutbox(OUTBOX_BATCH_SIZE);
+      while (events.length > 0) {
+        // Each batch must be acknowledged before the next preserves order.
+        // oxlint-disable-next-line no-await-in-loop
+        const accepted = await sequencer.rpcSequence(metadata.did, events);
+        this.core.deleteOutboxThrough(accepted);
+        events = this.core.getOutbox(OUTBOX_BATCH_SIZE);
+      }
+      await this.ctx.storage.deleteAlarm();
+    } catch (error) {
+      console.error("event delivery failed; retrying from the alarm", error);
+    }
   }
 
   async rpcGetRepoStatus(): Promise<{
