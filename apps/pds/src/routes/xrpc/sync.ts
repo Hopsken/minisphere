@@ -15,17 +15,24 @@ const app = new Hono<{
   .get(
     "/com.atproto.sync.getRepo",
     lexiconQueryValidator(GetRepo.mainSchema.params),
-    () => {
-      // Expected response: GetRepo.$output (application/vnd.ipld.car)
-      throw new Error("Not implemented");
+    withRepoReader,
+    async (c) => {
+      const { did, since } = c.req.valid("query");
+      const car = await c.var.repoReader.exportRepo(did, since);
+      return new Response(car, {
+        headers: { "Content-Type": "application/vnd.ipld.car" },
+      });
     }
   )
   .get(
     "/com.atproto.sync.getLatestCommit",
     lexiconQueryValidator(GetLatestCommit.mainSchema.params),
-    () => {
-      // Expected response: GetLatestCommit.$output
-      throw new Error("Not implemented");
+    withRepoReader,
+    async (c) => {
+      const { did } = c.req.valid("query");
+      return c.json<GetLatestCommit.$output>(
+        await c.var.repoReader.getLatestCommit(did)
+      );
     }
   )
   .get(

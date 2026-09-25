@@ -7,7 +7,6 @@ Planned work, in priority order. Code, tests, and project READMEs describe what 
 Relays must be able to crawl the PDS before any AppView can index its accounts.
 
 - `com.atproto.sync.subscribeRepos`: a sequenced, cursor-replayable event stream with `#commit`, `#sync`, `#identity`, `#account`, and `#info` messages.
-- `com.atproto.sync.getLatestCommit` and `com.atproto.sync.getRepo` (full CAR export with `since`), which relays use to resynchronize.
 - `com.atproto.sync.listRepos` and `com.atproto.sync.getBlocks`.
 - Verify against a local relay, then announce the PDS to public relays with `com.atproto.sync.requestCrawl`.
 
