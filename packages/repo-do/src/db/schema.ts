@@ -44,3 +44,11 @@ export const recordBlobsTable = sqliteTable(
     index("record_blobs_cid").on(table.cid),
   ]
 );
+
+// Committed events awaiting delivery to the PDS event sequencer, in commit order.
+export const outboxTable = sqliteTable("outbox", {
+  id: integer().primaryKey({ autoIncrement: true }),
+
+  body: blob({ mode: "buffer" }).notNull(),
+  type: text({ enum: ["#account", "#commit", "#identity", "#sync"] }).notNull(),
+});

@@ -38,12 +38,20 @@
         "name": "REPO",
         "class_name": "RepoDO",
       },
+      {
+        "name": "SEQUENCER",
+        "class_name": "SequencerDO",
+      },
     ],
   },
   "migrations": [
     {
       "tag": "v1",
       "new_sqlite_classes": ["RepoDO"],
+    },
+    {
+      "tag": "v2",
+      "new_sqlite_classes": ["SequencerDO"],
     },
   ],
   "rules": [

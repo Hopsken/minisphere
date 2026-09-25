@@ -7,6 +7,7 @@
     "build": "wrangler deploy --dry-run --outdir dist",
     "typegen": "wrangler types --env-file .dev.vars.example",
     "db:generate": "drizzle-kit generate --name",
+    "db:generate:sequencer": "drizzle-kit generate --config drizzle.sequencer.config.ts --name",
     "db:migrate:local": "wrangler d1 migrations apply PDS_DB --local",
     "db:migrate:remote": "wrangler d1 migrations apply PDS_DB --remote",
     "deploy": "wrangler deploy",
@@ -40,6 +41,7 @@
   },
   "devDependencies": {
     "@atproto/crypto": "catalog:",
+    "@atproto/lex-data": "^0.1.7",
     "@atproto/repo": "catalog:",
     "@cloudflare/vitest-pool-workers": "catalog:",
     "@types/node": "catalog:",

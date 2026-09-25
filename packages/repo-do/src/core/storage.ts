@@ -3,7 +3,7 @@ import { Buffer } from "node:buffer";
 import { parseCid } from "@atproto/lex-data";
 import type { Cid } from "@atproto/lex-data";
 import type { BlockMap, CommitData, RepoStorage } from "@atproto/repo";
-import { and, eq, gt, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, gt, inArray, lte, sql } from "drizzle-orm";
 
 import type { BlobMetadata, RecordBlobChanges } from "../blobs";
 import type { Database } from "../db";
@@ -11,8 +11,10 @@ import {
   blobsTable,
   blocksTable,
   metadataTable,
+  outboxTable,
   recordBlobsTable,
 } from "../db/schema";
+import type { RepoEvent } from "../events";
 import { BlockStorage } from "./block";
 import type { RootState } from "./type";
 
@@ -123,11 +125,13 @@ export class CoreStorage extends BlockStorage implements RepoStorage {
   }
 
   /**
-   * Apply a commit atomically: add new blocks, remove old blocks, update root.
+   * Apply a commit atomically: add new blocks, remove old blocks, update root,
+   * and queue its firehose event.
    */
   applyCommit(
     commit: CommitData,
-    references: RecordBlobChanges = new Map()
+    references: RecordBlobChanges = new Map(),
+    event?: Omit<RepoEvent, "id">
   ): Promise<void> {
     const blocks = commit.newBlocks.entries().map(({ bytes, cid }) => ({
       bytes: Buffer.from(bytes),
@@ -193,8 +197,43 @@ export class CoreStorage extends BlockStorage implements RepoStorage {
         .set({ rev: commit.rev, root_cid: commit.cid.toString() })
         .where(eq(metadataTable.id, 1))
         .run();
+      if (event) {
+        transaction
+          .insert(outboxTable)
+          .values({ body: Buffer.from(event.body), type: event.type })
+          .run();
+      }
     });
     return Promise.resolve();
+  }
+
+  enqueueEvents(events: Omit<RepoEvent, "id">[]): void {
+    this.db.transaction((transaction) => {
+      for (const event of events) {
+        transaction
+          .insert(outboxTable)
+          .values({ body: Buffer.from(event.body), type: event.type })
+          .run();
+      }
+    });
+  }
+
+  getOutbox(limit: number): RepoEvent[] {
+    return this.db
+      .select()
+      .from(outboxTable)
+      .orderBy(asc(outboxTable.id))
+      .limit(limit)
+      .all()
+      .map((row) => ({
+        body: new Uint8Array(row.body),
+        id: row.id,
+        type: row.type,
+      }));
+  }
+
+  deleteOutboxThrough(id: number): void {
+    this.db.delete(outboxTable).where(lte(outboxTable.id, id)).run();
   }
 
   getBlob(cid: string, publishedOnly = false): BlobMetadata | undefined {

@@ -15,6 +15,7 @@ Each ADR records one durable decision and the reason for it. Project READMEs des
 | [0009](./0009-read-worker-bindings-from-the-global-env.md) | Read Worker bindings from the global `env` |
 | [0010](./0010-test-through-public-interfaces.md) | Test through public interfaces |
 | [0011](./0011-sign-plc-updates-only-with-the-lowest-priority-key.md) | Sign PLC updates only with the lowest-priority key |
+| [0012](./0012-sequence-repository-events-in-one-durable-object.md) | Sequence repository events in one Durable Object |
 
 ## Writing an ADR
 

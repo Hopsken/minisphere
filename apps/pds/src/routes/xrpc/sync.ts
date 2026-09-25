@@ -3,7 +3,9 @@ import * as GetRecord from "@atcute/atproto/types/sync/getRecord";
 import * as GetRepo from "@atcute/atproto/types/sync/getRepo";
 import * as GetRepoStatus from "@atcute/atproto/types/sync/getRepoStatus";
 import * as SubscribeRepos from "@atcute/atproto/types/sync/subscribeRepos";
+import { SEQUENCER_NAME } from "@minisphere/repo-do";
 import { Hono } from "hono";
+import { HTTPException } from "hono/http-exception";
 
 import { createPdsDatabase } from "../../db";
 import { withRepoReader } from "../../middlewares/with-repo-reader";
@@ -66,9 +68,13 @@ const app = new Hono<{
   .get(
     "/com.atproto.sync.subscribeRepos",
     lexiconQueryValidator(SubscribeRepos.mainSchema.params),
-    () => {
-      // Expected subscription message: SubscribeRepos.$message
-      throw new Error("Not implemented");
+    (c) => {
+      if (c.req.header("Upgrade")?.toLowerCase() !== "websocket") {
+        throw new HTTPException(426, {
+          message: "subscribeRepos requires a WebSocket upgrade",
+        });
+      }
+      return c.env.SEQUENCER.getByName(SEQUENCER_NAME).fetch(c.req.raw);
     }
   )
   .get(
