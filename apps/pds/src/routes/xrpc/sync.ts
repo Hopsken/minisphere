@@ -3,7 +3,7 @@ import * as GetRecord from "@atcute/atproto/types/sync/getRecord";
 import * as GetRepo from "@atcute/atproto/types/sync/getRepo";
 import * as GetRepoStatus from "@atcute/atproto/types/sync/getRepoStatus";
 import * as SubscribeRepos from "@atcute/atproto/types/sync/subscribeRepos";
-import { SEQUENCER_NAME } from "@minisphere/repo-do";
+import { SEQUENCER_NAME } from "@minisphere/pds-sequencer-do";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 

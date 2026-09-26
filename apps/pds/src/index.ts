@@ -72,4 +72,4 @@ export class PdsControlPlane extends WorkerEntrypoint<Env> {
 }
 
 export { RepoDO } from "@minisphere/repo-do";
-export { SequencerDO } from "./sequencer/sequencer-do";
+export { SequencerDO } from "@minisphere/pds-sequencer-do";

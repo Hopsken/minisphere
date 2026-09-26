@@ -1,0 +1,23 @@
+{
+  "name": "@minisphere/pds-sequencer-do",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "db:generate": "drizzle-kit generate --name",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@atcute/cbor": "catalog:",
+    "@atcute/uint8array": "catalog:",
+    "drizzle-orm": "catalog:"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "catalog:",
+    "@types/node": "catalog:",
+    "drizzle-kit": "catalog:"
+  }
+}

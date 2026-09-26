@@ -2,32 +2,24 @@ import { encode } from "@atproto/lex-cbor";
 import type { Cid } from "@atproto/lex-data";
 import { BlockMap, blocksToCarFile } from "@atproto/repo";
 import type { CommitData, Repo } from "@atproto/repo";
-
-import type { outboxTable } from "./db/schema";
-
-export type RepoEventType = (typeof outboxTable.$inferSelect)["type"];
-
-/**
- * A `com.atproto.sync.subscribeRepos` message body without `seq`, which the
- * sequencer assigns. `id` increases per repository in commit order.
- */
-export interface RepoEvent {
-  id: number;
-  type: RepoEventType;
-  body: Uint8Array;
-}
-
-/** Accepts one repository's events in `id` order and returns the last accepted `id`. */
-export interface RepoEventSequencer {
-  rpcSequence: (did: string, events: RepoEvent[]) => Promise<number>;
-}
+import type { SequencerDO } from "@minisphere/pds-sequencer-do";
 
 /** The host Worker binds the PDS event sequencer as `SEQUENCER`. */
 export interface RepoEnv {
-  SEQUENCER: { getByName: (name: string) => RepoEventSequencer };
+  SEQUENCER: DurableObjectNamespace<SequencerDO>;
 }
 
-export const SEQUENCER_NAME = "firehose";
+/**
+ * The `com.atproto.sync.subscribeRepos` messages RepoDO emits. The Lexicon
+ * union is open, so storage keeps the type as text.
+ */
+export type RepoEventType = "#account" | "#commit" | "#identity" | "#sync";
+
+/** A queued message body; the sequencer assigns its `seq`. */
+export interface OutboxEvent {
+  type: RepoEventType;
+  body: Uint8Array;
+}
 
 // oxlint-disable-next-line typescript/consistent-type-definitions -- Unlike an interface, a type alias is assignable to the CBOR encoder's LexValue map.
 export type RepoEventOp = {
