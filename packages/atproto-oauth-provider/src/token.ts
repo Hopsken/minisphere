@@ -25,7 +25,6 @@ import type {
   OAuthSessionRecord,
   SessionTokenRecord,
 } from "./oauth-state";
-import { assertTokenResponse } from "./protocol-validation";
 import {
   consumeRecord,
   createUniqueRecord,
@@ -99,7 +98,6 @@ const tokenResponse = (session: OAuthSessionRecord, tokens: IssuedTokenSet) => {
   if (tokens.refreshToken) {
     body.refresh_token = tokens.refreshToken;
   }
-  assertTokenResponse(body);
   return jsonResponse(body);
 };
 

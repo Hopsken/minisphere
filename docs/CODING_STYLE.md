@@ -28,7 +28,7 @@ This document records repository conventions. Read the general sections and the 
 - Repositories own database queries and persistence shapes.
 - Clients own external APIs and Worker service-binding setup.
 - Keep application-specific code in its application. Move it to a package only when ownership is genuinely shared.
-- Use constructor injection for service dependencies so workflows can be tested without global mocks.
+- Read Worker bindings and configuration directly from the `cloudflare:workers` `env`; do not thread them through constructors or context. Pass arguments only for values that change per request. See [ADR 0009](./adr/0009-read-worker-bindings-from-the-global-env.md).
 
 ## TypeScript and schemas
 
@@ -88,9 +88,11 @@ This document records repository conventions. Read the general sections and the 
 
 ## Tests and verification
 
-- Test the owning layer directly. Inject clients into services and use the real database adapter where practical.
-- Test public route behavior separately from service workflows.
-- Assert persisted ownership boundaries, not only response values.
+- Test through public interfaces: HTTP and XRPC routes, Worker RPC entrypoints used by other services, and CLI scripts. Use the real D1, Durable Object, and R2 bindings of the Workers test runtime.
+- Fake only what is outside the repository or cannot run in tests, such as Resend or a remote PLC Directory.
+- Assert observable behavior: responses, and state read back through a public interface. Do not assert table layouts, internal class methods, or call counts on internal code.
+- Do not test internal repositories, services, or helpers directly. Test a pure function directly only when it encodes a product rule that is hard to reach through an interface.
+- Before you write a test for risky behavior, list how it could fail. Choose inputs where a wrong implementation gives a different result.
 - Regenerate migrations and Worker types before test and type-check validation when their sources change.
 - Run repository and read-only project checks through Turbo so task dependencies and caches remain effective.
 - Use a pnpm package filter for explicit project-local write operations such as migration generation.
@@ -98,8 +100,9 @@ This document records repository conventions. Read the general sections and the 
 
 ## Documentation
 
-- Keep the root README focused on repository-wide architecture, setup, and navigation.
-- Keep project-specific setup, bindings, commands, and architecture in that project's README.
-- Update the owning README when a project's interface, storage, configuration, or development workflow changes.
-- Record current implementation status in `DEVELOPMENT.md` until its decisions move into ADRs.
-- Record durable architecture decisions in `docs/adr/` once the ADR migration begins.
+- Document contracts, not implementation: ownership, interfaces, configuration, operational risks, and known limitations. Code and tests describe how it works.
+- Do not record change history or migration notes in documentation. Git history and pull requests keep them.
+- Keep the root README focused on repository-wide setup, navigation, and status.
+- Keep project-specific interfaces, configuration, and commands in that project's README.
+- Record each durable decision as an [ADR](./adr/README.md). Do not rewrite an accepted ADR; supersede it.
+- Update the owning document in the same change that alters its contract.

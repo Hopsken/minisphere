@@ -72,9 +72,6 @@ export default defineConfig(async () => {
               export default {
                 async fetch(request) {
                   const url = new URL(request.url);
-                  if (url.origin === "https://redirect.test") {
-                    return Response.redirect("https://minisphere.test/.well-known/oauth-authorization-server");
-                  }
                   if (url.origin === "https://minisphere.test") {
                     if (url.pathname === "/.well-known/oauth-authorization-server") {
                       return Response.json({ issuer: url.origin, jwks_uri: url.origin + "/oauth/jwks" });

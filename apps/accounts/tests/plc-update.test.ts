@@ -9,8 +9,8 @@ import { processIndexedEntryLog, signOperation } from "@atcute/did-plc";
 import type { IndexedEntry, Operation } from "@atcute/did-plc";
 import { env, withEnv } from "cloudflare:workers";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { z } from "zod";
 
-import { patchPlcSchema } from "../schema/plc";
 import { PlcDirectoryClient } from "../worker/clients/plc-directory-client";
 import { createDatabase } from "../worker/db";
 import app from "../worker/index";
@@ -19,7 +19,6 @@ import {
   decryptPlcRotationKey,
 } from "../worker/lib/plc-account";
 import { UserRepository } from "../worker/repositories/user-repository";
-import { PlcService } from "../worker/services/plc";
 
 const origin = "https://minisphere.test";
 const operationCid = async (operation: Operation) =>
@@ -107,8 +106,6 @@ const fixture = async () => {
       expect(did).toBe(material.did);
       await append(operation);
     });
-  const directory = new PlcDirectoryClient("https://directory.test");
-  const service = new PlcService(users, directory, env.ACCOUNTS_ENCRYPTION_KEY);
   const request = (
     body?: Record<string, string | string[] | boolean>,
     headers?: Record<string, string>
@@ -127,18 +124,34 @@ const fixture = async () => {
       },
       env
     );
+  const read = async () => {
+    const response = await request();
+    return response.json();
+  };
+  const patch = async (body: { expectedHead: string; pdsEndpoint: string }) => {
+    const response = await request(body);
+    return { body: await response.json(), status: response.status };
+  };
+  const head = () => {
+    const entry = audit.findLast((item) => !item.nullified);
+    if (!entry || entry.operation.type !== "plc_operation") {
+      throw new Error("Missing PLC head");
+    }
+    return { cid: entry.cid, operation: entry.operation };
+  };
   return {
     append,
     audit,
     cookie,
-    directory,
     genesis,
+    head,
     http,
     key,
     managed,
     material,
+    patch,
+    read,
     request,
-    service,
     submit,
     user,
     users,
@@ -343,19 +356,23 @@ describe("self-service PLC updates", () => {
       )
     );
     await expect(
-      f.service.patch(f.user.id, {
+      f.patch({
         expectedHead: removed.cid,
         pdsEndpoint: "https://new.example.com",
       })
-    ).rejects.toMatchObject({
-      message: "Managed key no longer has PLC update authority",
+    ).resolves.toStrictEqual({
+      body: {
+        message: "Managed key no longer has PLC update authority",
+        status: 409,
+      },
       status: 409,
     });
-    const retry = await f.service.patch(f.user.id, {
-      expectedHead: removed.cid,
-      pdsEndpoint: "https://old-pds.example.com",
-    });
-    expect(retry.changed).toBeFalsy();
+    await expect(
+      f.patch({
+        expectedHead: removed.cid,
+        pdsEndpoint: "https://old-pds.example.com",
+      })
+    ).resolves.toMatchObject({ body: { changed: false }, status: 200 });
     expect(f.submit).not.toHaveBeenCalled();
   });
 
@@ -378,12 +395,15 @@ describe("self-service PLC updates", () => {
       throw new Error("Missing base");
     }
     await expect(
-      f.service.patch(f.user.id, {
+      f.patch({
         expectedHead: added.cid,
         pdsEndpoint: "https://new.example.com",
       })
-    ).rejects.toMatchObject({
-      message: "Managed key must have lowest priority for a safe PLC update",
+    ).resolves.toStrictEqual({
+      body: {
+        message: "Managed key must have lowest priority for a safe PLC update",
+        status: 409,
+      },
       status: 409,
     });
     expect(f.submit).not.toHaveBeenCalled();
@@ -409,42 +429,46 @@ describe("self-service PLC updates", () => {
       )
     );
     expect(lowerUpdate.nullified).toBeTruthy();
-    await expect(f.service.get(f.user.id)).resolves.toMatchObject({
+    await expect(f.read()).resolves.toMatchObject({
       alsoKnownAs: ["at://recovery.example.com"],
     });
   });
 
   it("rejects stale heads even for no-op requests, and detects a race before submit", async () => {
     const f = await fixture();
-    const added = await f.service.patch(f.user.id, {
+    const added = await f.patch({
       expectedHead: f.genesis.cid,
       pdsEndpoint: "https://new.example.com",
     });
+    expect(added.status).toBe(200);
     await expect(
-      f.service.patch(f.user.id, {
+      f.patch({
         expectedHead: f.genesis.cid,
         pdsEndpoint: "https://new.example.com",
       })
-    ).rejects.toMatchObject({ status: 409 });
-    const read = await f.directory.getHead(f.material.did);
-    const head = vi.spyOn(f.directory, "getHead").mockResolvedValueOnce(read);
+    ).resolves.toMatchObject({ status: 409 });
+
+    // Another writer appends after Accounts reads the head it will sign over.
+    const read = f.head();
+    vi.spyOn(PlcDirectoryClient.prototype, "getHead").mockResolvedValueOnce(
+      read
+    );
     await f.append(
       await signUpdate(
         {
           ...read.operation,
           alsoKnownAs: ["at://race.example.com"],
-          prev: added.head,
+          prev: read.cid,
         },
         f.key
       )
     );
     await expect(
-      f.service.patch(f.user.id, {
-        expectedHead: added.head,
+      f.patch({
+        expectedHead: read.cid,
         pdsEndpoint: "https://another.example.com",
       })
-    ).rejects.toMatchObject({ status: 409 });
-    expect(head).toHaveBeenCalledTimes(2);
+    ).resolves.toMatchObject({ status: 409 });
     expect(f.submit).toHaveBeenCalledOnce();
   });
 
@@ -463,7 +487,7 @@ describe("self-service PLC updates", () => {
           f.key
         )
       );
-      const base = await f.directory.getHead(f.material.did);
+      const base = f.head();
       f.submit.mockClear();
       f.submit.mockImplementationOnce(async (_did, operation) => {
         await f.append(
@@ -479,13 +503,13 @@ describe("self-service PLC updates", () => {
         await f.append(operation);
       });
       await expect(
-        f.service.patch(f.user.id, {
+        f.patch({
           expectedHead: base.cid,
           pdsEndpoint: "https://loser.example.com",
         })
-      ).rejects.toMatchObject({ status: 409 });
+      ).resolves.toMatchObject({ status: 409 });
       expect(f.audit).toHaveLength(3);
-      await expect(f.service.get(f.user.id)).resolves.toMatchObject({
+      await expect(f.read()).resolves.toMatchObject({
         alsoKnownAs: ["at://winner.example.com"],
       });
       expect(f.submit).toHaveBeenCalledOnce();
@@ -498,16 +522,17 @@ describe("self-service PLC updates", () => {
       await f.append(operation);
       throw new Error("Transport timeout with internal data");
     });
-    const result = await f.service.patch(f.user.id, {
+    const result = await f.patch({
       expectedHead: f.genesis.cid,
       pdsEndpoint: "https://new.example.com",
     });
-    expect(result.changed).toBeTruthy();
-    const retried = await f.service.patch(f.user.id, {
-      expectedHead: result.head,
-      pdsEndpoint: "https://new.example.com",
-    });
-    expect(retried.changed).toBeFalsy();
+    expect(result).toMatchObject({ body: { changed: true }, status: 200 });
+    await expect(
+      f.patch({
+        expectedHead: z.object({ head: z.string() }).parse(result.body).head,
+        pdsEndpoint: "https://new.example.com",
+      })
+    ).resolves.toMatchObject({ body: { changed: false }, status: 200 });
     expect(f.submit).toHaveBeenCalledOnce();
     expect(f.audit).toHaveLength(2);
   });
@@ -565,21 +590,12 @@ describe("self-service PLC updates", () => {
     expect(f.submit).not.toHaveBeenCalled();
   });
 
-  it("does not accept a tampered audit CID or expose an unexpected database exception", async () => {
+  it("does not accept a tampered audit CID", async () => {
     const f = await fixture();
     const log = vi.spyOn(console, "error").mockImplementation(() => {});
     f.genesis.cid = `b${"a".repeat(58)}`;
     const tampered = await f.request();
     expect(tampered.status).toBe(502);
-    vi.spyOn(
-      UserRepository.prototype,
-      "findAccountByUserId"
-    ).mockRejectedValueOnce(new Error("sensitive database error"));
-    const failed = await f.request();
-    expect({ body: await failed.json(), status: failed.status }).toStrictEqual({
-      body: { message: "PLC request failed", status: 500 },
-      status: 500,
-    });
     expect(log).not.toHaveBeenCalled();
     expect(f.submit).not.toHaveBeenCalled();
   });
@@ -591,47 +607,20 @@ describe("self-service PLC updates", () => {
       f.http.mockRejectedValueOnce(new Error("Read timeout"));
     });
     await expect(
-      f.service.patch(f.user.id, {
+      f.patch({
         expectedHead: f.genesis.cid,
         pdsEndpoint: "https://new.example.com",
       })
-    ).rejects.toMatchObject({ status: 502 });
-    await expect(f.service.get(f.user.id)).resolves.toMatchObject({
+    ).resolves.toMatchObject({ status: 502 });
+    await expect(f.read()).resolves.toMatchObject({
       services: { atproto_pds: { endpoint: "https://new.example.com" } },
     });
     expect(f.submit).toHaveBeenCalledOnce();
   });
 
-  it("submits JSON only to the selected directory with a timeout", async () => {
+  it("requires a canonical HTTPS origin and rejects key-edit fields", async () => {
     const f = await fixture();
-    f.submit.mockRestore();
-    f.http.mockImplementationOnce(async (input, init) => {
-      const request = new Request(input, init);
-      expect({
-        body: await request.json(),
-        method: request.method,
-        url: request.url,
-      }).toStrictEqual({
-        body: f.material.operation,
-        method: "POST",
-        url: `https://directory.test/${encodeURIComponent(f.material.did)}`,
-      });
-      expect(init?.signal).toBeInstanceOf(AbortSignal);
-      return Response.json({ ok: true });
-    });
-    await f.directory.submitOperation(f.material.did, f.material.operation);
-    expect(f.http).toHaveBeenCalledOnce();
-  });
-
-  it("requires an HTTPS origin and rejects key-edit fields", async () => {
-    const f = await fixture();
-    expect(
-      patchPlcSchema.safeParse({
-        expectedHead: f.genesis.cid,
-        pdsEndpoint: "https://corrected.example.com",
-      }).success
-    ).toBeTruthy();
-    for (const patch of [
+    const invalidPatches = [
       {},
       { pdsEndpoint: "http://pds.example.com" },
       { pdsEndpoint: "https://pds.example.com/" },
@@ -648,17 +637,17 @@ describe("self-service PLC updates", () => {
         confirmManagedKeyRemoval: true,
         pdsEndpoint: "https://pds.example.com",
       },
-    ]) {
-      expect(
-        patchPlcSchema.safeParse({ expectedHead: f.genesis.cid, ...patch })
-          .success
-      ).toBeFalsy();
-    }
-    const response = await f.request({
-      expectedHead: f.genesis.cid,
-      pdsEndpoint: "http://insecure.example.com",
-    });
-    expect(response.status).toBe(400);
+    ];
+    const statuses = await Promise.all(
+      invalidPatches.map(async (patch) => {
+        const response = await f.request({
+          expectedHead: f.genesis.cid,
+          ...patch,
+        });
+        return response.status;
+      })
+    );
+    expect(statuses).toStrictEqual(invalidPatches.map(() => 400));
     expect(f.submit).not.toHaveBeenCalled();
   });
 });

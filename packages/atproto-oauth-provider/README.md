@@ -1,36 +1,33 @@
 # AT Protocol OAuth provider
 
-`@minisphere/atproto-oauth-provider` is a Worker-compatible Better Auth plugin for the AT Protocol OAuth authorization-server profile. It uses Better Auth's session and adapter APIs, Web Crypto, and durable Better Auth verification records. It does not use the Node-focused `@atproto/oauth-provider` runtime.
+`@minisphere/atproto-oauth-provider` is a Better Auth plugin that implements the AT Protocol OAuth authorization server on Cloudflare Workers. It uses Web Crypto and Better Auth's database adapter, not the Node-only `@atproto/oauth-provider`.
 
-The package exposes `atprotoOAuthProvider(options)`. Application callbacks resolve the one active DID subject for an authenticated Better Auth user, route incomplete users to account completion, provide the frontend authorization-page URL, create the login redirect, issue resource-server access tokens, and return the public JWKS advertised by authorization-server metadata. The frontend reads server-validated consent details from `/oauth/authorization-details` by using the opaque consent token. Consent stores the resolved DID server-side and resolves it again on submission; the browser never selects or submits a DID. The package does not import application code. Each consumer owns its authorization policy and storage behind those callbacks.
+## Usage
 
-The package uses the runtime schemas from `@atcute/oauth-types` at protocol boundaries. These schemas validate client metadata, localhost client metadata, AT Protocol scopes, authorization-server metadata, PAR responses, and token responses. Server routing, durable state, replay protection, DPoP verification, and the stricter public-client security policy remain in this package because `@atcute/oauth-types` is not an authorization-server runtime.
+`atprotoOAuthProvider(options)` takes callbacks for the parts each application owns:
 
-## Current profile
+- resolve the one active DID for a signed-in user, or send the user to account setup;
+- build the login redirect and the consent-page URL;
+- issue access tokens and return the public JWKS.
 
-The first milestone supports public clients only:
+The consent page reads validated request details from `/oauth/authorization-details`. The DID is resolved on the server and checked again when consent is submitted.
 
-- HTTPS Client ID Metadata Documents and the `http://localhost` development client convention;
-- mandatory PAR, state, S256 PKCE, authorization code, refresh token, DPoP, nonce, and revocation flows with query or fragment authorization responses;
-- JSON and form-encoded PAR, token, and revocation requests;
-- durable single-use and replay state through the Better Auth adapter;
-- one server-resolved DID in the OAuth session and top-level token-response `sub`.
+## Supported profile
 
-PAR requests expire after five minutes, authorization codes expire after one minute, and public-client sessions have a fixed maximum age of two weeks. Access tokens expire after five minutes. The application token callback must bind the resolved DID as `sub`, the resource origin as `aud`, and the DPoP JWK thumbprint as `cnf.jkt`.
+- Public clients only: HTTPS client metadata documents and the `http://localhost` development client.
+- Required PAR, PKCE (S256), DPoP with server nonces, refresh-token rotation, and revocation.
+- `prompt` may be omitted or `consent`. Silent authorization (`prompt=none`) is rejected.
+- Access tokens last five minutes. The application's token callback must set `sub` to the DID, `aud` to the resource server, and `cnf.jkt` to the DPoP key thumbprint.
+- `repo:` and `blob:` scopes are validated with `@atproto/oauth-scopes`. Each requested scope must appear in the client metadata. The resource server must enforce them.
 
-PAR accepts an omitted `prompt` or `prompt=consent`. Both require explicit user consent. Other prompt modes, including silent authorization with `prompt=none`, are not supported and return `invalid_request`.
+Not supported: confidential clients (`private_key_jwt`), permission sets (`include:`), dynamic registration, client secrets, and implicit grants.
 
-Repository and blob scopes are dynamic: `RepoPermission` and `BlobPermission` from `@atproto/oauth-scopes` validate collection/action permissions and MIME upload permissions respectively. Each requested scope must occur exactly in client metadata and receive explicit consent. `supportedScopes` lists static scopes for discovery (default `atproto`), not an exhaustive list of dynamic permissions. The resource server must enforce these permissions independently. The provider does not resolve `include:` permission sets or infer permissions from human-readable collection labels.
+## Deployment requirements
 
-All request URIs, authorization codes, refresh tokens, PKCE reservations, DPoP proof identifiers, and nonces use Better Auth verification records. A Worker deployment must configure a database-backed Better Auth adapter. In-memory adapters do not provide the required cross-isolate atomic guarantees.
+- Use a database-backed Better Auth adapter. Single-use codes and replay protection need atomic storage shared by all Worker instances.
+- On Cloudflare, enable the `global_fetch_strictly_public` compatibility flag. On other platforms, pass an equally restricted `clientMetadataFetch`.
 
-Client metadata fetches reject redirects, local hostname forms, oversized bodies, and slow responses. Cloudflare deployments must enable the `global_fetch_strictly_public` compatibility flag so a malicious metadata hostname cannot route global `fetch()` to a same-zone Worker or private network. Other Worker platforms must supply an equivalently hardened `clientMetadataFetch` callback.
-
-Confidential `private_key_jwt` clients are intentionally rejected and are not advertised. Dynamic registration, client secrets, OIDC client flows, client credentials, and implicit grants are not supported or advertised.
-
-This public-only milestone is not the complete current AT Protocol OAuth profile. Confidential client authentication and client signing-key continuity remain deferred. They must be implemented together before `private_key_jwt` is added to authorization-server metadata.
-
-The package was designed from the Better Auth OAuth Provider plugin's MIT-licensed source. The retained license is in `LICENSE.better-auth`.
+The package is derived from the MIT-licensed Better Auth OAuth Provider plugin; see `LICENSE.better-auth`.
 
 ## Development
 

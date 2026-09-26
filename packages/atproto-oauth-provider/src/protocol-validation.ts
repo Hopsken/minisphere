@@ -1,11 +1,8 @@
 import {
-  atprotoAuthorizationServerMetadataValidator,
   atprotoOAuthScopeSchema,
-  atprotoOAuthTokenResponseSchema,
   discoverablePublicClientMetadataSchema,
   loopbackClientMetadataSchema,
   oauthClientMetadataSchema,
-  oauthParResponseSchema,
 } from "@atcute/oauth-types";
 import type { JwksPub } from "@atcute/oauth-types";
 import * as v from "valibot";
@@ -109,26 +106,4 @@ export const parseAtprotoScopes = (value: string) => {
     return invalidProtocolValue("OAuth scope");
   }
   return scopes;
-};
-
-export const assertAuthorizationServerMetadata = (
-  input: ProtocolJsonObject
-) => {
-  if (
-    !v.safeParse(atprotoAuthorizationServerMetadataValidator, input).success
-  ) {
-    invalidProtocolValue("Authorization-server metadata");
-  }
-};
-
-export const assertParResponse = (input: ProtocolJsonObject) => {
-  if (!v.safeParse(oauthParResponseSchema, input).success) {
-    invalidProtocolValue("PAR response");
-  }
-};
-
-export const assertTokenResponse = (input: ProtocolJsonObject) => {
-  if (!v.safeParse(atprotoOAuthTokenResponseSchema, input).success) {
-    invalidProtocolValue("Token response");
-  }
 };

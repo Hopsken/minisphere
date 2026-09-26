@@ -1,6 +1,8 @@
 import { env } from "cloudflare:workers";
+import { calculateJwkThumbprint } from "jose";
 import { beforeEach, describe, expect, it } from "vitest";
 
+import { verifyOAuthAccessToken } from "../../pds/src/auth/oauth";
 import {
   authorizePar,
   accountDid,
@@ -23,6 +25,12 @@ import {
   request,
   tokenResponseSchema,
 } from "./atproto-oauth-test-helpers";
+
+// The PDS must accept Accounts tokens through Accounts metadata and public JWKS.
+const accountsFetch: typeof fetch = (input) =>
+  request(new URL(input instanceof Request ? input.url : input).pathname);
+const verifyAsPds = (token: string) =>
+  verifyOAuthAccessToken(token, origin, "https://pds.test", accountsFetch);
 
 describe("AT Protocol OAuth authorization server", () => {
   beforeEach(async () => {
@@ -547,6 +555,22 @@ describe("AT Protocol OAuth authorization server", () => {
       status: 200,
       sub: accountDid,
     });
+    await expect(
+      Promise.all([
+        verifyAsPds(initialTokens.access_token),
+        verifyAsPds(refreshedTokens.access_token),
+      ])
+    ).resolves.toMatchObject([
+      {
+        aud: "https://pds.test",
+        client_id: clientId,
+        cnf: { jkt: await calculateJwkThumbprint(key.publicJwk) },
+        iss: origin,
+        scope: "atproto",
+        sub: accountDid,
+      },
+      { sub: accountDid },
+    ]);
 
     const replay = await postOAuth(
       "/oauth/token",
