@@ -3,7 +3,7 @@ import { Buffer } from "node:buffer";
 import { parseCid } from "@atproto/lex-data";
 import type { Cid } from "@atproto/lex-data";
 import type { BlockMap, CommitData, RepoStorage } from "@atproto/repo";
-import { and, eq, gt, sql } from "drizzle-orm";
+import { and, eq, gt, inArray, sql } from "drizzle-orm";
 
 import type { BlobMetadata, RecordBlobChanges } from "../blobs";
 import type { Database } from "../db";
@@ -15,6 +15,11 @@ import {
 } from "../db/schema";
 import { BlockStorage } from "./block";
 import type { RootState } from "./type";
+
+export interface StoredBlock {
+  bytes: Uint8Array;
+  rev: string;
+}
 
 export class CoreStorage extends BlockStorage implements RepoStorage {
   private readonly storage: DurableObjectStorage;
@@ -250,13 +255,26 @@ export class CoreStorage extends BlockStorage implements RepoStorage {
     };
   }
 
-  getBlockCidsSince(since: string): Set<string> {
-    const rows = this.db
-      .select({ cid: blocksTable.cid })
-      .from(blocksTable)
-      .where(gt(blocksTable.rev, since))
-      .all();
-    return new Set(rows.map((row) => row.cid));
+  /** Read blocks with the revision that last made them reachable. */
+  getStoredBlocks(cids: readonly string[]): Map<string, StoredBlock> {
+    // Stay within the 100 bound parameters Durable Object SQLite allows per query.
+    const chunks = Array.from({ length: Math.ceil(cids.length / 90) }, (_, i) =>
+      cids.slice(i * 90, i * 90 + 90)
+    );
+    return new Map(
+      chunks
+        .flatMap((chunk) =>
+          this.db
+            .select()
+            .from(blocksTable)
+            .where(inArray(blocksTable.cid, chunk))
+            .all()
+        )
+        .map((row) => [
+          row.cid,
+          { bytes: new Uint8Array(row.bytes), rev: row.rev },
+        ])
+    );
   }
 
   healthCheck() {
