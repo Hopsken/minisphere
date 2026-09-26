@@ -113,10 +113,15 @@ export class RepoReader {
     const dids = await this.accounts.list(limit + 1, cursor);
     const page = dids.slice(0, limit);
     const statuses = await Promise.allSettled(
-      page.map((did) => this.repositories.getByName(did).rpcGetRepoStatus())
+      page.filter(isDid).map(async (did) => {
+        const { head, rev } = await this.repositories
+          .getByName(did)
+          .rpcGetRepoStatus();
+        return { active: true, did, head, rev };
+      })
     );
     const repos = statuses.flatMap((status) =>
-      status.status === "fulfilled" ? [{ active: true, ...status.value }] : []
+      status.status === "fulfilled" ? [status.value] : []
     );
     return {
       cursor: dids.length > limit ? page.at(-1) : undefined,
