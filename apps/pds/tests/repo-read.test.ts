@@ -1,6 +1,7 @@
 import * as DescribeRepo from "@atcute/atproto/types/repo/describeRepo";
 import * as GetRecord from "@atcute/atproto/types/repo/getRecord";
 import * as ListRecords from "@atcute/atproto/types/repo/listRecords";
+import * as ListRepos from "@atcute/atproto/types/sync/listRepos";
 import { fromUint8Array } from "@atcute/car";
 import { decode } from "@atcute/cbor";
 import { toString } from "@atcute/cid";
@@ -485,6 +486,47 @@ describe("public repository reads", () => {
     await expect(record.json()).resolves.toStrictEqual(expected);
     const list = await query("repo.listRecords", { collection, repo: did });
     await expect(list.json()).resolves.toStrictEqual({ records: [expected] });
+  });
+
+  it("lists hosted repositories page by page and omits unreadable ones", async () => {
+    const seeded = await Promise.all([
+      seedRepo([]),
+      seedRepo([]),
+      seedRepo([]),
+    ]);
+    const unreadable: Did = "did:plc:unreadablerepositorytest0";
+    await createPdsDatabase(env.PDS_DB)
+      .insert(accountsTable)
+      .values({ did: unreadable });
+
+    const listFrom = async (
+      cursor?: string
+    ): Promise<ListRepos.$output["repos"]> => {
+      const response = await query(
+        "sync.listRepos",
+        cursor === undefined ? { limit: "2" } : { cursor, limit: "2" }
+      );
+      const page = parse(
+        ListRepos.mainSchema.output.schema,
+        await response.json()
+      );
+      return page.cursor === undefined
+        ? page.repos
+        : [...page.repos, ...(await listFrom(page.cursor))];
+    };
+    const listed = await listFrom();
+
+    const dids = listed.map((repo) => repo.did);
+    const expected = await Promise.all(
+      seeded.map(async ({ did, stub }) => {
+        const { head, rev } = await stub.rpcGetRepoStatus();
+        return { active: true, did, head, rev };
+      })
+    );
+    expect(dids).toStrictEqual(dids.toSorted());
+    expect(new Set(dids).size).toBe(dids.length);
+    expect(listed).toStrictEqual(expect.arrayContaining(expected));
+    expect(dids).not.toContain(unreadable);
   });
 
   it("does not expose initialized repositories without a local account", async () => {

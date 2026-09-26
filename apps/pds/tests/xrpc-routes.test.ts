@@ -61,6 +61,7 @@ const invalidRoutes: [path: string, init?: RequestInit][] = [
   ["/xrpc/com.atproto.repo.listRecords?repo=alice.test&limit=101"],
   ["/xrpc/com.atproto.sync.getRepo?did=not-a-did"],
   ["/xrpc/com.atproto.sync.subscribeRepos?cursor=1.5"],
+  ["/xrpc/com.atproto.sync.listRepos?limit=1001"],
   ["/xrpc/com.atproto.identity.resolveHandle?handle=not-a-handle"],
 ];
 
@@ -107,6 +108,21 @@ describe("XRPC request boundaries", () => {
       await expect(response.json()).resolves.toStrictEqual({
         authorization_servers: ["https://minisphere.test"],
         resource: "https://pds.minisphere.test",
+      });
+    });
+  });
+
+  it("describes itself as a PDS whose accounts Accounts creates", async () => {
+    await withEnv({ ...env, PDS_ORIGIN: undefined }, async () => {
+      const response = await worker.fetch(
+        new Request(`${ORIGIN}/xrpc/com.atproto.server.describeServer`),
+        env
+      );
+      expect(response.status).toBe(200);
+      await expect(response.json()).resolves.toStrictEqual({
+        availableUserDomains: [],
+        did: "did:web:pds.minisphere.test",
+        inviteCodeRequired: true,
       });
     });
   });

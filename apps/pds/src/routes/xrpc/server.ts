@@ -1,5 +1,6 @@
 import * as CreateAccount from "@atcute/atproto/types/server/createAccount";
 import * as CreateSession from "@atcute/atproto/types/server/createSession";
+import type * as DescribeServer from "@atcute/atproto/types/server/describeServer";
 import * as ReserveSigningKey from "@atcute/atproto/types/server/reserveSigningKey";
 import { parseDidKey } from "@atcute/crypto";
 import { PlcClient } from "@atcute/did-plc";
@@ -184,9 +185,15 @@ app.get("/com.atproto.server.getSession", () => {
   throw new Error("Not implemented");
 });
 
-app.get("/com.atproto.server.describeServer", () => {
-  // Expected response: DescribeServer.$output
-  throw new Error("Not implemented");
+app.get("/com.atproto.server.describeServer", (c) => {
+  const pdsHostname = new URL(resolveConfig().pdsOrigin).hostname;
+  // Accounts is the Entryway: it creates accounts and owns hosted handle
+  // domains, so this PDS offers no domains for direct sign-up.
+  return c.json<DescribeServer.$output>({
+    availableUserDomains: [],
+    did: `did:web:${pdsHostname}`,
+    inviteCodeRequired: true,
+  });
 });
 
 export default app;

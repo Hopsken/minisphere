@@ -105,6 +105,25 @@ export class RepoReader {
     return this.repositories.getByName(did).rpcExportRepo(since);
   }
 
+  /**
+   * List hosted repositories by DID. Accounts whose repository cannot be read
+   * are omitted; `getRepoStatus` reports them as desynchronized.
+   */
+  async listRepos(limit: number, cursor: string | undefined) {
+    const dids = await this.accounts.list(limit + 1, cursor);
+    const page = dids.slice(0, limit);
+    const statuses = await Promise.allSettled(
+      page.map((did) => this.repositories.getByName(did).rpcGetRepoStatus())
+    );
+    const repos = statuses.flatMap((status) =>
+      status.status === "fulfilled" ? [{ active: true, ...status.value }] : []
+    );
+    return {
+      cursor: dids.length > limit ? page.at(-1) : undefined,
+      repos,
+    };
+  }
+
   private async resolveLocalDid(identifier: ActorIdentifier): Promise<Did> {
     let did: Did;
     try {
