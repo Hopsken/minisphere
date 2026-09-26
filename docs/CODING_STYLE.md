@@ -105,4 +105,5 @@ This document records repository conventions. Read the general sections and the 
 - Keep the root README focused on repository-wide setup, navigation, and status.
 - Keep project-specific interfaces, configuration, and commands in that project's README.
 - Record each durable decision as an [ADR](./adr/README.md). Do not rewrite an accepted ADR; supersede it.
+- Record planned work in the [roadmap](./ROADMAP.md) and remove an item in the change that ships it.
 - Update the owning document in the same change that alters its contract.
