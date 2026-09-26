@@ -102,6 +102,7 @@ Minisphere is in development. Not yet implemented:
 ## Documentation
 
 - [Architecture Decision Records](./docs/adr/README.md)
+- [Roadmap](./docs/ROADMAP.md)
 - [Local development](./docs/LOCAL_DEVELOPMENT.md)
 - [Deployment](./docs/DEPLOYMENT.md)
 - [Coding style](./docs/CODING_STYLE.md)
