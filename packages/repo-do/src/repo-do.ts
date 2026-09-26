@@ -3,16 +3,13 @@ import { Secp256k1Keypair } from "@atproto/crypto";
 import { lexToJson } from "@atproto/lex-json";
 import { getRecords, Repo } from "@atproto/repo";
 import type { Leaf } from "@atproto/repo";
+import { SEQUENCER_NAME } from "@minisphere/pds-sequencer-do";
 import { DurableObject } from "cloudflare:workers";
 
 import type { BlobMetadata } from "./blobs";
 import { CoreStorage } from "./core";
 import { createDatabase } from "./db";
-import {
-  accountAnnouncementEvents,
-  commitEvent,
-  SEQUENCER_NAME,
-} from "./events";
+import { accountAnnouncementEvents, commitEvent } from "./events";
 import type { RepoEnv } from "./events";
 import { exportRepoCar } from "./export";
 import { prepareCommit } from "./writes";
@@ -214,22 +211,24 @@ export class RepoDO extends DurableObject<RepoEnv> {
     await this.ctx.storage.setAlarm(Date.now() + OUTBOX_RETRY_MS);
     try {
       const metadata = await this.core.getMetadata();
-      if (!metadata) {
-        return;
-      }
-      const sequencer = this.env.SEQUENCER.getByName(SEQUENCER_NAME);
-      let events = this.core.getOutbox(OUTBOX_BATCH_SIZE);
-      while (events.length > 0) {
-        // Each batch must be acknowledged before the next preserves order.
-        // oxlint-disable-next-line no-await-in-loop
-        const accepted = await sequencer.rpcSequence(metadata.did, events);
-        this.core.deleteOutboxThrough(accepted);
-        events = this.core.getOutbox(OUTBOX_BATCH_SIZE);
+      if (metadata) {
+        await this.flushOutbox(metadata.did);
       }
       await this.ctx.storage.deleteAlarm();
     } catch (error) {
       console.error("event delivery failed; retrying from the alarm", error);
     }
+  }
+
+  /** Each batch is acknowledged before the next, preserving commit order. */
+  private async flushOutbox(did: string): Promise<void> {
+    const events = this.core.getOutbox(OUTBOX_BATCH_SIZE);
+    if (events.length === 0) {
+      return;
+    }
+    const sequencer = this.env.SEQUENCER.getByName(SEQUENCER_NAME);
+    this.core.deleteOutboxThrough(await sequencer.rpcSequence(did, events));
+    await this.flushOutbox(did);
   }
 
   async rpcGetRepoStatus(): Promise<{

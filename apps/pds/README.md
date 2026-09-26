@@ -75,7 +75,7 @@ Handle changes and account status changes do not emit events yet.
 
 ## Configuration
 
-Bindings: `PDS_DB` (D1), `REPO` (repository Durable Objects), `SEQUENCER` (the firehose Durable Object), and `BLOBS` (R2).
+Bindings: `PDS_DB` (D1), `REPO` (repository Durable Objects), `SEQUENCER` (the firehose Durable Object from [`@minisphere/pds-sequencer-do`](../../packages/pds-sequencer-do/README.md)), and `BLOBS` (R2).
 
 Variables:
 
@@ -105,10 +105,4 @@ To change the D1 schema in `src/db/schema.ts`, create and apply a named migratio
 ```sh
 pnpm --filter @minisphere/pds db:generate add-account-column
 pnpm --filter @minisphere/pds db:migrate:local
-```
-
-To change the firehose schema in `src/sequencer/schema.ts`, generate a named migration; the Durable Object applies it on startup:
-
-```sh
-pnpm --filter @minisphere/pds db:generate:sequencer add-event-column
 ```

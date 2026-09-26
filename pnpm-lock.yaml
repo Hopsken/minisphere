@@ -250,6 +250,9 @@ catalogs:
     '@atcute/tid':
       specifier: ^1.1.4
       version: 1.1.4
+    '@atcute/uint8array':
+      specifier: ^1.1.5
+      version: 1.1.5
     '@atproto/crypto':
       specifier: ^0.4.5
       version: 0.4.5
@@ -647,6 +650,9 @@ importers:
       '@minisphere/hono-utils':
         specifier: workspace:*
         version: link:../../packages/hono-utils
+      '@minisphere/pds-sequencer-do':
+        specifier: workspace:*
+        version: link:../../packages/pds-sequencer-do
       '@minisphere/repo-do':
         specifier: workspace:*
         version: link:../../packages/repo-do
@@ -832,6 +838,28 @@ importers:
         specifier: 'catalog:'
         version: 26.2.0
 
+  packages/pds-sequencer-do:
+    dependencies:
+      '@atcute/cbor':
+        specifier: 'catalog:'
+        version: 2.3.6(@atcute/cid@2.4.2)
+      '@atcute/uint8array':
+        specifier: 'catalog:'
+        version: 1.1.5
+      drizzle-orm:
+        specifier: 'catalog:'
+        version: 1.0.0-rc.4(@cloudflare/workers-types@5.20260821.1)(valibot@1.4.2(typescript@7.0.2))(zod@4.4.3)
+    devDependencies:
+      '@cloudflare/workers-types':
+        specifier: 'catalog:'
+        version: 5.20260821.1
+      '@types/node':
+        specifier: 'catalog:'
+        version: 26.2.0
+      drizzle-kit:
+        specifier: 'catalog:'
+        version: 1.0.0-rc.5-ab785fc
+
   packages/repo-do:
     dependencies:
       '@atcute/car':
@@ -864,6 +892,9 @@ importers:
       '@atproto/repo':
         specifier: ^0.10.11
         version: 0.10.11
+      '@minisphere/pds-sequencer-do':
+        specifier: workspace:*
+        version: link:../pds-sequencer-do
       drizzle-orm:
         specifier: 'catalog:'
         version: 1.0.0-rc.4(@cloudflare/workers-types@5.20260821.1)(valibot@1.4.2(typescript@7.0.2))(zod@4.4.3)

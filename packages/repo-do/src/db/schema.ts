@@ -7,6 +7,8 @@ import {
   text,
 } from "drizzle-orm/sqlite-core";
 
+import type { RepoEventType } from "../events";
+
 export const metadataTable = sqliteTable("metadata", {
   id: integer().primaryKey().default(1),
 
@@ -50,5 +52,5 @@ export const outboxTable = sqliteTable("outbox", {
   id: integer().primaryKey({ autoIncrement: true }),
 
   body: blob({ mode: "buffer" }).notNull(),
-  type: text({ enum: ["#account", "#commit", "#identity", "#sync"] }).notNull(),
+  type: text().$type<RepoEventType>().notNull(),
 });

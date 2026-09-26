@@ -10,16 +10,16 @@ Relays consume a PDS through `com.atproto.sync.subscribeRepos`. Every event need
 
 ## Decision
 
-- One `SequencerDO`, owned by the PDS, assigns `seq`, retains encoded event frames for 72 hours, and serves every WebSocket subscriber.
+- One `SequencerDO` assigns `seq`, retains encoded event frames for 72 hours, and serves every WebSocket subscriber. `@minisphere/pds-sequencer-do` owns it, its schema, and its migrations; the PDS binds it as `SEQUENCER` and routes subscriptions to it.
 - `RepoDO` writes each commit's event to its own outbox in the commit transaction. It sends the outbox to the sequencer in order before the write responds, and retries from an alarm when sending fails. A write never fails because its event could not be sequenced.
 - The sequencer records the last outbox ID it accepted from each DID and ignores anything at or below it, so retries never duplicate events.
-- `@minisphere/repo-do` owns event contents. The PDS owns `seq`, retention, and subscriptions.
+- `@minisphere/repo-do` owns event contents and the outbox. The sequencer owns `seq`, retention, and subscriptions.
 
 ## Consequences
 
 - Events are delivered at least once to the sequencer and exactly once to the stream, in commit order per DID.
 - A committed write can appear on the firehose late if the sequencer is unavailable.
-- One Durable Object bounds total event throughput, and a replay holds the retained backlog in memory. Sharding the sequencer would require a new decision.
+- One Durable Object bounds total event throughput. A replay sends the whole retained backlog at once, because Workers WebSockets expose no backpressure. Sharding the sequencer would require a new decision.
 - Consumers that fall more than 72 hours behind must resynchronize with `com.atproto.sync.getRepo`.
 
 ## References

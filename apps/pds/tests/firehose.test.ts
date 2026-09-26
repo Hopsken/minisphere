@@ -12,7 +12,7 @@ import {
   readCarWithRoot,
   verifyCommitSig,
 } from "@atproto/repo";
-import { SEQUENCER_NAME } from "@minisphere/repo-do";
+import { SEQUENCER_NAME } from "@minisphere/pds-sequencer-do";
 import type { RepoWrite } from "@minisphere/repo-do";
 import { runDurableObjectAlarm, runInDurableObject } from "cloudflare:test";
 import { env, exports } from "cloudflare:workers";
@@ -75,23 +75,26 @@ const verifyCommitEvent = async (frame: FirehoseFrame, publicKey: string) => {
     car.root,
     def.commit
   );
-  let data = MST.load(new MemoryBlockstore(car.blocks), commit.data);
+  const missing = event.ops.filter(
+    (op) => op.cid && !car.blocks.has(parseCid(op.cid.$link))
+  );
+  assert.isEmpty(missing);
+  // Undo each op on the new tree; a complete proof yields the previous root.
+  let inverted = MST.load(new MemoryBlockstore(car.blocks), commit.data);
   for (const op of event.ops) {
-    if (op.cid) {
-      assert.isTrue(car.blocks.has(parseCid(op.cid.$link)));
-    }
     if (op.action === "create") {
       // oxlint-disable-next-line no-await-in-loop -- Each inversion applies to the previous tree.
-      data = await data.delete(op.path);
+      inverted = await inverted.delete(op.path);
     } else {
       assert.isDefined(op.prev);
+      const prev = parseCid(op.prev.$link);
       // oxlint-disable-next-line no-await-in-loop -- Each inversion applies to the previous tree.
-      data = await (op.action === "update"
-        ? data.update(op.path, parseCid(op.prev.$link))
-        : data.add(op.path, parseCid(op.prev.$link)));
+      inverted = await (op.action === "update"
+        ? inverted.update(op.path, prev)
+        : inverted.add(op.path, prev));
     }
   }
-  const invertedData = await data.getPointer();
+  const invertedData = await inverted.getPointer();
   return {
     commit: event.commit.$link,
     inverted: invertedData.toString() === event.prevData?.$link,

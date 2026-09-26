@@ -3,6 +3,7 @@ import { Buffer } from "node:buffer";
 import { parseCid } from "@atproto/lex-data";
 import type { Cid } from "@atproto/lex-data";
 import type { BlockMap, CommitData, RepoStorage } from "@atproto/repo";
+import type { RepoEvent } from "@minisphere/pds-sequencer-do";
 import { and, asc, eq, gt, inArray, lte, sql } from "drizzle-orm";
 
 import type { BlobMetadata, RecordBlobChanges } from "../blobs";
@@ -14,9 +15,14 @@ import {
   outboxTable,
   recordBlobsTable,
 } from "../db/schema";
-import type { RepoEvent } from "../events";
+import type { OutboxEvent } from "../events";
 import { BlockStorage } from "./block";
 import type { RootState } from "./type";
+
+const toOutboxRow = ({ body, type }: OutboxEvent) => ({
+  body: Buffer.from(body),
+  type,
+});
 
 export interface StoredBlock {
   bytes: Uint8Array;
@@ -131,7 +137,7 @@ export class CoreStorage extends BlockStorage implements RepoStorage {
   applyCommit(
     commit: CommitData,
     references: RecordBlobChanges = new Map(),
-    event?: Omit<RepoEvent, "id">
+    event?: OutboxEvent
   ): Promise<void> {
     const blocks = commit.newBlocks.entries().map(({ bytes, cid }) => ({
       bytes: Buffer.from(bytes),
@@ -198,24 +204,14 @@ export class CoreStorage extends BlockStorage implements RepoStorage {
         .where(eq(metadataTable.id, 1))
         .run();
       if (event) {
-        transaction
-          .insert(outboxTable)
-          .values({ body: Buffer.from(event.body), type: event.type })
-          .run();
+        transaction.insert(outboxTable).values(toOutboxRow(event)).run();
       }
     });
     return Promise.resolve();
   }
 
-  enqueueEvents(events: Omit<RepoEvent, "id">[]): void {
-    this.db.transaction((transaction) => {
-      for (const event of events) {
-        transaction
-          .insert(outboxTable)
-          .values({ body: Buffer.from(event.body), type: event.type })
-          .run();
-      }
-    });
+  enqueueEvents(events: OutboxEvent[]): void {
+    this.db.insert(outboxTable).values(events.map(toOutboxRow)).run();
   }
 
   getOutbox(limit: number): RepoEvent[] {

@@ -22,6 +22,7 @@ catalog:
   "@atcute/oauth-browser-client": ^5.0.0
   "@atcute/oauth-types": ^1.0.1
   "@atcute/tid": ^1.1.4
+  "@atcute/uint8array": ^1.1.5
   "@atproto/crypto": ^0.4.5
   "@atproto/lex-json": ^0.1.6
   "@atproto/oauth-scopes": ^0.5.12

@@ -70,23 +70,20 @@ const checkRecordPrecondition = (write: RepoWrite, previous: string | null) => {
 
 const netRecordOps = (
   initialCids: Map<string, Cid | null>,
-  finalCids: Map<string, Cid | null>
-) => {
-  const ops: RepoEventOp[] = [];
-  for (const [path, cid] of finalCids) {
-    const prev = initialCids.get(path);
+  latestCids: Map<string, Cid | null>
+) =>
+  [...latestCids].flatMap(([path, cid]): RepoEventOp[] => {
+    const prev = initialCids.get(path) ?? null;
     if (cid && prev) {
-      if (cid.toString() !== prev.toString()) {
-        ops.push({ action: "update", cid, path, prev });
-      }
-    } else if (cid) {
-      ops.push({ action: "create", cid, path });
-    } else if (prev) {
-      ops.push({ action: "delete", cid, path, prev });
+      return cid.toString() === prev.toString()
+        ? []
+        : [{ action: "update", cid, path, prev }];
     }
-  }
-  return ops;
-};
+    if (cid) {
+      return [{ action: "create", cid, path }];
+    }
+    return prev ? [{ action: "delete", cid, path, prev }] : [];
+  });
 
 export const prepareCommit = async (
   repo: Repo,
@@ -103,24 +100,23 @@ export const prepareCommit = async (
       message: "Repository head does not match",
     } as const;
   }
-  const current = new Map<string, string | null>();
-  // Net record changes per path; the firehose reports these, not batch steps.
+  // Each path's record CID before the batch and after the writes so far.
+  // Later writes observe earlier ones; the firehose reports the net change.
   const initialCids = new Map<string, Cid | null>();
-  const finalCids = new Map<string, Cid | null>();
+  const latestCids = new Map<string, Cid | null>();
   const operations: RecordWriteOp[] = [];
   const results: RepoWriteResult[] = [];
   const references: RecordBlobChanges = new Map();
   for (const write of input.writes) {
     const rkey = write.rkey ?? now();
     const path = `${write.collection}/${rkey}`;
-    if (!current.has(path)) {
-      // Later operations in a batch observe earlier operations on this path.
+    if (!latestCids.has(path)) {
       // oxlint-disable-next-line no-await-in-loop
-      const previousCid = await repo.data.get(path);
-      initialCids.set(path, previousCid ?? null);
-      current.set(path, previousCid?.toString() ?? null);
+      const initial = (await repo.data.get(path)) ?? null;
+      initialCids.set(path, initial);
+      latestCids.set(path, initial);
     }
-    const previous = current.get(path) ?? null;
+    const previous = latestCids.get(path)?.toString() ?? null;
     const conflict = checkRecordPrecondition(write, previous);
     if (conflict) {
       return conflict;
@@ -135,8 +131,7 @@ export const prepareCommit = async (
           rkey,
         });
       }
-      current.set(path, null);
-      finalCids.set(path, null);
+      latestCids.set(path, null);
     } else {
       const record = decodeRecord(write.recordJson);
       if (!record) {
@@ -165,8 +160,7 @@ export const prepareCommit = async (
           rkey,
         });
       }
-      current.set(path, cid);
-      finalCids.set(path, recordCid);
+      latestCids.set(path, recordCid);
     }
     results.push(result);
   }
@@ -181,6 +175,6 @@ export const prepareCommit = async (
   if (car.byteLength > 2_000_000) {
     return { error: "InvalidRequest", message: "Commit is too large" } as const;
   }
-  const ops = netRecordOps(initialCids, finalCids);
+  const ops = netRecordOps(initialCids, latestCids);
   return { car, commit, ops, references, results };
 };

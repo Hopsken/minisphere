@@ -21,6 +21,7 @@
     "@atproto/lex-data": "^0.1.7",
     "@atproto/lex-json": "catalog:",
     "@atproto/repo": "^0.10.11",
+    "@minisphere/pds-sequencer-do": "workspace:*",
     "drizzle-orm": "catalog:"
   },
   "devDependencies": {
