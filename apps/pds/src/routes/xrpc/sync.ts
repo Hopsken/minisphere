@@ -2,6 +2,7 @@ import * as GetLatestCommit from "@atcute/atproto/types/sync/getLatestCommit";
 import * as GetRecord from "@atcute/atproto/types/sync/getRecord";
 import * as GetRepo from "@atcute/atproto/types/sync/getRepo";
 import * as GetRepoStatus from "@atcute/atproto/types/sync/getRepoStatus";
+import * as ListRepos from "@atcute/atproto/types/sync/listRepos";
 import * as SubscribeRepos from "@atcute/atproto/types/sync/subscribeRepos";
 import { SEQUENCER_NAME } from "@minisphere/pds-sequencer-do";
 import { Hono } from "hono";
@@ -63,6 +64,17 @@ const app = new Hono<{
         console.error("active PDS account has no readable repository", error);
         return c.json({ active: false, did, status: "desynchronized" });
       }
+    }
+  )
+  .get(
+    "/com.atproto.sync.listRepos",
+    lexiconQueryValidator(ListRepos.mainSchema.params),
+    withRepoReader,
+    async (c) => {
+      const { cursor, limit } = c.req.valid("query");
+      return c.json<ListRepos.$output>(
+        await c.var.repoReader.listRepos(limit ?? 500, cursor)
+      );
     }
   )
   .get(

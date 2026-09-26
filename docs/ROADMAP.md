@@ -6,12 +6,12 @@ Planned work, in priority order. Code, tests, and project READMEs describe what 
 
 Relays must be able to crawl the PDS before any AppView can index its accounts.
 
-- `com.atproto.sync.listRepos` and `com.atproto.sync.getBlocks`.
+- `com.atproto.sync.getBlocks`, limited to blocks reachable from the current repository.
 - Verify against a local relay, then announce the PDS to public relays with `com.atproto.sync.requestCrawl`.
 
 ## 2. Bluesky client compatibility
 
-- `com.atproto.server.describeServer` and OAuth-authenticated `com.atproto.server.getSession`.
+- OAuth-authenticated `com.atproto.server.getSession`.
 - Service proxying for `atproto-proxy` and default `app.bsky.*` / `chat.bsky.*` AppView routing, with inter-service JWTs signed by the repository key and `com.atproto.server.getServiceAuth`.
 - PDS-owned `app.bsky.actor.getPreferences` and `putPreferences`.
 - Accounts OAuth support for `transition:generic`, `transition:chat.bsky`, `transition:email`, and `rpc:` permissions, enforced by the PDS.
