@@ -11,7 +11,10 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@atcute/car": "catalog:",
+    "@atcute/cid": "catalog:",
     "@atcute/crypto": "catalog:",
+    "@atcute/mst": "catalog:",
     "@atcute/tid": "catalog:",
     "@atproto/crypto": "catalog:",
     "@atproto/lex-data": "^0.1.7",

@@ -55,7 +55,7 @@ These methods need no authentication and serve only accounts hosted here:
 - `com.atproto.sync.getRecord` — a CAR proof of the record, or of its absence.
 - `com.atproto.sync.getRepoStatus`.
 - `com.atproto.sync.getLatestCommit` — the current commit CID and revision.
-- `com.atproto.sync.getRepo` — the current repository as a CAR rooted at the signed commit. With `since`, only the current blocks written after that revision, to apply on top of the repository at `since`. Deleted records are never included.
+- `com.atproto.sync.getRepo` — the current repository as a CAR rooted at the signed commit, in the Sync 1.1 depth-first block order so consumers can process it as a stream. With `since`, only the current blocks written after that revision, to apply on top of the repository at `since`. Deleted records are never included.
 
 Session methods are not implemented.
 

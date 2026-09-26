@@ -2,6 +2,8 @@ import * as DescribeRepo from "@atcute/atproto/types/repo/describeRepo";
 import * as GetRecord from "@atcute/atproto/types/repo/getRecord";
 import * as ListRecords from "@atcute/atproto/types/repo/listRecords";
 import { fromUint8Array } from "@atcute/car";
+import { decode } from "@atcute/cbor";
+import { toString } from "@atcute/cid";
 import {
   parsePrivateMultikey,
   Secp256k1PrivateKeyExportable,
@@ -11,6 +13,7 @@ import { DidNotFoundError } from "@atcute/identity-resolver";
 import type { HandleResolver } from "@atcute/identity-resolver";
 import type { Did } from "@atcute/lexicons/syntax";
 import { parse } from "@atcute/lexicons/validations";
+import { isNodeData } from "@atcute/mst";
 import { Secp256k1Keypair } from "@atproto/crypto";
 import {
   MemoryBlockstore,
@@ -375,6 +378,83 @@ describe("public repository reads", () => {
     const diffCids = diffCar.blocks.entries().map(({ cid }) => cid.toString());
     expect(diffCids).toContain(created?.cid);
     expect(diffCids).not.toContain(kept?.cid);
+  });
+
+  it("exports blocks in depth-first preorder", async () => {
+    const { did, stub } = await seedRepo();
+    const head = await stub.rpcGetRepoStatus();
+    const entries = [...fromUint8Array(await exportRepo(did))].map((entry) => ({
+      cid: toString(entry.cid),
+      data: decode(entry.bytes),
+    }));
+    const position = new Map(entries.map(({ cid }, index) => [cid, index]));
+    const nodes = entries.flatMap(({ cid, data }) =>
+      isNodeData(data) ? [{ cid, data }] : []
+    );
+    const childrenBeforeParent = nodes.flatMap(({ cid, data }) =>
+      [data.l, ...data.e.flatMap((entry) => [entry.v, entry.t])]
+        .filter((child) => child !== null)
+        .filter(
+          (child) =>
+            (position.get(child.$link) ?? -1) < (position.get(cid) ?? 0)
+        )
+    );
+    const listed = await query("repo.listRecords", {
+      collection: COLLECTION,
+      limit: "100",
+      repo: did,
+      reverse: "true",
+    });
+    const { records } = parse(
+      ListRecords.mainSchema.output.schema,
+      await listed.json()
+    );
+    const recordCids = new Set(records.map((record) => record.cid));
+    const exportedRecords = entries
+      .map(({ cid }) => cid)
+      .filter((cid) => recordCids.has(cid));
+
+    expect(entries[0]?.cid).toBe(head.head);
+    expect(childrenBeforeParent).toStrictEqual([]);
+    // Records follow key order and are interleaved with the nodes holding them.
+    expect(exportedRecords).toStrictEqual(records.map((record) => record.cid));
+    expect(position.get(nodes.at(-1)?.cid ?? "")).toBeGreaterThan(
+      position.get(exportedRecords[0] ?? "") ?? Infinity
+    );
+  });
+
+  it("exports only the changed path of a large repository after a revision", async () => {
+    const { did, publicKey, stub } = await seedRepo();
+    const full = await readCar(await exportRepo(did));
+    const { rev } = await stub.rpcGetRepoStatus();
+    await stub.rpcApplyWrites({
+      writes: [
+        {
+          action: "update",
+          collection: COLLECTION,
+          recordJson: JSON.stringify({ $type: COLLECTION, title: "changed" }),
+          rkey: "key-050",
+        },
+      ],
+    });
+
+    const diff = await exportRepo(did, rev);
+    const [fullRoot] = full.roots;
+    assert.isDefined(fullRoot);
+    const verified = await verifyDiffCar(
+      await Repo.load(new MemoryBlockstore(full.blocks), fullRoot),
+      diff,
+      did,
+      publicKey,
+      { ensureLeaves: true }
+    );
+    const diffCar = await readCar(diff);
+    expect(verified.writes.map((write) => write.rkey)).toStrictEqual([
+      "key-050",
+    ]);
+    // The commit, the nodes on the changed path, and the new record.
+    expect(diffCar.blocks.size).toBeLessThan(10);
+    expect(full.blocks.size).toBeGreaterThan(100);
   });
 
   it("exports only the commit root when nothing changed after a revision", async () => {

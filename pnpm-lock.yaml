@@ -831,9 +831,18 @@ importers:
 
   packages/repo-do:
     dependencies:
+      '@atcute/car':
+        specifier: 'catalog:'
+        version: 6.0.2(@atcute/cbor@2.3.6(@atcute/cid@2.4.2))(@atcute/cid@2.4.2)
+      '@atcute/cid':
+        specifier: 'catalog:'
+        version: 2.4.2
       '@atcute/crypto':
         specifier: 'catalog:'
         version: 2.4.4
+      '@atcute/mst':
+        specifier: 'catalog:'
+        version: 1.0.3(@atcute/cbor@2.3.6(@atcute/cid@2.4.2))(@atcute/cid@2.4.2)
       '@atcute/tid':
         specifier: 'catalog:'
         version: 1.1.4
