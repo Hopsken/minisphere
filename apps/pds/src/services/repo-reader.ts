@@ -105,6 +105,18 @@ export class RepoReader {
     return this.repositories.getByName(did).rpcExportRepo(since);
   }
 
+  async getBlocks(did: Did, cids: readonly string[]) {
+    await this.resolveLocalDid(did);
+    const result = await this.repositories.getByName(did).rpcGetBlocks(cids);
+    if ("missing" in result) {
+      throw xrpcError(
+        "BlockNotFound",
+        `Could not find blocks: ${result.missing.join(", ")}`
+      );
+    }
+    return result.car;
+  }
+
   /**
    * List hosted repositories by DID. Accounts whose repository cannot be read
    * are omitted; `getRepoStatus` reports them as desynchronized.

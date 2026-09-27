@@ -53,7 +53,7 @@ const recordValue = (rkey: string) => ({
   title: `Record ${rkey}`,
 });
 
-const query = (method: string, params: Record<string, string>) =>
+const query = (method: string, params: Record<string, string> | string[][]) =>
   exports.default.fetch(
     new Request(
       `https://pds.test/xrpc/com.atproto.${method}?${new URLSearchParams(params)}`,
@@ -535,8 +535,9 @@ describe("public repository reads", () => {
   });
 
   it("does not expose initialized repositories without a local account", async () => {
-    const { did } = await seedRepo([], false);
+    const { did, initialCid } = await seedRepo([], false);
     const requests: [string, Record<string, string>][] = [
+      ["sync.getBlocks", { cids: initialCid, did }],
       ["repo.describeRepo", { repo: did }],
       ["repo.listRecords", { collection: COLLECTION, repo: did }],
       ["repo.getRecord", { collection: COLLECTION, repo: did, rkey: "self" }],
@@ -777,4 +778,210 @@ describe("repository block reclamation", () => {
       original?.cid,
     ]);
   });
+});
+
+const carBlocks = (bytes: Uint8Array) =>
+  new Map(
+    [...fromUint8Array(bytes)].map((entry) => [
+      toString(entry.cid),
+      entry.bytes,
+    ])
+  );
+const getBlocks = (did: Did, cids: string[]) =>
+  query("sync.getBlocks", [["did", did], ...cids.map((cid) => ["cids", cid])]);
+const readBlocks = async (response: Response) => {
+  expect(response.status).toBe(200);
+  expect(response.headers.get("Content-Type")).toBe("application/vnd.ipld.car");
+  const bytes = new Uint8Array(await response.arrayBuffer());
+  return { blocks: carBlocks(bytes), roots: fromUint8Array(bytes).roots };
+};
+
+/**
+ * Assert that `getBlocks` serves every block of the current repository and no
+ * other stored block. `getRepo` walks the current tree, so it is the reference.
+ * A commit that stops reaching a block without recording it for reclamation
+ * would leave that block served here.
+ */
+const expectOnlyCurrentBlocks = async (did: Did, stub: Stub) => {
+  const current = carBlocks(await exportRepo(did));
+  const stored = await storedCids(stub);
+  const stale = stored.filter((cid) => !current.has(cid));
+  const { blocks } = await readBlocks(
+    await getBlocks(did, [...current.keys()])
+  );
+  expect(blocks).toStrictEqual(current);
+  const chunks = Array.from({ length: Math.ceil(stale.length / 100) }, (_, i) =>
+    stale.slice(i * 100, i * 100 + 100)
+  );
+  await Promise.all(
+    chunks.map(async (chunk) => {
+      const response = await getBlocks(did, chunk);
+      await expect(response.json()).resolves.toStrictEqual({
+        error: "BlockNotFound",
+        message: `Could not find blocks: ${chunk.join(", ")}`,
+      });
+    })
+  );
+};
+
+/** A deterministic pseudo-random sequence in (0, 1), so failures reproduce. */
+const randomSequence = (seed: number) => {
+  // Park–Miller minimal standard generator.
+  let state = seed;
+  return () => {
+    state = (state * 48_271) % 2_147_483_647;
+    return state / 2_147_483_647;
+  };
+};
+
+describe("sync.getBlocks", () => {
+  // Dozens of sequential commits, each followed by a full check.
+  it(
+    "serves only current blocks after commits that reshape the tree",
+    {
+      timeout: 20_000,
+    },
+    async () => {
+      const { did, stub } = await seedRepo();
+      const random = randomSequence(37);
+      const pick = <T>(items: readonly T[]) =>
+        items[Math.floor(random() * items.length)];
+      const titles = ["same", "other", "Record key-010", "Record key-020"];
+      /** Up to 15 writes to distinct paths; `grow` favours creates over deletes. */
+      const randomCommit =
+        (grow: boolean) =>
+        (keys: readonly string[]): RepoWrite[] => {
+          const writes = new Map<string, RepoWrite>();
+          for (
+            let count = 1 + Math.floor(random() * 15);
+            count > 0;
+            count -= 1
+          ) {
+            const title = pick(titles) ?? "same";
+            const existing = pick(keys.filter((rkey) => !writes.has(rkey)));
+            const roll = random();
+            if (existing !== undefined && roll < (grow ? 0.2 : 0.7)) {
+              writes.set(existing, remove(existing));
+            } else if (existing !== undefined && roll < (grow ? 0.4 : 0.9)) {
+              writes.set(existing, put(existing, title));
+            } else {
+              const created = `r-${count}-${Math.floor(random() * 1_000_000)}`;
+              writes.set(created, put(created, title));
+            }
+          }
+          return [...writes.values()];
+        };
+      // Shapes where a diff could miss a removed block: moves and swaps within
+      // one commit, content shared by several records, a tree that shrinks to
+      // nothing, and one that grows again. Periodic reclamation also settles
+      // candidates that are still reachable, which later commits must record
+      // again when they stop reaching them.
+      const commits: ((keys: readonly string[]) => RepoWrite[])[] = [
+        () => [remove("key-000"), put("moved-000", "Record key-000")],
+        () => [put("key-001", "Record key-002")],
+        () => [
+          put("key-003", "Record key-004"),
+          put("key-004", "Record key-003"),
+        ],
+        () => [remove("key-002")],
+        () => [remove("key-001")],
+        () => [put("key-001", "Record key-002")],
+        ...Array.from({ length: 8 }, () => randomCommit(false)),
+        (keys) => keys.map((rkey) => remove(rkey)),
+        ...Array.from({ length: 8 }, () => randomCommit(true)),
+      ];
+
+      for (const [index, commit] of commits.entries()) {
+        // oxlint-disable-next-line no-await-in-loop -- Each commit builds on the previous one.
+        const { records } = await stub.rpcListRecords({
+          collection: COLLECTION,
+          cursor: undefined,
+          limit: 1000,
+          reverse: false,
+        });
+        const keys = records.map(
+          (record) => record.uri.split("/").at(-1) ?? ""
+        );
+        // oxlint-disable-next-line no-await-in-loop -- Each commit builds on the previous one.
+        const result = await stub.rpcApplyWrites({ writes: commit(keys) });
+        expect(result).not.toHaveProperty("error");
+        // oxlint-disable-next-line no-await-in-loop -- Checked after every commit.
+        await expectOnlyCurrentBlocks(did, stub);
+        if (index % 5 === 4) {
+          // oxlint-disable-next-line no-await-in-loop -- Reclaims between commits.
+          await reclaimAll(stub);
+        }
+      }
+
+      await reclaimAll(stub);
+      await expect(storedCids(stub)).resolves.toStrictEqual(
+        await exportedCids(did)
+      );
+      await expectOnlyCurrentBlocks(did, stub);
+    }
+  );
+
+  it("returns the requested blocks of the current repository", async () => {
+    const { did } = await seedRepo();
+    const exported = carBlocks(await exportRepo(did));
+    const cids = [...exported.keys()];
+
+    const { blocks, roots } = await readBlocks(
+      await getBlocks(did, [...cids, ...cids.slice(0, 3)])
+    );
+    expect(roots).toStrictEqual([]);
+    expect(blocks).toStrictEqual(exported);
+  });
+
+  it("reports superseded, deleted and unknown blocks as not found", async () => {
+    const { did, stub } = await seedRepo(["a", "m"]);
+    const before = await stub.rpcGetRepoStatus();
+    const [replaced, deleted] = await Promise.all(
+      ["a", "m"].map((rkey) => stub.rpcGetRecord(COLLECTION, rkey))
+    );
+    assert.exists(replaced);
+    assert.exists(deleted);
+    await stub.rpcApplyWrites({ writes: [put("a", "changed"), remove("m")] });
+    const head = await stub.rpcGetRepoStatus();
+    const removed = [before.head, replaced.cid, deleted.cid];
+    // Still stored within the grace period, but no longer current.
+    await expect(storedCids(stub)).resolves.toStrictEqual(
+      expect.arrayContaining(removed)
+    );
+
+    const unknown =
+      "bafyreie5737gdxlw5i64vzichcalba3z2v5n6icifvx5xytvske7mr3hpm";
+    await Promise.all(
+      [...removed, unknown].map(async (cid) => {
+        const response = await getBlocks(did, [head.head, cid]);
+        expect(response.status).toBe(400);
+        await expect(response.json()).resolves.toStrictEqual({
+          error: "BlockNotFound",
+          message: `Could not find blocks: ${cid}`,
+        });
+      })
+    );
+  });
+
+  it("returns a removed block that another record still reaches", async () => {
+    const { did, stub } = await seedRepo([]);
+    await stub.rpcApplyWrites({
+      writes: [put("one", "same"), put("two", "same")],
+    });
+    const record = await stub.rpcGetRecord(COLLECTION, "one");
+    assert.isNotNull(record);
+    await stub.rpcApplyWrites({ writes: [remove("one")] });
+
+    const { blocks } = await readBlocks(await getBlocks(did, [record.cid]));
+    expect([...blocks.keys()]).toStrictEqual([record.cid]);
+  });
+
+  it.each([{ cids: [] }, { cids: ["not-a-cid"] }])(
+    "rejects invalid CIDs %j",
+    async ({ cids }) => {
+      const { did } = await seedRepo([]);
+      const response = await getBlocks(did, cids);
+      expect(response.status).toBe(400);
+    }
+  );
 });

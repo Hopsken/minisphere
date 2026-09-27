@@ -257,6 +257,21 @@ export class CoreStorage extends BlockStorage implements RepoStorage {
       .map((row) => row.cid);
   }
 
+  /** The `cids` that are recorded as removed and not yet reclaimed. */
+  getRemovalCandidates(cids: readonly string[]): Set<string> {
+    const candidates = new Set<string>();
+    for (let offset = 0; offset < cids.length; offset += 90) {
+      for (const row of this.db
+        .select({ cid: removedBlocksTable.cid })
+        .from(removedBlocksTable)
+        .where(inArray(removedBlocksTable.cid, cids.slice(offset, offset + 90)))
+        .all()) {
+        candidates.add(row.cid);
+      }
+    }
+    return candidates;
+  }
+
   getOldestRemoval(): number | undefined {
     return this.db
       .select({ removedAt: removedBlocksTable.removedAt })

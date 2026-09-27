@@ -1,3 +1,4 @@
+import * as GetBlocks from "@atcute/atproto/types/sync/getBlocks";
 import * as GetLatestCommit from "@atcute/atproto/types/sync/getLatestCommit";
 import * as GetRecord from "@atcute/atproto/types/sync/getRecord";
 import * as GetRepo from "@atcute/atproto/types/sync/getRepo";
@@ -22,6 +23,18 @@ const app = new Hono<{
     async (c) => {
       const { did, since } = c.req.valid("query");
       const car = await c.var.repoReader.exportRepo(did, since);
+      return new Response(car, {
+        headers: { "Content-Type": "application/vnd.ipld.car" },
+      });
+    }
+  )
+  .get(
+    "/com.atproto.sync.getBlocks",
+    lexiconQueryValidator(GetBlocks.mainSchema.params),
+    withRepoReader,
+    async (c) => {
+      const { did, cids } = c.req.valid("query");
+      const car = await c.var.repoReader.getBlocks(did, cids);
       return new Response(car, {
         headers: { "Content-Type": "application/vnd.ipld.car" },
       });
