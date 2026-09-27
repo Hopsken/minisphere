@@ -2,6 +2,7 @@ import { and, eq, isNull } from "drizzle-orm";
 
 import type { Database } from "../db";
 import { atprotoAccount } from "../db/schema/atproto-account";
+import { user } from "../db/schema/better-auth";
 import type { createPlcAccountMaterial } from "../lib/plc-account";
 import { isReservedUsername } from "../lib/reserved-usernames";
 import { UsernameUnavailableError } from "./username-unavailable-error";
@@ -111,5 +112,39 @@ export class UserRepository {
       )
       .limit(1);
     return account?.did ?? null;
+  }
+
+  /** An active account with its sign-in email, found by one identifier. */
+  async findActiveAccount(
+    identifier:
+      | { did: string }
+      | { email: string }
+      | { userId: string }
+      | { username: string }
+  ) {
+    let condition;
+    if ("did" in identifier) {
+      condition = eq(atprotoAccount.did, identifier.did);
+    } else if ("email" in identifier) {
+      condition = eq(user.email, identifier.email);
+    } else if ("userId" in identifier) {
+      condition = eq(atprotoAccount.userId, identifier.userId);
+    } else {
+      condition = eq(atprotoAccount.username, identifier.username);
+    }
+    const [account] = await this.db
+      .select({
+        did: atprotoAccount.did,
+        email: user.email,
+        emailVerified: user.emailVerified,
+        userId: atprotoAccount.userId,
+        username: atprotoAccount.username,
+      })
+      .from(atprotoAccount)
+      .innerJoin(user, eq(user.id, atprotoAccount.userId))
+      .where(and(eq(atprotoAccount.status, "active"), condition))
+      .limit(1);
+    // Active accounts always have a DID (atproto_account_active_did_check).
+    return account?.did ? { ...account, did: account.did } : undefined;
   }
 }

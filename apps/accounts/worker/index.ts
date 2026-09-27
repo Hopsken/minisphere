@@ -8,6 +8,7 @@ import { withDBAccess } from "./middlewares/with-db-access";
 import { UsernameUnavailableError } from "./repositories/username-unavailable-error";
 import api from "./routes";
 import handles from "./routes/handles";
+import sessions from "./routes/sessions";
 
 declare global {
   interface WorkerEnv {
@@ -38,6 +39,7 @@ app
 
 app
   .route("/", handles)
+  .route("/", sessions)
   .route("/api", api)
   .notFound((c) =>
     c.json({ error: "NotFound", message: "API endpoint not found" }, 404)

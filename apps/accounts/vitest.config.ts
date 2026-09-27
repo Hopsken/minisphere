@@ -155,6 +155,25 @@ export default defineConfig(async () => {
                       return Response.json({ ok: true });
                     }
                     const operation = did ? operations.get(decodeURIComponent(did)) : null;
+                    if (request.method === "GET" && !endpoint && operation) {
+                      const id = decodeURIComponent(did);
+                      return Response.json({
+                        "@context": ["https://www.w3.org/ns/did/v1"],
+                        alsoKnownAs: operation.alsoKnownAs,
+                        id,
+                        service: [{
+                          id: "#atproto_pds",
+                          serviceEndpoint: operation.services.atproto_pds.endpoint,
+                          type: "AtprotoPersonalDataServer"
+                        }],
+                        verificationMethod: [{
+                          controller: id,
+                          id: id + "#atproto",
+                          publicKeyMultibase: operation.verificationMethods.atproto.slice("did:key:".length),
+                          type: "Multikey"
+                        }]
+                      });
+                    }
                     if (request.method !== "GET" || endpoint !== "data" || !operation) {
                       return Response.json({ message: "DID not registered" }, { status: 404 });
                     }

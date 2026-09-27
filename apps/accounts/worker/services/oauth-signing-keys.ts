@@ -44,7 +44,8 @@ export class OAuthSigningKeys {
     });
   }
 
-  async issueAccessToken(input: AtprotoAccessTokenInput) {
+  /** The current key, which signs OAuth access tokens and app-password sessions. */
+  async getCurrentKey() {
     const keys = await this.getOrInitializeKeys();
     const current = keys.find((key) => key.status === "current");
     if (!current) {
@@ -68,7 +69,17 @@ export class OAuthSigningKeys {
     ) {
       throw new Error("OAuth signing key does not match its public key");
     }
-    return createOAuthAccessToken(input, key);
+    return key;
+  }
+
+  async issueAccessToken(input: AtprotoAccessTokenInput) {
+    return createOAuthAccessToken(input, await this.getCurrentKey());
+  }
+
+  /** Whether `kid` names a key that the JWKS still publishes. */
+  async isPublished(kid: string) {
+    const keys = await this.getOrInitializeKeys();
+    return keys.some((key) => key.kid === kid && key.status !== "disabled");
   }
 
   async getJwks() {
