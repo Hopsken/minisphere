@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 
+import actorRoutes from "./actor";
 import blobRoutes from "./blobs";
 import identityRoutes from "./identity";
 import proxyRoutes from "./proxy";
@@ -13,6 +14,7 @@ const app = new Hono<{
 
 app.get("/_health", (c) => c.json({ ok: true }));
 
+app.route("/", actorRoutes);
 app.route("/", blobRoutes);
 app.route("/", identityRoutes);
 app.route("/", repoRoutes);

@@ -1,8 +1,19 @@
+import type { AppBskyActorDefs } from "@atcute/bluesky";
 import { sql } from "drizzle-orm";
 import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 export const accountsTable = sqliteTable("accounts", {
   did: text().primaryKey(),
+});
+
+// The account's `app.bsky` preferences as one JSON array, replaced on write.
+export const accountPreferencesTable = sqliteTable("account_preferences", {
+  did: text()
+    .primaryKey()
+    .references(() => accountsTable.did, { onDelete: "cascade" }),
+  preferences: text({ mode: "json" })
+    .notNull()
+    .$type<AppBskyActorDefs.Preferences>(),
 });
 
 export const dpopStateTable = sqliteTable(
