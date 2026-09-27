@@ -1,5 +1,5 @@
 import type { DidDocumentResolver } from "@atcute/identity-resolver";
-import { isDid } from "@atcute/lexicons/syntax";
+import { isDid, isNsid } from "@atcute/lexicons/syntax";
 import type { Did } from "@atcute/lexicons/syntax";
 import { ScopePermissionsTransition } from "@atproto/oauth-scopes";
 import type { RepoDO } from "@minisphere/repo-do";
@@ -13,27 +13,15 @@ export const BSKY_APPVIEW = "did:web:api.bsky.app#bsky_appview";
 const BSKY_CHAT = "did:web:api.bsky.chat#bsky_chat";
 
 // Account management must reach its owner directly; it is never proxied and
-// never authorized by a service token. `createAccount` would migrate the
-// account elsewhere, which is not supported.
-export const PROTECTED_METHODS = new Set([
-  "com.atproto.admin.sendEmail",
-  "com.atproto.identity.requestPlcOperationSignature",
-  "com.atproto.identity.signPlcOperation",
-  "com.atproto.identity.updateHandle",
-  "com.atproto.server.activateAccount",
-  "com.atproto.server.confirmEmail",
-  "com.atproto.server.createAccount",
-  "com.atproto.server.createAppPassword",
-  "com.atproto.server.deactivateAccount",
-  "com.atproto.server.getAccountInviteCodes",
-  "com.atproto.server.getSession",
-  "com.atproto.server.listAppPasswords",
-  "com.atproto.server.requestAccountDelete",
-  "com.atproto.server.requestEmailConfirmation",
-  "com.atproto.server.requestEmailUpdate",
-  "com.atproto.server.revokeAppPassword",
-  "com.atproto.server.updateEmail",
-]);
+// never authorized by a service token. Whole namespaces are denied so that
+// methods added to them later stay protected. This also covers
+// `createAccount`, which would migrate the account elsewhere.
+const PROTECTED_NAMESPACES = [
+  "com.atproto.admin.",
+  "com.atproto.identity.",
+  "com.atproto.server.",
+  "com.atproto.temp.",
+];
 
 const REQUEST_HEADERS = new Set([
   "accept-language",
@@ -95,9 +83,16 @@ export class ServiceProxy {
     this.repositories = repositories;
   }
 
-  /** Checks that the caller may call `lxm` (or any method, `*`) on `aud`. */
+  /** Checks that the caller may call method `lxm` on the service `aud`. */
   authorize(aud: string, lxm: string) {
-    if (PROTECTED_METHODS.has(lxm)) {
+    // NSID authorities are case-insensitive. Accept only the normalized form,
+    // so a variant such as `com.atproto.SERVER.x` cannot pass the namespace
+    // check and be honored by a service that normalizes it.
+    const authority = lxm.slice(0, lxm.lastIndexOf("."));
+    if (!isNsid(lxm) || authority !== authority.toLowerCase()) {
+      throw xrpcError("InvalidRequest", "Method must be a normalized NSID");
+    }
+    if (PROTECTED_NAMESPACES.some((namespace) => lxm.startsWith(namespace))) {
       throw xrpcError("InvalidToken", "Bad token method");
     }
     if (!this.permissions.allowsRpc({ aud, lxm })) {
@@ -110,7 +105,7 @@ export class ServiceProxy {
   }
 
   /** Signs an inter-service token with the account's repository key. */
-  createServiceJwt(aud: string, lxm: string | null, exp?: number) {
+  createServiceJwt(aud: string, lxm: string, exp?: number) {
     return this.repositories
       .getByName(this.subject)
       .rpcCreateServiceJwt({ aud, exp, lxm });
