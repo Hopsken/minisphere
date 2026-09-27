@@ -10,6 +10,7 @@ Guarantees the PDS relies on:
 - Writes to one repository run one at a time. `swapCommit` and `swapRecord` are checked inside that queue.
 - A blob can be read only while a current record references it.
 - Creating a repository again with the same DID and signing key succeeds; a different signing key is rejected.
+- `rpcCreateServiceJwt` signs inter-service JWTs as the account with the repository signing key. The key never leaves the Durable Object.
 - Every commit records its firehose `#commit` event in the same transaction. A repository's events reach the sequencer in commit order, at least once, even if the sequencer is unavailable when the write commits. The host Worker must bind `SequencerDO` from [`@minisphere/pds-sequencer-do`](../pds-sequencer-do/README.md) as `SEQUENCER`.
 
 ## Migrations

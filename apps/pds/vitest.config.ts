@@ -97,6 +97,47 @@ export default defineConfig(async () => {
                       );
                     }
                   }
+                  const services = {
+                    "api.bsky.app": { bsky_appview: "https://api.bsky.app" },
+                    "api.bsky.chat": { bsky_chat: "https://api.bsky.chat" },
+                    "appview.test": {
+                      bsky_appview: "https://appview.test",
+                      insecure: "http://appview.test",
+                    },
+                  }[url.hostname];
+                  if (services && url.pathname === "/.well-known/did.json") {
+                    const id = "did:web:" + url.hostname;
+                    return Response.json({
+                      id,
+                      service: Object.entries(services).map(([name, endpoint]) => ({
+                        id: "#" + name,
+                        serviceEndpoint: endpoint,
+                        type: "TestService",
+                      })),
+                    });
+                  }
+                  if (services && url.pathname.startsWith("/xrpc/")) {
+                    // Echoes proxied requests for the PDS tests.
+                    const forwarded = {};
+                    for (const [name, value] of request.headers) {
+                      forwarded[name] = value;
+                    }
+                    return Response.json(
+                      {
+                        body: request.method === "POST" ? await request.text() : null,
+                        headers: forwarded,
+                        method: request.method,
+                        url: request.url,
+                      },
+                      {
+                        headers: {
+                          "atproto-content-labelers": "did:plc:labeler",
+                          "set-cookie": "upstream=1",
+                        },
+                        status: url.pathname.endsWith(".fail") ? 418 : 200,
+                      }
+                    );
+                  }
                   if (url.origin !== "https://directory.test") {
                     return new Response("Unexpected PLC origin", { status: 400 });
                   }

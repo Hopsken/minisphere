@@ -1,5 +1,6 @@
 import * as CreateAccount from "@atcute/atproto/types/server/createAccount";
 import type * as DescribeServer from "@atcute/atproto/types/server/describeServer";
+import * as GetServiceAuth from "@atcute/atproto/types/server/getServiceAuth";
 import * as ReserveSigningKey from "@atcute/atproto/types/server/reserveSigningKey";
 import { parseDidKey } from "@atcute/crypto";
 import { PlcClient } from "@atcute/did-plc";
@@ -18,9 +19,15 @@ import {
   refreshTokensTable,
   signingKeyReservationsTable,
 } from "../../db/schema";
+import { withResourceAuth } from "../../middlewares/with-resource-auth";
+import { withServiceProxy } from "../../middlewares/with-service-proxy";
 import { InviteCodeRepository } from "../../repositories/invite-code";
 import { SigningKeyReservationRepository } from "../../repositories/signing-key-reservation";
-import { lexiconJsonValidator } from "../../utils/lexicon-validator";
+import {
+  lexiconJsonValidator,
+  lexiconQueryValidator,
+} from "../../utils/lexicon-validator";
+import { xrpcError } from "../../utils/xrpc-error";
 import { zValidator } from "../../utils/z-validator";
 
 const app = new Hono<{ Bindings: Env }>();
@@ -184,6 +191,38 @@ app
   .post("/com.atproto.server.deleteSession", (c) =>
     forwardSessionRequest(c.req.raw, "com.atproto.server.deleteSession")
   );
+
+app.get(
+  "/com.atproto.server.getServiceAuth",
+  lexiconQueryValidator(GetServiceAuth.mainSchema.params),
+  withResourceAuth,
+  withServiceProxy,
+  async (c) => {
+    const { aud, exp, lxm } = c.req.valid("query");
+    if (exp !== undefined) {
+      const remaining = exp - Math.floor(Date.now() / 1000);
+      if (remaining < 0) {
+        throw xrpcError("BadExpiration", "expiration is in past");
+      }
+      if (remaining > 60 * 60) {
+        throw xrpcError(
+          "BadExpiration",
+          "cannot request a token with an expiration more than an hour in the future"
+        );
+      }
+      if (!lxm && remaining > 60) {
+        throw xrpcError(
+          "BadExpiration",
+          "cannot request a method-less token with an expiration more than a minute in the future"
+        );
+      }
+    }
+    c.var.serviceProxy.authorize(aud, lxm ?? "*");
+    return c.json<GetServiceAuth.$output>({
+      token: await c.var.serviceProxy.createServiceJwt(aud, lxm ?? null, exp),
+    });
+  }
+);
 
 app.get("/com.atproto.server.describeServer", (c) => {
   const pdsHostname = new URL(resolveConfig().pdsOrigin).hostname;

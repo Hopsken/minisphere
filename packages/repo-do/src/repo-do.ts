@@ -12,6 +12,8 @@ import { createDatabase } from "./db";
 import { accountAnnouncementEvents, commitEvent } from "./events";
 import type { RepoEnv } from "./events";
 import { exportRepoCar } from "./export";
+import { createServiceJwt } from "./service-auth";
+import type { ServiceAuthOptions } from "./service-auth";
 import { prepareCommit } from "./writes";
 import type { RepoWriteRequest, RepoWriteResponse } from "./writes";
 
@@ -187,6 +189,15 @@ export class RepoDO extends DurableObject<RepoEnv> {
         results: prepared.results,
       };
     });
+  }
+
+  /** Signs an inter-service JWT as this repository's account. */
+  async rpcCreateServiceJwt(options: ServiceAuthOptions): Promise<string> {
+    const repo = await this.getRepo();
+    if (!this.keypair) {
+      throw new Error("Repository signing key is missing");
+    }
+    return createServiceJwt(this.keypair, repo.did, options);
   }
 
   /** Emit the events that introduce a newly hosted account to relays. */
