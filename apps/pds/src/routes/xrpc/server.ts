@@ -1,5 +1,4 @@
 import * as CreateAccount from "@atcute/atproto/types/server/createAccount";
-import * as CreateSession from "@atcute/atproto/types/server/createSession";
 import type * as DescribeServer from "@atcute/atproto/types/server/describeServer";
 import * as ReserveSigningKey from "@atcute/atproto/types/server/reserveSigningKey";
 import { parseDidKey } from "@atcute/crypto";
@@ -11,6 +10,7 @@ import { HTTPException } from "hono/http-exception";
 import z from "zod";
 
 import { createSessionTokens } from "../../auth/session";
+import { forwardSessionRequest } from "../../clients/accounts";
 import { resolveConfig } from "../../config";
 import { createPdsDatabase } from "../../db";
 import {
@@ -171,19 +171,19 @@ app.post(
   }
 );
 
-app.post(
-  "/com.atproto.server.createSession",
-  lexiconJsonValidator(CreateSession.mainSchema.input.schema),
-  () => {
-    // Expected response: CreateSession.$output
-    throw new Error("Not implemented");
-  }
-);
-
-app.get("/com.atproto.server.getSession", () => {
-  // Expected response: GetSession.$output
-  throw new Error("Not implemented");
-});
+app
+  .post("/com.atproto.server.createSession", (c) =>
+    forwardSessionRequest(c.req.raw, "com.atproto.server.createSession")
+  )
+  .post("/com.atproto.server.refreshSession", (c) =>
+    forwardSessionRequest(c.req.raw, "com.atproto.server.refreshSession")
+  )
+  .get("/com.atproto.server.getSession", (c) =>
+    forwardSessionRequest(c.req.raw, "com.atproto.server.getSession")
+  )
+  .post("/com.atproto.server.deleteSession", (c) =>
+    forwardSessionRequest(c.req.raw, "com.atproto.server.deleteSession")
+  );
 
 app.get("/com.atproto.server.describeServer", (c) => {
   const pdsHostname = new URL(resolveConfig().pdsOrigin).hostname;

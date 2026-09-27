@@ -1,6 +1,6 @@
 import { CODEC_RAW, create, fromString, toString } from "@atcute/cid";
 import type { Did } from "@atcute/lexicons/syntax";
-import { ScopePermissions } from "@atproto/oauth-scopes";
+import { ScopePermissionsTransition } from "@atproto/oauth-scopes";
 import type { RepoDO } from "@minisphere/repo-do";
 import { isTypeValid, parse as parseContentType } from "content-type";
 import { getStreamAsArrayBuffer, MaxBufferError } from "get-stream";
@@ -40,7 +40,7 @@ export class Blobs {
 
   async upload(request: Request, did: Did, scope: string) {
     const mimeType = parseBlobContentType(request.headers.get("Content-Type"));
-    const permissions = new ScopePermissions(scope);
+    const permissions = new ScopePermissionsTransition(scope);
     const permit = (mime: string) => {
       if (!permissions.allowsBlob({ mime })) {
         throw resourceError(

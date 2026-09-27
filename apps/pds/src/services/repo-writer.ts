@@ -7,7 +7,7 @@ import type { HandleResolver } from "@atcute/identity-resolver";
 import { isDid } from "@atcute/lexicons/syntax";
 import type { ActorIdentifier, Did } from "@atcute/lexicons/syntax";
 import { safeParse } from "@atcute/lexicons/validations";
-import { ScopePermissions } from "@atproto/oauth-scopes";
+import { ScopePermissionsTransition } from "@atproto/oauth-scopes";
 import type { RepoDO, RepoWrite } from "@minisphere/repo-do";
 import { z } from "zod";
 
@@ -71,7 +71,7 @@ const prepareRecord = (
 /* oxlint-enable anti-slop/no-unknown-parameters, anti-slop/no-runtime-typeof */
 
 export class RepoWriter {
-  private readonly permissions: ScopePermissions;
+  private readonly permissions: ScopePermissionsTransition;
   private readonly subject: Did;
   private readonly handles: HandleResolver;
   private readonly repositories: DurableObjectNamespace<RepoDO>;
@@ -82,7 +82,7 @@ export class RepoWriter {
     handles: HandleResolver,
     repositories: DurableObjectNamespace<RepoDO>
   ) {
-    this.permissions = new ScopePermissions(scope);
+    this.permissions = new ScopePermissionsTransition(scope);
     this.subject = subject;
     this.handles = handles;
     this.repositories = repositories;
