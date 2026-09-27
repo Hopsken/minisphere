@@ -17,6 +17,7 @@ Each ADR records one durable decision and the reason for it. Project READMEs des
 | [0011](./0011-sign-plc-updates-only-with-the-lowest-priority-key.md) | Sign PLC updates only with the lowest-priority key |
 | [0012](./0012-sequence-repository-events-in-one-durable-object.md) | Sequence repository events in one Durable Object |
 | [0013](./0013-sign-in-password-clients-with-app-passwords.md) | Sign in password clients with app passwords |
+| [0014](./0014-store-actor-preferences-on-the-pds.md) | Store actor preferences on the PDS |
 
 ## Writing an ADR
 
