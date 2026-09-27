@@ -199,6 +199,11 @@ app.get(
   withServiceProxy,
   async (c) => {
     const { aud, exp, lxm } = c.req.valid("query");
+    // A token without `lxm` would be valid for every method of `aud`,
+    // including account management that the proxy refuses.
+    if (!lxm) {
+      throw xrpcError("InvalidRequest", "lxm is required");
+    }
     if (exp !== undefined) {
       const remaining = exp - Math.floor(Date.now() / 1000);
       if (remaining < 0) {
@@ -210,16 +215,10 @@ app.get(
           "cannot request a token with an expiration more than an hour in the future"
         );
       }
-      if (!lxm && remaining > 60) {
-        throw xrpcError(
-          "BadExpiration",
-          "cannot request a method-less token with an expiration more than a minute in the future"
-        );
-      }
     }
-    c.var.serviceProxy.authorize(aud, lxm ?? "*");
+    c.var.serviceProxy.authorize(aud, lxm);
     return c.json<GetServiceAuth.$output>({
-      token: await c.var.serviceProxy.createServiceJwt(aud, lxm ?? null, exp),
+      token: await c.var.serviceProxy.createServiceJwt(aud, lxm, exp),
     });
   }
 );

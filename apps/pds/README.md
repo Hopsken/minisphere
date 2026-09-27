@@ -95,9 +95,9 @@ Methods this PDS does not implement are sent to another service as the signed-in
 - The service endpoint comes from the target's DID document and must use HTTPS. Endpoints are cached for ten minutes.
 - The request needs a session with RPC permission for the target and method. App-password sessions have it for every service except `chat.bsky.*`, which needs a privileged app password. OAuth sessions have no RPC permissions yet.
 - The PDS forwards only the query, body, `Content-Type`, `Content-Encoding`, `Accept-Language`, `atproto-accept-labelers`, `x-bsky-topics`, and `x-atproto-*` headers. It adds a service JWT signed by the account's repository key with a one-minute lifetime. The upstream status and body are returned unchanged with `Content-Type`, `atproto-content-labelers`, `atproto-repo-rev`, and `Retry-After`.
-- Account-management methods such as `com.atproto.server.createAppPassword` are never proxied.
+- The method must be a normalized NSID (lowercase authority). Methods in `com.atproto.admin`, `com.atproto.identity`, `com.atproto.server`, and `com.atproto.temp` manage accounts; they are never proxied, including methods added to these namespaces later.
 
-`com.atproto.server.getServiceAuth` returns the same kind of service JWT for an `aud` and optional `lxm`. `exp` can be at most one hour ahead, or one minute for a token without `lxm`.
+`com.atproto.server.getServiceAuth` returns the same kind of service JWT for an `aud` and an `lxm`, under the same method rules. `lxm` is required: a token without it would be valid for every method of the audience. `exp` can be at most one hour ahead.
 
 ## Configuration
 
