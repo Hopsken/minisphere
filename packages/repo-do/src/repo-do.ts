@@ -12,6 +12,7 @@ import { createDatabase } from "./db";
 import { accountAnnouncementEvents, commitEvent } from "./events";
 import type { RepoEnv } from "./events";
 import { exportRepoCar } from "./export";
+import { findReachable } from "./reachable";
 import { createServiceJwt } from "./service-auth";
 import type { ServiceAuthOptions } from "./service-auth";
 import { prepareCommit } from "./writes";
@@ -30,6 +31,11 @@ const importSigningKey = (signingKey: string): Promise<Secp256k1Keypair> => {
 const OUTBOX_RETRY_MS = 30_000;
 // Commit events are at most about 2 MB; stay well below the RPC size limit.
 const OUTBOX_BATCH_SIZE = 8;
+// Streamed reads keep the root they started from; removed blocks outlive them
+// by this long.
+const RECLAIM_GRACE_MS = 60 * 60 * 1000;
+// Bounds memory and CPU per alarm; a larger backlog continues in later alarms.
+const RECLAIM_BATCH_SIZE = 10_000;
 
 const toReadableStream = (chunks: AsyncIterable<Uint8Array>) => {
   const iterator = chunks[Symbol.asyncIterator]();
@@ -60,14 +66,17 @@ export class RepoDO extends DurableObject<RepoEnv> {
 
     // initialize db and run migrations
     const { db, waitMigrations } = createDatabase(ctx.storage);
+    this.core = new CoreStorage(db, ctx.storage);
     void ctx.blockConcurrencyWhile(async () => {
       await Promise.resolve(waitMigrations());
 
       const signingKey = ctx.storage.kv.get<string>("signingKey");
       this.keypair = signingKey ? await importSigningKey(signingKey) : null;
+      // A migration can queue removed blocks without arming the alarm.
+      if ((await ctx.storage.getAlarm()) === null) {
+        await this.scheduleAlarm();
+      }
     });
-
-    this.core = new CoreStorage(db, ctx.storage);
   }
 
   async reserveRepo(did: string, signingKey: string): Promise<void> {
@@ -210,7 +219,61 @@ export class RepoDO extends DurableObject<RepoEnv> {
   }
 
   override async alarm(): Promise<void> {
-    await this.serializeWrite(() => this.deliverEvents());
+    await this.serializeWrite(async () => {
+      await this.deliverEvents();
+      try {
+        await this.reclaimBlocks();
+        await this.scheduleAlarm();
+      } catch (error) {
+        console.error("block reclamation failed; retrying later", error);
+        await this.scheduleAlarm(Date.now() + RECLAIM_GRACE_MS);
+      }
+    });
+  }
+
+  /**
+   * Arm the alarm for the next event retry or block reclamation, whichever
+   * comes first. Waiting two grace periods after the oldest removal lets one
+   * reclamation collect everything removed in the meantime, so a repository
+   * reclaims at most once per grace period and a block goes one to two grace
+   * periods after its removal.
+   */
+  private async scheduleAlarm(reclaimNotBefore = 0): Promise<void> {
+    const oldestRemoval = this.core.getOldestRemoval();
+    const next = Math.min(
+      this.core.getOutbox(1).length > 0
+        ? Date.now() + OUTBOX_RETRY_MS
+        : Infinity,
+      oldestRemoval === undefined
+        ? Infinity
+        : Math.max(oldestRemoval + 2 * RECLAIM_GRACE_MS, reclaimNotBefore)
+    );
+    await (next === Infinity
+      ? this.ctx.storage.deleteAlarm()
+      : this.ctx.storage.setAlarm(next));
+  }
+
+  /**
+   * Delete removed blocks older than the grace period that the current tree no
+   * longer reaches. The write queue keeps commits out until the deletion.
+   */
+  private async reclaimBlocks(): Promise<void> {
+    const removed = this.core.getRemovedBlocks(
+      Date.now() - RECLAIM_GRACE_MS,
+      RECLAIM_BATCH_SIZE
+    );
+    if (removed.length === 0) {
+      return;
+    }
+    const repo = await this.getRepo();
+    const root = {
+      commit: repo.cid.toString(),
+      data: repo.commit.data.toString(),
+    };
+    this.core.reclaimBlocks(
+      removed,
+      await findReachable(this.core, root, new Set(removed))
+    );
   }
 
   /**
@@ -225,10 +288,11 @@ export class RepoDO extends DurableObject<RepoEnv> {
       if (metadata) {
         await this.flushOutbox(metadata.did);
       }
-      await this.ctx.storage.deleteAlarm();
     } catch (error) {
       console.error("event delivery failed; retrying from the alarm", error);
+      return;
     }
+    await this.scheduleAlarm();
   }
 
   /** Each batch is acknowledged before the next, preserving commit order. */
@@ -361,8 +425,8 @@ export class RepoDO extends DurableObject<RepoEnv> {
 
   /**
    * Stream the current repository as a CAR, or only the blocks written after
-   * `since`. Superseded blocks stay in storage, so the export walks the
-   * current tree instead of the block table.
+   * `since`. Removed blocks stay in storage for a grace period, so the export
+   * walks the current tree instead of the block table.
    */
   async rpcExportRepo(since?: string) {
     const repo = await this.getRepo();

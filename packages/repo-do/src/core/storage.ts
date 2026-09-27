@@ -14,6 +14,7 @@ import {
   metadataTable,
   outboxTable,
   recordBlobsTable,
+  removedBlocksTable,
 } from "../db/schema";
 import type { OutboxEvent } from "../events";
 import { BlockStorage } from "./block";
@@ -131,8 +132,8 @@ export class CoreStorage extends BlockStorage implements RepoStorage {
   }
 
   /**
-   * Apply a commit atomically: add new blocks, remove old blocks, update root,
-   * and queue its firehose event.
+   * Apply a commit atomically: add new blocks, record the blocks it removed
+   * for reclamation, update root, and queue its firehose event.
    */
   applyCommit(
     commit: CommitData,
@@ -144,6 +145,10 @@ export class CoreStorage extends BlockStorage implements RepoStorage {
       cid: cid.toString(),
       rev: commit.rev,
     }));
+    const removedAt = Date.now();
+    const removed = commit.removedCids
+      .toList()
+      .map((cid) => ({ cid: cid.toString(), removedAt }));
 
     this.db.transaction((transaction) => {
       // Three bindings per row; stay below Workers SQLite's variable limit.
@@ -193,10 +198,18 @@ export class CoreStorage extends BlockStorage implements RepoStorage {
         }
       }
 
-      // May not need to delete outdated cids for backward verifications
-      // const removedCids = commit.removedCids
-      //   .toList()
-      //   .map((cid) => cid.toString());
+      // A listed block may still be reachable, for example through another
+      // record with identical content, so reclamation checks before deleting.
+      for (let offset = 0; offset < removed.length; offset += 45) {
+        transaction
+          .insert(removedBlocksTable)
+          .values(removed.slice(offset, offset + 45))
+          .onConflictDoUpdate({
+            set: { removedAt },
+            target: removedBlocksTable.cid,
+          })
+          .run();
+      }
 
       transaction
         .update(metadataTable)
@@ -230,6 +243,47 @@ export class CoreStorage extends BlockStorage implements RepoStorage {
 
   deleteOutboxThrough(id: number): void {
     this.db.delete(outboxTable).where(lte(outboxTable.id, id)).run();
+  }
+
+  /** Removed blocks recorded at or before `cutoff`, oldest first. */
+  getRemovedBlocks(cutoff: number, limit: number): string[] {
+    return this.db
+      .select({ cid: removedBlocksTable.cid })
+      .from(removedBlocksTable)
+      .where(lte(removedBlocksTable.removedAt, cutoff))
+      .orderBy(asc(removedBlocksTable.removedAt))
+      .limit(limit)
+      .all()
+      .map((row) => row.cid);
+  }
+
+  getOldestRemoval(): number | undefined {
+    return this.db
+      .select({ removedAt: removedBlocksTable.removedAt })
+      .from(removedBlocksTable)
+      .orderBy(asc(removedBlocksTable.removedAt))
+      .limit(1)
+      .get()?.removedAt;
+  }
+
+  /** Delete the removed blocks outside `reachable` and settle every one. */
+  reclaimBlocks(removed: readonly string[], reachable: ReadonlySet<string>) {
+    this.db.transaction((transaction) => {
+      for (let offset = 0; offset < removed.length; offset += 90) {
+        const chunk = removed.slice(offset, offset + 90);
+        const unreachable = chunk.filter((cid) => !reachable.has(cid));
+        if (unreachable.length > 0) {
+          transaction
+            .delete(blocksTable)
+            .where(inArray(blocksTable.cid, unreachable))
+            .run();
+        }
+        transaction
+          .delete(removedBlocksTable)
+          .where(inArray(removedBlocksTable.cid, chunk))
+          .run();
+      }
+    });
   }
 
   getBlob(cid: string, publishedOnly = false): BlobMetadata | undefined {

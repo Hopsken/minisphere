@@ -9,6 +9,7 @@ Guarantees the PDS relies on:
 - Repository creation and every commit are atomic: blocks, the new root, and blob reference changes are written together or not at all.
 - Writes to one repository run one at a time. `swapCommit` and `swapRecord` are checked inside that queue.
 - A blob can be read only while a current record references it.
+- Blocks that a commit stops referencing are deleted one to two hours later, unless the current repository still reaches them. A streamed read such as `getRepo` or `sync.getRecord` that lasts longer than an hour can fail with a missing block. See [ADR 0015](../../docs/adr/0015-reclaim-unreachable-repository-blocks-after-a-grace-period.md).
 - Creating a repository again with the same DID and signing key succeeds; a different signing key is rejected.
 - `rpcCreateServiceJwt` signs inter-service JWTs as the account with the repository signing key. The key never leaves the Durable Object.
 - Every commit records its firehose `#commit` event in the same transaction. A repository's events reach the sequencer in commit order, at least once, even if the sequencer is unavailable when the write commits. The host Worker must bind `SequencerDO` from [`@minisphere/pds-sequencer-do`](../pds-sequencer-do/README.md) as `SEQUENCER`.
