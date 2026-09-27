@@ -63,6 +63,7 @@ These methods need no authentication and serve only accounts hosted here:
 - `com.atproto.sync.listRepos` — hosted repositories in DID order with their current commit (default 500, maximum 1000). Repositories that cannot be read are omitted.
 - `com.atproto.server.describeServer` — the PDS `did:web` identity. It lists no sign-up domains and requires an invite, because accounts are created through Accounts.
 - `com.atproto.sync.getLatestCommit` — the current commit CID and revision.
+- `com.atproto.sync.getBlocks` — the requested blocks as a CAR without roots. Only blocks the current commit reaches are served; any other requested CID fails the request with `BlockNotFound`.
 - `com.atproto.sync.getRepo` — the current repository as a CAR rooted at the signed commit, in the Sync 1.1 depth-first block order so consumers can process it as a stream. With `since`, only the current blocks written after that revision, to apply on top of the repository at `since`. Deleted records are never included.
 
 Keep the `global_fetch_strictly_public` compatibility flag enabled. Without it, handle resolution cannot reach Accounts routes in the same Cloudflare zone.

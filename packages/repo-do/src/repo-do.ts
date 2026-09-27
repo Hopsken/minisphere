@@ -1,3 +1,5 @@
+import { writeCarStream } from "@atcute/car";
+import { fromString } from "@atcute/cid";
 import { parsePrivateMultikey } from "@atcute/crypto";
 import { Secp256k1Keypair } from "@atproto/crypto";
 import { lexToJson } from "@atproto/lex-json";
@@ -435,6 +437,42 @@ export class RepoDO extends DurableObject<RepoEnv> {
       data: repo.commit.data.toString(),
     };
     return toReadableStream(exportRepoCar(this.core, root, since));
+  }
+
+  /**
+   * Stream the requested blocks as a CAR without roots, or name those the
+   * current tree does not reach. A commit records every block it stops
+   * reaching as a removal candidate, so a stored block that is not a candidate
+   * is current, and only candidates need a walk of the tree.
+   */
+  async rpcGetBlocks(
+    cids: readonly string[]
+  ): Promise<{ car: ReadableStream<Uint8Array> } | { missing: string[] }> {
+    const repo = await this.getRepo();
+    const requested = [...new Set(cids)];
+    const blocks = this.core.getStoredBlocks(requested);
+    const candidates = this.core.getRemovalCandidates([...blocks.keys()]);
+    if (candidates.size > 0) {
+      const root = {
+        commit: repo.cid.toString(),
+        data: repo.commit.data.toString(),
+      };
+      const reachable = await findReachable(this.core, root, candidates);
+      for (const cid of candidates) {
+        if (!reachable.has(cid)) {
+          blocks.delete(cid);
+        }
+      }
+    }
+    const missing = requested.filter((cid) => !blocks.has(cid));
+    if (missing.length > 0) {
+      return { missing };
+    }
+    const carBlocks = blocks.entries().map(([cid, block]) => ({
+      cid: fromString(cid).bytes,
+      data: block.bytes,
+    }));
+    return { car: toReadableStream(writeCarStream([], carBlocks)) };
   }
 
   rpcHealthCheck(): Promise<{ ok: true }> {
