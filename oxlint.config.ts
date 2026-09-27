@@ -9,6 +9,7 @@ export default defineConfig({
     ...(core.ignorePatterns ?? []),
     // generated files
     "**/schema/better-auth.ts",
+    "**/components/ui/**",
   ],
   rules: {
     "sort-keys": ["error", "asc", { allowLineSeparatedGroups: true }],
