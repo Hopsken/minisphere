@@ -9,14 +9,15 @@ interface ServiceJwtClaims {
   iat: number;
   iss: string;
   jti: string;
-  lxm?: string;
+  lxm: string;
 }
 
 export interface ServiceAuthOptions {
   aud: string;
   /** Seconds since the epoch; defaults to one minute from now. */
   exp?: number | undefined;
-  lxm: string | null;
+  /** Required: a token without a method would be valid for every method. */
+  lxm: string;
 }
 
 /**
@@ -38,10 +39,8 @@ export const createServiceJwt = async (
     jti: Buffer.from(crypto.getRandomValues(new Uint8Array(16))).toString(
       "hex"
     ),
+    lxm,
   };
-  if (lxm !== null) {
-    claims.lxm = lxm;
-  }
   const payload = encode(JSON.stringify(claims));
   const signature = await keypair.sign(
     new TextEncoder().encode(`${header}.${payload}`)

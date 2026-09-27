@@ -35,7 +35,9 @@ const verifyServiceJwt = async (token: string, repoKeyDid: string) => {
 // Failure cases: client credentials or cookies leak upstream, the service JWT
 // is signed by the wrong key or names the wrong audience or method, upstream
 // errors turn into PDS errors, chat is reachable without a privileged app
-// password, account management is proxied, or unknown methods require auth.
+// password, account management is proxied (including methods a protected
+// namespace gains later and case variants of a protected authority), or
+// unknown methods require auth.
 describe("service proxying", () => {
   it("sends app.bsky methods to the Bluesky AppView as the account", async () => {
     const { did, repoKeyDid } = await createHostedAccount();
@@ -130,6 +132,15 @@ describe("service proxying", () => {
 
   it.each([
     ["an account-management method", "com.atproto.server.createAppPassword"],
+    [
+      "a later method in a protected namespace",
+      "com.atproto.server.futureMethod",
+    ],
+    ["an identity method", "com.atproto.identity.submitPlcOperation"],
+    [
+      "a case variant of a protected authority",
+      "com.atproto.SERVER.createAppPassword",
+    ],
     ["an insecure service endpoint", "app.bsky.feed.getTimeline"],
   ])("refuses %s", async (_name, method) => {
     const { did } = await createHostedAccount();
@@ -144,6 +155,25 @@ describe("service proxying", () => {
     });
 
     expect(response.status).toBe(400);
+  });
+
+  it("proxies other com.atproto methods such as moderation reports", async () => {
+    const { did } = await createHostedAccount();
+
+    const response = await xrpc("com.atproto.moderation.createReport", {
+      body: JSON.stringify({ reason: "spam" }),
+      headers: {
+        "Content-Type": "application/json",
+        "atproto-proxy": "did:web:appview.test#bsky_appview",
+      },
+      method: "POST",
+      token: await signAppPasswordToken(did),
+    });
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      url: "https://appview.test/xrpc/com.atproto.moderation.createReport",
+    });
   });
 
   it("requires a session, and reports unknown methods without one", async () => {
@@ -167,8 +197,19 @@ const serviceAuthRejections: [string, ServiceAuthRequest, number][] = [
     { exp: 2 * 60 * 60, lxm: "app.bsky.feed.getTimeline" },
     400,
   ],
-  ["a long method-less token", { exp: 5 * 60 }, 400],
+  ["a missing method", {}, 400],
+  ["a missing method with a short expiry", { exp: 30 }, 400],
   ["a protected method", { lxm: "com.atproto.server.createAccount" }, 400],
+  [
+    "a later method in a protected namespace",
+    { lxm: "com.atproto.identity.futureMethod" },
+    400,
+  ],
+  [
+    "a case variant of a protected authority",
+    { lxm: "com.atproto.Server.createAccount" },
+    400,
+  ],
   ["chat without privilege", { lxm: "chat.bsky.convo.listConvos" }, 403],
 ];
 
