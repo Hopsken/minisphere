@@ -1,5 +1,6 @@
 /* oxlint-disable vitest/max-expects, eslint/no-await-in-loop -- Preference flows assert writes by reading them back, in order. */
 /* oxlint-disable unicorn/no-await-expression-member -- Keep each response assertion next to its request. */
+import { exports } from "cloudflare:workers";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -32,10 +33,32 @@ const savedFeeds = {
   items: [{ id: "3l", pinned: true, type: "timeline", value: "following" }],
 };
 
-const session = async () => {
+const session = async (birthDate?: string) => {
   const { did } = await createHostedAccount();
+  if (birthDate) {
+    await exports.PdsControlPlane.setBirthDate(did, birthDate);
+  }
   return signAppPasswordToken(did);
 };
+
+/** The UTC date `years` years and `days` days before today. */
+const dateBefore = (years: number, days = 0) => {
+  const date = new Date();
+  date.setUTCFullYear(date.getUTCFullYear() - years);
+  date.setUTCDate(date.getUTCDate() - days);
+  return date.toISOString().slice(0, 10);
+};
+
+const declaredAgePref = (
+  over13: boolean,
+  over16: boolean,
+  over18: boolean
+) => ({
+  $type: "app.bsky.actor.defs#declaredAgePref",
+  isOverAge13: over13,
+  isOverAge16: over16,
+  isOverAge18: over18,
+});
 
 // Failure cases: preferences leak between accounts, a write merges instead of
 // replacing, a session writes personal details or the derived age, a foreign
@@ -111,6 +134,44 @@ describe("Bluesky preferences", () => {
     expect(proxied.status).toBe(200);
     await expect(proxied.json()).resolves.toMatchObject({
       url: "https://appview.test/xrpc/app.bsky.actor.getPreferences",
+    });
+  });
+
+  // Failure cases: an age counted from the wrong day, a client write that
+  // replaces the birth date or the derived age, or the birth date returned.
+  it("derive the declared age from the birth date that Accounts sets", async () => {
+    for (const [birthDate, expected] of [
+      [dateBefore(18), declaredAgePref(true, true, true)],
+      [dateBefore(18, -1), declaredAgePref(true, true, false)],
+      [dateBefore(16, -1), declaredAgePref(true, false, false)],
+      [dateBefore(13, -1), declaredAgePref(false, false, false)],
+    ] as const) {
+      const token = await session(birthDate);
+      await putPreferences(token, [
+        adultContent,
+        declaredAgePref(false, false, false),
+      ]);
+
+      await expect((await getPreferences(token)).json()).resolves.toStrictEqual(
+        { preferences: [adultContent, expected] }
+      );
+    }
+  });
+
+  it("keep the stored preferences when Accounts changes the birth date", async () => {
+    const { did } = await createHostedAccount();
+    const token = await signAppPasswordToken(did);
+    await expect(exports.PdsControlPlane.getBirthDate(did)).resolves.toBeNull();
+    await putPreferences(token, [savedFeeds]);
+
+    await exports.PdsControlPlane.setBirthDate(did, dateBefore(20));
+    await exports.PdsControlPlane.setBirthDate(did, dateBefore(14));
+
+    await expect(exports.PdsControlPlane.getBirthDate(did)).resolves.toBe(
+      dateBefore(14)
+    );
+    await expect((await getPreferences(token)).json()).resolves.toStrictEqual({
+      preferences: [savedFeeds, declaredAgePref(true, false, false)],
     });
   });
 

@@ -7,7 +7,9 @@ import { logger } from "hono/logger";
 import { resolveConfig } from "./config";
 import { createPdsDatabase } from "./db";
 import { InviteCodeRepository } from "./repositories/invite-code";
+import { PreferencesRepository } from "./repositories/preferences";
 import xrpcRoutes from "./routes/xrpc";
+import { Preferences } from "./services/preferences";
 
 const app = new Hono<{
   Bindings: Env;
@@ -77,6 +79,22 @@ export class PdsControlPlane extends WorkerEntrypoint<Env> {
     return new InviteCodeRepository(
       createPdsDatabase(this.env.PDS_DB)
     ).create();
+  }
+
+  /** The `YYYY-MM-DD` birth date of a hosted account, or `null` when unset. */
+  getBirthDate(did: string): Promise<string | null> {
+    return this.preferences().getBirthDate(did);
+  }
+
+  /** Accounts validates the date; clients cannot set it (ADR 0014). */
+  setBirthDate(did: string, birthDate: string): Promise<void> {
+    return this.preferences().setBirthDate(did, birthDate);
+  }
+
+  private preferences() {
+    return new Preferences(
+      new PreferencesRepository(createPdsDatabase(this.env.PDS_DB))
+    );
   }
 }
 

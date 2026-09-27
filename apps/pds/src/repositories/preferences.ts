@@ -11,12 +11,15 @@ export class PreferencesRepository {
     this.db = db;
   }
 
-  async get(did: string): Promise<AppBskyActorDefs.Preferences> {
+  async get(did: string) {
     const [row] = await this.db
-      .select({ preferences: accountPreferencesTable.preferences })
+      .select({
+        birthDate: accountPreferencesTable.birthDate,
+        preferences: accountPreferencesTable.preferences,
+      })
       .from(accountPreferencesTable)
       .where(eq(accountPreferencesTable.did, did));
-    return row?.preferences ?? [];
+    return row ?? { birthDate: null, preferences: [] };
   }
 
   async put(did: string, preferences: AppBskyActorDefs.Preferences) {
@@ -25,6 +28,16 @@ export class PreferencesRepository {
       .values({ did, preferences })
       .onConflictDoUpdate({
         set: { preferences },
+        target: accountPreferencesTable.did,
+      });
+  }
+
+  async putBirthDate(did: string, birthDate: string) {
+    await this.db
+      .insert(accountPreferencesTable)
+      .values({ birthDate, did, preferences: [] })
+      .onConflictDoUpdate({
+        set: { birthDate },
         target: accountPreferencesTable.did,
       });
   }

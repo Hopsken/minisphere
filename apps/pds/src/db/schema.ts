@@ -8,6 +8,9 @@ export const accountsTable = sqliteTable("accounts", {
 
 // The account's `app.bsky` preferences as one JSON array, replaced on write.
 export const accountPreferencesTable = sqliteTable("account_preferences", {
+  // The `personalDetailsPref` birth date as `YYYY-MM-DD`, set through Accounts.
+  // It is kept apart so that `putPreferences` cannot replace it.
+  birthDate: text("birth_date"),
   did: text()
     .primaryKey()
     .references(() => accountsTable.did, { onDelete: "cascade" }),
