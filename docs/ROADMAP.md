@@ -4,10 +4,9 @@ Planned work, in priority order. Code, tests, and project READMEs describe what 
 
 ## 1. Relay synchronization
 
-Relays must be able to crawl the PDS before any AppView can index its accounts.
+The PDS is crawled by `bsky.network`, and the Bluesky AppView indexes its accounts. Remaining sync methods:
 
 - `com.atproto.sync.getBlocks`, limited to blocks reachable from the current repository.
-- Verify against a local relay, then announce the PDS to public relays with `com.atproto.sync.requestCrawl`.
 
 ## 2. Bluesky client compatibility
 
