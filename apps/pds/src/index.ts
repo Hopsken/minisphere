@@ -14,7 +14,16 @@ const app = new Hono<{
 }>();
 
 app
-  .use(cors({ exposeHeaders: ["DPoP-Nonce", "WWW-Authenticate"] }))
+  .use(
+    cors({
+      exposeHeaders: [
+        "atproto-content-labelers",
+        "atproto-repo-rev",
+        "DPoP-Nonce",
+        "WWW-Authenticate",
+      ],
+    })
+  )
   .use(logger());
 
 app.get("/", (ctx) => ctx.json({ name: "pds" }));

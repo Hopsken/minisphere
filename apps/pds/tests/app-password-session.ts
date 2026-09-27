@@ -75,7 +75,10 @@ export const signAppPasswordToken = async (
 
 export const xrpc = (
   method: string,
-  init: RequestInit & { token?: string; query?: Record<string, string> } = {}
+  init: RequestInit & {
+    token?: string;
+    query?: Record<string, string> | URLSearchParams;
+  } = {}
 ) => {
   const { query, token, ...rest } = init;
   const headers = new Headers(rest.headers);

@@ -2,6 +2,7 @@ import { Hono } from "hono";
 
 import blobRoutes from "./blobs";
 import identityRoutes from "./identity";
+import proxyRoutes from "./proxy";
 import repoRoutes from "./repo";
 import serverRoutes from "./server";
 import syncRoutes from "./sync";
@@ -17,5 +18,7 @@ app.route("/", identityRoutes);
 app.route("/", repoRoutes);
 app.route("/", serverRoutes);
 app.route("/", syncRoutes);
+// Must stay last: it handles every method without a local route.
+app.route("/", proxyRoutes);
 
 export default app;
