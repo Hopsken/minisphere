@@ -18,7 +18,9 @@ const findAccountDid = async (database: Database, userId: string) => {
     userId,
   });
   if (!account) {
-    throw new HTTPException(409, { message: "Finish account setup first" });
+    throw new HTTPException(409, {
+      message: "Finish setting up your account first",
+    });
   }
   return account.did;
 };

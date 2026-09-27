@@ -58,8 +58,11 @@ const findInvalidField = (
   day: string
 ): { field: Field; message: string } | null => {
   const thisYear = new Date().getUTCFullYear();
-  if (Number(year) < 1900 || Number(year) > thisYear) {
-    return { field: "year", message: `Enter a year from 1900 to ${thisYear}` };
+  if (Number(year) > thisYear) {
+    return { field: "year", message: "Your birthday can’t be in the future" };
+  }
+  if (Number(year) < 1900) {
+    return { field: "year", message: "Enter a year after 1900" };
   }
   const days = new Date(Date.UTC(Number(year), Number(month), 0)).getUTCDate();
   if (Number(day) < 1 || Number(day) > days) {
@@ -102,7 +105,9 @@ const EditDialog = ({
           await response.json().catch(() => null)
         );
         throw new Error(
-          parsed.success ? parsed.data.message : "Could not save your birthday."
+          parsed.success
+            ? parsed.data.message
+            : "Couldn’t save your birthday. Try again."
         );
       }
       return response.json();
@@ -265,7 +270,8 @@ export const BirthDateSettings = ({ userId }: { userId: string }) => {
         Birthday
       </h2>
       <p className="text-muted-foreground mt-2 text-sm">
-        Apps see only whether you are over 13, 16, or 18.
+        Helps apps show content that’s right for your age. Your birthday stays
+        private.
       </p>
       {birthDate.isPending ? (
         <p className="text-muted-foreground mt-5 flex items-center gap-2 text-sm">

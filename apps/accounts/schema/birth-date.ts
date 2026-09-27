@@ -5,7 +5,7 @@ export const birthDateSchema = z.iso
   .refine((value) => value >= "1900-01-01", "Enter a date after 1900")
   .refine(
     (value) => value <= new Date().toISOString().slice(0, 10),
-    "Enter a date that is not in the future"
+    "Your birthday can’t be in the future"
   );
 
 export const putBirthDateSchema = z.strictObject({
