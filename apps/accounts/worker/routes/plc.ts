@@ -5,6 +5,7 @@ import { HTTPException } from "hono/http-exception";
 import { patchPlcSchema } from "../../schema/plc";
 import { PlcDirectoryClient } from "../clients/plc-directory-client";
 import { resolveConfig } from "../config";
+import { requireSameOrigin } from "../middlewares/require-same-origin";
 import { withBetterAuth } from "../middlewares/with-better-auth";
 import { withDBAccess } from "../middlewares/with-db-access";
 import { withSession } from "../middlewares/with-session";
@@ -33,18 +34,7 @@ const app = new Hono<WorkerEnv>()
   })
   .patch(
     "/",
-    (ctx, next) => {
-      if (
-        ctx.req.header("Origin") !== resolveConfig().accountsOrigin ||
-        (ctx.req.header("Sec-Fetch-Site") !== undefined &&
-          ctx.req.header("Sec-Fetch-Site") !== "same-origin")
-      ) {
-        throw new HTTPException(403, {
-          message: "Same-origin request required",
-        });
-      }
-      return next();
-    },
+    requireSameOrigin,
     zValidator("json", patchPlcSchema),
     async (ctx) => {
       const config = resolveConfig();

@@ -16,6 +16,10 @@ export class PlcDirectoryClient {
     return this.client.getState(did);
   }
 
+  getDocument(did: DidPlcString) {
+    return this.client.getDocument(did, { signal: AbortSignal.timeout(5000) });
+  }
+
   async getHead(did: DidPlcString) {
     const audit = await this.client.getAuditLog(did, {
       signal: AbortSignal.timeout(10_000),

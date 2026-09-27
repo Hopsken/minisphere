@@ -2,6 +2,8 @@ import type { Secp256k1PrivateKey } from "@atcute/crypto";
 import type { AtprotoAccessTokenInput } from "@minisphere/atproto-oauth-provider";
 import { z } from "zod";
 
+import { signJwt } from "./jwt";
+
 const accessTokenInputSchema = z.strictObject({
   audience: z.url(),
   clientId: z.url(),
@@ -18,50 +20,21 @@ const accessTokenInputSchema = z.strictObject({
   subject: z.string().startsWith("did:"),
 });
 
-const encoder = new TextEncoder();
-
-const encodeBase64Url = (value: Uint8Array) => {
-  let binary = "";
-  for (const byte of value) {
-    binary += String.fromCodePoint(byte);
-  }
-  return btoa(binary)
-    .replaceAll("+", "-")
-    .replaceAll("/", "_")
-    .replace(/=+$/u, "");
-};
-
-export const createOAuthAccessToken = async (
+export const createOAuthAccessToken = (
   input: AtprotoAccessTokenInput,
   signingKey: Secp256k1PrivateKey,
   now = Math.floor(Date.now() / 1000)
 ) => {
   const value = accessTokenInputSchema.parse(input);
-  const protectedHeader = encodeBase64Url(
-    encoder.encode(
-      JSON.stringify({
-        alg: "ES256K",
-        kid: await signingKey.exportPublicKey("did"),
-        typ: "at+jwt",
-      })
-    )
-  );
-  const payload = encodeBase64Url(
-    encoder.encode(
-      JSON.stringify({
-        aud: value.audience,
-        client_id: value.clientId,
-        cnf: { jkt: value.jwkThumbprint },
-        exp: now + value.expiresIn,
-        iat: now,
-        iss: value.issuer,
-        jti: crypto.randomUUID(),
-        scope: value.scope,
-        sub: value.subject,
-      })
-    )
-  );
-  const signingInput = `${protectedHeader}.${payload}`;
-  const signature = await signingKey.sign(encoder.encode(signingInput));
-  return `${signingInput}.${encodeBase64Url(signature)}`;
+  return signJwt(signingKey, "at+jwt", {
+    aud: value.audience,
+    client_id: value.clientId,
+    cnf: { jkt: value.jwkThumbprint },
+    exp: now + value.expiresIn,
+    iat: now,
+    iss: value.issuer,
+    jti: crypto.randomUUID(),
+    scope: value.scope,
+    sub: value.subject,
+  });
 };
