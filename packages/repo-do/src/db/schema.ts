@@ -24,6 +24,17 @@ export const blocksTable = sqliteTable("blocks", {
   rev: text().notNull(),
 });
 
+// Blocks a commit stopped referencing. Reclamation deletes those the current
+// tree no longer reaches once `removedAt` is older than the grace period.
+export const removedBlocksTable = sqliteTable(
+  "removed_blocks",
+  {
+    cid: text().primaryKey(),
+    removedAt: integer("removed_at").notNull(),
+  },
+  (table) => [index("removed_blocks_removed_at").on(table.removedAt)]
+);
+
 export const blobsTable = sqliteTable("blobs", {
   cid: text().primaryKey(),
   expiresAt: integer("expires_at").notNull(),

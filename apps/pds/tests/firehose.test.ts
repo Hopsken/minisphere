@@ -225,6 +225,11 @@ describe("com.atproto.sync.subscribeRepos", () => {
     await expect(
       repo.stub.rpcGetRecord(COLLECTION, "a")
     ).resolves.not.toBeNull();
+    // Pending block reclamation must not postpone the event retry.
+    const retryAt = await runInDurableObject(repo.stub, (_instance, state) =>
+      state.storage.getAlarm()
+    );
+    expect(retryAt).toBeLessThanOrEqual(Date.now() + 30_000);
     const early = await firehose.received();
     expect(early.filter(aboutRepo(repo.did))).toStrictEqual([]);
 

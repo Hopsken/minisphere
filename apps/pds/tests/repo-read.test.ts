@@ -28,7 +28,12 @@ import {
 } from "@atproto/repo";
 import type { RecordCreateOp } from "@atproto/repo";
 import { RepoDO } from "@minisphere/repo-do";
-import { evictDurableObject, runInDurableObject } from "cloudflare:test";
+import type { RepoWrite } from "@minisphere/repo-do";
+import {
+  evictDurableObject,
+  runDurableObjectAlarm,
+  runInDurableObject,
+} from "cloudflare:test";
 import { env, exports } from "cloudflare:workers";
 import { afterEach, assert, describe, expect, it, vi } from "vitest";
 
@@ -643,4 +648,133 @@ describe("public repository reads", () => {
       });
     }
   );
+});
+
+type Stub = Awaited<ReturnType<typeof seedRepo>>["stub"];
+
+const storedCids = (stub: Stub) =>
+  runInDurableObject(stub, (_instance, state) =>
+    state.storage.sql
+      .exec<{ cid: string }>("SELECT cid FROM blocks")
+      .toArray()
+      .map((row) => row.cid)
+      .toSorted()
+  );
+const exportedCids = async (did: Did) => {
+  const car = await readCar(await exportRepo(did));
+  return car.blocks
+    .entries()
+    .map(({ cid }) => cid.toString())
+    .toSorted();
+};
+/** Run the alarm as if every removal were past the grace period. */
+const reclaimAll = async (stub: Stub) => {
+  await runInDurableObject(stub, (_instance, state) => {
+    state.storage.sql.exec("UPDATE removed_blocks SET removed_at = 0");
+  });
+  await runDurableObjectAlarm(stub);
+};
+const put = (rkey: string, title: string): RepoWrite => ({
+  action: "put",
+  collection: COLLECTION,
+  recordJson: JSON.stringify({ $type: COLLECTION, title }),
+  rkey,
+});
+const remove = (rkey: string): RepoWrite => ({
+  action: "delete",
+  collection: COLLECTION,
+  rkey,
+});
+
+describe("repository block reclamation", () => {
+  it("deletes replaced and deleted records only after the grace period", async () => {
+    const { did, publicKey, stub } = await seedRepo(["a", "m", "z"]);
+    const base = await readCar(await exportRepo(did));
+    const before = await stub.rpcGetRepoStatus();
+    const [replaced, deleted] = await Promise.all(
+      ["a", "m"].map((rkey) => stub.rpcGetRecord(COLLECTION, rkey))
+    );
+    await stub.rpcApplyWrites({ writes: [put("a", "changed"), remove("m")] });
+    const removed = [replaced?.cid, deleted?.cid, before.head];
+
+    await runDurableObjectAlarm(stub);
+    await expect(storedCids(stub)).resolves.toStrictEqual(
+      expect.arrayContaining(removed)
+    );
+
+    await reclaimAll(stub);
+    const stored = await storedCids(stub);
+    for (const cid of removed) {
+      expect(stored).not.toContain(cid);
+    }
+    expect(stored).toStrictEqual(await exportedCids(did));
+    const head = await stub.rpcGetRepoStatus();
+    const verified = await verifyRepoCar(await exportRepo(did), did, publicKey);
+    expect(verified.commit.cid.toString()).toBe(head.head);
+    const [baseRoot] = base.roots;
+    assert.isDefined(baseRoot);
+    const diff = await verifyDiffCar(
+      await Repo.load(new MemoryBlockstore(base.blocks), baseRoot),
+      await exportRepo(did, before.rev),
+      did,
+      publicKey,
+      { ensureLeaves: true }
+    );
+    expect(
+      diff.writes.map((write) => `${write.action} ${write.rkey}`).toSorted()
+    ).toStrictEqual([`${WriteOpAction.Delete} m`, `${WriteOpAction.Update} a`]);
+  });
+
+  it("keeps blocks that an identical record or a recreated record still reaches", async () => {
+    const { did, publicKey, stub } = await seedRepo([]);
+    await stub.rpcApplyWrites({
+      writes: [put("one", "same"), put("two", "same"), put("three", "three")],
+    });
+    await stub.rpcApplyWrites({ writes: [remove("one"), remove("three")] });
+    await stub.rpcApplyWrites({ writes: [put("three", "three")] });
+
+    await reclaimAll(stub);
+    await expect(stub.rpcGetRecord(COLLECTION, "two")).resolves.toMatchObject({
+      record: { title: "same" },
+    });
+    await expect(stub.rpcGetRecord(COLLECTION, "three")).resolves.toMatchObject(
+      { record: { title: "three" } }
+    );
+    await expect(storedCids(stub)).resolves.toStrictEqual(
+      await exportedCids(did)
+    );
+    const verified = await verifyRepoCar(await exportRepo(did), did, publicKey);
+    expect(verified.creates.map((create) => create.rkey)).toStrictEqual([
+      "three",
+      "two",
+    ]);
+  });
+
+  it("stores a reclaimed record again when a commit recreates it", async () => {
+    const { did, publicKey, stub } = await seedRepo([]);
+    await stub.rpcApplyWrites({ writes: [put("a", "same")] });
+    const original = await stub.rpcGetRecord(COLLECTION, "a");
+    await stub.rpcApplyWrites({ writes: [remove("a")] });
+    await reclaimAll(stub);
+    await expect(storedCids(stub)).resolves.not.toContain(original?.cid);
+    const base = await readCar(await exportRepo(did));
+    const { rev } = await stub.rpcGetRepoStatus();
+
+    await stub.rpcApplyWrites({ writes: [put("a", "same")] });
+    await expect(stub.rpcGetRecord(COLLECTION, "a")).resolves.toMatchObject({
+      cid: original?.cid,
+    });
+    const [baseRoot] = base.roots;
+    assert.isDefined(baseRoot);
+    const diff = await verifyDiffCar(
+      await Repo.load(new MemoryBlockstore(base.blocks), baseRoot),
+      await exportRepo(did, rev),
+      did,
+      publicKey,
+      { ensureLeaves: true }
+    );
+    expect(diff.writes.map((write) => write.cid.toString())).toStrictEqual([
+      original?.cid,
+    ]);
+  });
 });
