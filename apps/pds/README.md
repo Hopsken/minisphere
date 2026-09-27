@@ -79,6 +79,14 @@ Keep the `global_fetch_strictly_public` compatibility flag enabled. Without it, 
 
 Handle changes and account status changes do not emit events yet.
 
+## Preferences
+
+`app.bsky.actor.getPreferences` and `putPreferences` store the account's `app.bsky` preferences on the PDS. They need a session with RPC permission for the Bluesky AppView, as proxied methods do.
+
+- `putPreferences` replaces the stored list. Every preference must be in the `app.bsky` namespace.
+- `personalDetailsPref` requires full account access, which no session has, so it is rejected. `declaredAgePref` is derived by the server and is dropped on write.
+- With an `atproto-proxy` header for another AppView, both methods are proxied instead.
+
 ## Service proxying
 
 Methods this PDS does not implement are sent to another service as the signed-in account:
