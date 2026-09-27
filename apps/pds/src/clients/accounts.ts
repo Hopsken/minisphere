@@ -1,3 +1,5 @@
+import ky from "ky";
+
 import { resolveConfig } from "../config";
 
 const forwardedHeaders = ["Authorization", "Content-Type"];
@@ -14,15 +16,15 @@ export const forwardSessionRequest = async (request: Request, lxm: string) => {
       headers.set(name, value);
     }
   }
-  const response = await fetch(
-    `${resolveConfig().accountsOrigin}/xrpc/${lxm}`,
-    {
-      body: request.method === "POST" ? request.body : null,
-      headers,
-      method: request.method,
-      redirect: "manual",
-    }
-  );
+  const response = await ky(`xrpc/${lxm}`, {
+    baseUrl: resolveConfig().accountsOrigin,
+    body: request.body,
+    headers,
+    method: request.method,
+    redirect: "manual",
+    retry: 0,
+    throwHttpErrors: false,
+  });
   // deleteSession has no output; a declared JSON type would break clients.
   const responseHeaders = new Headers({ "Cache-Control": "no-store" });
   const contentType = response.headers.get("Content-Type");
