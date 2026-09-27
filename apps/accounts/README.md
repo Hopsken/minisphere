@@ -51,13 +51,9 @@ Keep the `global_fetch_strictly_public` compatibility flag enabled. It stops cli
 
 Clients that sign in with a password, such as the Bluesky app, use an app password with the user's handle, DID, or email. See [ADR 0013](../../docs/adr/0013-sign-in-password-clients-with-app-passwords.md).
 
-- `GET /api/account/app-passwords` lists the user's app passwords without their secrets.
-- `POST /api/account/app-passwords` with `{ "name", "privileged" }` returns the generated secret once. Names are unique per user. A privileged app password also allows direct messages.
-- `DELETE /api/account/app-passwords/:id` revokes an app password and ends its sessions.
-
-Writes require an `Origin` header equal to `MINISPHERE_ORIGIN`.
-
-`com.atproto.server.createSession`, `refreshSession`, `getSession`, and `deleteSession` are served under `/xrpc` with CORS. The PDS forwards the same methods here. Access tokens last five minutes; refresh tokens last 90 days and rotate on each use.
+- Accounts shows a generated app password once and stores only its hash. Names are unique per user. A privileged app password also allows direct messages.
+- Revoking an app password ends its sessions.
+- Accounts serves the `com.atproto.server` session methods with CORS, and the PDS forwards them here. Access tokens last five minutes; refresh tokens last 90 days and rotate on each use.
 
 ## Configuration
 
