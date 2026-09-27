@@ -53,6 +53,7 @@ catalog:
   get-stream: ^9.0.1
   hono: ^4.13.3
   jose: ^6.2.9
+  ky: ^2.1.0
   lucide-react: ^1.33.0
   next-themes: ^0.4.6
   oxfmt: ^0.63.0
