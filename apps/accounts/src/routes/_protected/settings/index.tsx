@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { accountQuery, plcAccountQuery } from "@/features/account/queries";
 
+import { AppPasswordSettings } from "./-components/app-password-settings";
 import { PdsSettings } from "./-components/pds-settings";
 
 export const Route = createFileRoute("/_protected/settings/")({
@@ -14,12 +15,13 @@ export const Route = createFileRoute("/_protected/settings/")({
     if (account.state !== "active") {
       throw redirect({ to: "/onboarding/username" });
     }
+    return { handle: account.handle };
   },
   component: SettingsPage,
 });
 
 function SettingsPage() {
-  const { user } = Route.useRouteContext();
+  const { handle, user } = Route.useRouteContext();
   const plc = useQuery({
     ...plcAccountQuery(user.id),
     refetchOnWindowFocus: false,
@@ -52,6 +54,7 @@ function SettingsPage() {
           </Button>
         </div>
       ) : null}
+      <AppPasswordSettings handle={handle} userId={user.id} />
     </section>
   );
 }

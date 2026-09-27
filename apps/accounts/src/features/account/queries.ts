@@ -5,6 +5,8 @@ import { api } from "@/lib/api";
 
 export const accountKeys = {
   account: ["account"] as const,
+  appPasswords: (userId: string) =>
+    ["account", "app-passwords", userId] as const,
   plc: (userId: string) => ["account", "plc", userId] as const,
   username: (username: string) => ["account", "username", username] as const,
 };
@@ -26,6 +28,23 @@ export const plcAccountQuery = (userId: string) =>
     },
     queryKey: accountKeys.plc(userId),
     retry: false,
+  });
+
+export type AppPassword = InferResponseType<
+  (typeof api.account)["app-passwords"]["$get"]
+>["appPasswords"][number];
+
+export const appPasswordsQuery = (userId: string) =>
+  queryOptions({
+    queryFn: async () => {
+      const response = await api.account["app-passwords"].$get();
+      if (!response.ok) {
+        throw new Error("Could not load your app passwords");
+      }
+      const { appPasswords } = await response.json();
+      return appPasswords;
+    },
+    queryKey: accountKeys.appPasswords(userId),
   });
 
 export const accountQuery = queryOptions({
