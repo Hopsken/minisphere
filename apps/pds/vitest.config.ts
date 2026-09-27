@@ -79,6 +79,23 @@ export default defineConfig(async () => {
                     if (url.pathname === "/oauth/jwks") {
                       return Response.json(${JSON.stringify(oauthJwks)});
                     }
+                    if (url.pathname === "/xrpc/com.atproto.server.deleteSession") {
+                      return new Response(null, { status: 200 });
+                    }
+                    if (url.pathname.startsWith("/xrpc/com.atproto.server.")) {
+                      // Echoes forwarded session requests for the PDS tests.
+                      return Response.json(
+                        {
+                          authorization: request.headers.get("authorization"),
+                          body: request.method === "POST" ? await request.text() : null,
+                          contentType: request.headers.get("content-type"),
+                          cookie: request.headers.get("cookie"),
+                          method: request.method,
+                          path: url.pathname,
+                        },
+                        { status: url.pathname.endsWith("refreshSession") ? 400 : 200 }
+                      );
+                    }
                   }
                   if (url.origin !== "https://directory.test") {
                     return new Response("Unexpected PLC origin", { status: 400 });

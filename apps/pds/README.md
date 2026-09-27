@@ -16,7 +16,9 @@ After creation, the PDS announces the account on the [firehose](#firehose). A cl
 
 ## Authentication
 
-`/.well-known/oauth-protected-resource` names Accounts as the authorization server. Write routes require `Authorization: DPoP <token>` and a `DPoP` proof. The PDS accepts a token only if:
+`/.well-known/oauth-protected-resource` names Accounts as the authorization server. Write routes accept an OAuth token or an app-password session token.
+
+An OAuth request sends `Authorization: DPoP <token>` and a `DPoP` proof. The PDS accepts the token only if:
 
 - Accounts signed it, verified through the JWKS in the Accounts metadata;
 - `iss` is Accounts, `aud` is this PDS, and its lifetime is at most five minutes;
@@ -24,6 +26,10 @@ After creation, the PDS announces the account on the [firehose](#firehose). A cl
 - the subject is an account hosted here, and the scope grants the operation.
 
 A missing or expired nonce returns `401` with `WWW-Authenticate: DPoP error="use_dpop_nonce"` and a new `DPoP-Nonce` header. The `atproto` scope alone grants no writes.
+
+A password client sends `Authorization: Bearer <token>` with an app-password access token from Accounts ([ADR 0013](../../docs/adr/0013-sign-in-password-clients-with-app-passwords.md)). The PDS checks the signature, issuer, lifetime, and hosted subject as above, and requires the audience `did:web:<PDS host>`. The token grants what `transition:generic` grants; a privileged app password also grants `transition:chat.bsky`. An invalid or expired token returns `401`.
+
+`com.atproto.server.createSession`, `refreshSession`, `getSession`, and `deleteSession` are forwarded to Accounts with only their `Authorization` and `Content-Type` headers. Accounts owns the sessions.
 
 ## Repository writes
 
@@ -58,8 +64,6 @@ These methods need no authentication and serve only accounts hosted here:
 - `com.atproto.server.describeServer` — the PDS `did:web` identity. It lists no sign-up domains and requires an invite, because accounts are created through Accounts.
 - `com.atproto.sync.getLatestCommit` — the current commit CID and revision.
 - `com.atproto.sync.getRepo` — the current repository as a CAR rooted at the signed commit, in the Sync 1.1 depth-first block order so consumers can process it as a stream. With `since`, only the current blocks written after that revision, to apply on top of the repository at `since`. Deleted records are never included.
-
-Session methods are not implemented.
 
 Keep the `global_fetch_strictly_public` compatibility flag enabled. Without it, handle resolution cannot reach Accounts routes in the same Cloudflare zone.
 

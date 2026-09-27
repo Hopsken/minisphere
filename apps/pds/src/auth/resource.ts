@@ -11,7 +11,7 @@ import { z } from "zod";
 
 import type { AccountRepository } from "../repositories/account";
 import type { DpopStateRepository } from "../repositories/dpop-state";
-import { verifyOAuthAccessToken } from "./oauth";
+import { verifyAppPasswordAccessToken, verifyOAuthAccessToken } from "./oauth";
 
 const proofClaims = z.object({
   ath: z.string(),
@@ -58,9 +58,13 @@ export class ResourceAuth {
   }
 
   async authenticate(request: Request) {
-    const match = /^DPoP (?<token>[^\s,]+)$/iu.exec(
-      request.headers.get("Authorization") ?? ""
-    );
+    const authorization = request.headers.get("Authorization") ?? "";
+    const bearer = /^Bearer (?<token>[^\s,]+)$/iu.exec(authorization)?.groups
+      ?.token;
+    if (bearer) {
+      return this.authenticateAppPassword(bearer);
+    }
+    const match = /^DPoP (?<token>[^\s,]+)$/iu.exec(authorization);
     const token = match?.groups?.token;
     if (!token) {
       throw resourceError(
@@ -98,6 +102,32 @@ export class ResourceAuth {
       throw resourceError("invalid_dpop_proof", "DPoP proof was already used");
     }
     return { did, scope: claims.scope };
+  }
+
+  /**
+   * App-password sessions (ADR 0013) grant what `transition:generic` grants,
+   * and privileged ones also `transition:chat.bsky`.
+   */
+  private async authenticateAppPassword(token: string) {
+    const claims = await verifyAppPasswordAccessToken(
+      token,
+      this.issuer,
+      `did:web:${new URL(this.audience).hostname}`,
+      this.fetcher
+    ).catch(() => {
+      throw resourceError("invalid_token", "Invalid access token");
+    });
+    const did = claims.sub;
+    if (!isDid(did) || !(await this.accounts.exists(did))) {
+      throw resourceError("invalid_token", "Account is not hosted here");
+    }
+    return {
+      did,
+      scope:
+        claims.scope === "com.atproto.appPassPrivileged"
+          ? "transition:generic transition:chat.bsky"
+          : "transition:generic",
+    };
   }
 
   private async verifyProof(

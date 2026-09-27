@@ -95,7 +95,6 @@ Minisphere is in development. Not yet implemented:
 
 - a deployed end-to-end account-creation test;
 - confidential OAuth clients (`private_key_jwt`) and OAuth permission sets (`include:`);
-- PDS session methods, repository export, and repository event subscriptions;
 - physical blob reclamation and storage quotas;
 - the Relay.
 

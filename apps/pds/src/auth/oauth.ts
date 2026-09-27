@@ -121,13 +121,33 @@ const resolveOAuthVerificationKey = async (
   return verificationKey;
 };
 
-export const verifyOAuthAccessToken = async (
+const appPasswordAccessTokenClaimsSchema = z.strictObject({
+  aud: z.string(),
+  exp: z.number().int(),
+  iat: z.number().int(),
+  iss: z.string(),
+  jti: z.string(),
+  scope: z.enum(["com.atproto.appPass", "com.atproto.appPassPrivileged"]),
+  sub: z.string().refine((value): boolean => isDid(value), {
+    message: "sub must be a DID",
+  }),
+});
+
+export type AppPasswordAccessTokenClaims = z.infer<
+  typeof appPasswordAccessTokenClaimsSchema
+>;
+
+/** Verifies an access token signed by Accounts and checks the common claims. */
+const verifyAccountsAccessToken = async <
+  Claims extends { aud: string; exp: number; iat: number; iss: string },
+>(
   token: string,
+  claimsSchema: z.ZodType<Claims>,
   issuer: string,
   audience: string,
-  fetcher: typeof fetch = fetch,
-  now = Math.floor(Date.now() / 1000)
-): Promise<OAuthAccessTokenClaims> => {
+  fetcher: typeof fetch,
+  now: number
+): Promise<Claims> => {
   const parts = token.split(".");
   const [encodedHeader, encodedPayload, encodedSignature] = parts;
   if (
@@ -136,12 +156,12 @@ export const verifyOAuthAccessToken = async (
     !encodedPayload ||
     !encodedSignature
   ) {
-    throw new Error("OAuth access token must be a compact JWT");
+    throw new Error("Access token must be a compact JWT");
   }
   const header = protectedHeaderSchema.parse(
     JSON.parse(decoder.decode(decodeBase64Url(encodedHeader)))
   );
-  const claims = oauthAccessTokenClaimsSchema.parse(
+  const claims = claimsSchema.parse(
     JSON.parse(decoder.decode(decodeBase64Url(encodedPayload)))
   );
   const signingInput = new Uint8Array(
@@ -157,13 +177,13 @@ export const verifyOAuthAccessToken = async (
     signingInput
   );
   if (!valid) {
-    throw new Error("OAuth access token signature is invalid");
+    throw new Error("Access token signature is invalid");
   }
   if (claims.iss !== issuer) {
-    throw new Error("OAuth access token iss claim is invalid");
+    throw new Error("Access token iss claim is invalid");
   }
   if (claims.aud !== audience) {
-    throw new Error("OAuth access token aud claim is invalid");
+    throw new Error("Access token aud claim is invalid");
   }
   if (
     claims.exp <= now ||
@@ -171,10 +191,48 @@ export const verifyOAuthAccessToken = async (
     claims.exp <= claims.iat ||
     claims.exp - claims.iat > OAUTH_ACCESS_TOKEN_MAX_LIFETIME_SECONDS
   ) {
-    throw new Error("OAuth access token lifetime is invalid");
+    throw new Error("Access token lifetime is invalid");
   }
+  return claims;
+};
+
+export const verifyOAuthAccessToken = async (
+  token: string,
+  issuer: string,
+  audience: string,
+  fetcher: typeof fetch = fetch,
+  now = Math.floor(Date.now() / 1000)
+): Promise<OAuthAccessTokenClaims> => {
+  const claims = await verifyAccountsAccessToken(
+    token,
+    oauthAccessTokenClaimsSchema,
+    issuer,
+    audience,
+    fetcher,
+    now
+  );
   if (!claims.scope.split(" ").includes("atproto")) {
     throw new Error("OAuth access token scope is invalid");
   }
   return claims;
 };
+
+/**
+ * Verifies an app-password session token (ADR 0013). Its audience is the PDS
+ * `did:web`, and it carries no DPoP binding or client.
+ */
+export const verifyAppPasswordAccessToken = (
+  token: string,
+  issuer: string,
+  audience: string,
+  fetcher: typeof fetch = fetch,
+  now = Math.floor(Date.now() / 1000)
+): Promise<AppPasswordAccessTokenClaims> =>
+  verifyAccountsAccessToken(
+    token,
+    appPasswordAccessTokenClaimsSchema,
+    issuer,
+    audience,
+    fetcher,
+    now
+  );
