@@ -222,6 +222,16 @@ describe("app-password sessions", () => {
     );
   });
 
+  it("reports malformed requests as XRPC errors with CORS", async () => {
+    const response = await xrpc("createSession", { body: { identifier: "a" } });
+
+    expect(response.status).toBe(400);
+    expect(response.headers.get("Access-Control-Allow-Origin")).toBe("*");
+    await expect(response.json()).resolves.toMatchObject({
+      error: "InvalidRequest",
+    });
+  });
+
   it("reads the session with the access token only", async () => {
     const account = await signUp("get-session");
     const { password } = await createAppPassword(account.cookie);
