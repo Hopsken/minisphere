@@ -10,9 +10,10 @@ The PDS is crawled by `bsky.network`, and the Bluesky AppView indexes its accoun
 
 ## 2. Bluesky client compatibility
 
+Password clients such as the Bluesky app sign in with [app passwords](./adr/0013-sign-in-password-clients-with-app-passwords.md), and the PDS proxies AppView and chat methods. Remaining:
+
+- Video upload: `com.atproto.repo.uploadBlob` accepts the service-auth token the video service presents for the account.
 - OAuth-authenticated `com.atproto.server.getSession`.
-- Service proxying for `atproto-proxy` and default `app.bsky.*` / `chat.bsky.*` AppView routing, with inter-service JWTs signed by the repository key and `com.atproto.server.getServiceAuth`.
-- PDS-owned `app.bsky.actor.getPreferences` and `putPreferences`.
 - Accounts OAuth support for `transition:generic`, `transition:chat.bsky`, `transition:email`, and `rpc:` permissions, enforced by the PDS.
 - Permission sets (`include:`): Accounts resolves and validates the referenced Lexicons and obtains consent; the PDS enforces the resulting grants.
 
