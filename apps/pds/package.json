@@ -37,6 +37,7 @@
     "get-stream": "catalog:",
     "hono": "catalog:",
     "jose": "catalog:",
+    "ky": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {
