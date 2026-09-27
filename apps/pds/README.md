@@ -84,7 +84,8 @@ Handle changes and account status changes do not emit events yet.
 `app.bsky.actor.getPreferences` and `putPreferences` store the account's `app.bsky` preferences on the PDS ([ADR 0014](../../docs/adr/0014-store-actor-preferences-on-the-pds.md)). They need a session with RPC permission for the Bluesky AppView, as proxied methods do.
 
 - `putPreferences` replaces the stored list. Every preference must be in the `app.bsky` namespace.
-- `personalDetailsPref` requires full account access, which no session has, so it is rejected. `declaredAgePref` is derived by the server and is dropped on write.
+- `personalDetailsPref` requires full account access, which no session has, so it is rejected and never returned. Accounts sets the birth date instead, with `PdsControlPlane.getBirthDate(did)` and `setBirthDate(did, date)`. `putPreferences` does not change it.
+- `declaredAgePref` is dropped on write. `getPreferences` derives it from the birth date when one is set.
 - With an `atproto-proxy` header for another AppView, both methods are proxied instead.
 
 ## Service proxying

@@ -7,6 +7,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { accountQuery, plcAccountQuery } from "@/features/account/queries";
 
 import { AppPasswordSettings } from "./-components/app-password-settings";
+import { BirthDateSettings } from "./-components/birth-date-settings";
 import { PdsSettings } from "./-components/pds-settings";
 
 export const Route = createFileRoute("/_protected/settings/")({
@@ -54,6 +55,7 @@ function SettingsPage() {
           </Button>
         </div>
       ) : null}
+      <BirthDateSettings userId={user.id} />
       <AppPasswordSettings handle={handle} userId={user.id} />
     </section>
   );

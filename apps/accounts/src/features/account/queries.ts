@@ -7,6 +7,7 @@ export const accountKeys = {
   account: ["account"] as const,
   appPasswords: (userId: string) =>
     ["account", "app-passwords", userId] as const,
+  birthDate: (userId: string) => ["account", "birth-date", userId] as const,
   plc: (userId: string) => ["account", "plc", userId] as const,
   username: (username: string) => ["account", "username", username] as const,
 };
@@ -45,6 +46,19 @@ export const appPasswordsQuery = (userId: string) =>
       return appPasswords;
     },
     queryKey: accountKeys.appPasswords(userId),
+  });
+
+export const birthDateQuery = (userId: string) =>
+  queryOptions({
+    queryFn: async () => {
+      const response = await api.account["birth-date"].$get();
+      if (!response.ok) {
+        throw new Error("Could not load your birthday");
+      }
+      const { birthDate } = await response.json();
+      return birthDate;
+    },
+    queryKey: accountKeys.birthDate(userId),
   });
 
 export const accountQuery = queryOptions({

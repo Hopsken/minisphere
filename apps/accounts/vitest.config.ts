@@ -60,6 +60,7 @@ export default defineConfig(async () => {
                 import { WorkerEntrypoint } from "cloudflare:workers";
 
                 const accounts = new Set();
+                const birthDates = new Map();
                 const inviteCodes = new Set();
 
                 const handleRequest = async (request, env) => {
@@ -131,6 +132,17 @@ export default defineConfig(async () => {
                     const inviteCode = crypto.randomUUID();
                     inviteCodes.add(inviteCode);
                     return inviteCode;
+                  }
+
+                  getBirthDate(did) {
+                    return birthDates.get(did) ?? null;
+                  }
+
+                  setBirthDate(did, birthDate) {
+                    if (!accounts.has(did)) {
+                      throw new Error("Account is not hosted");
+                    }
+                    birthDates.set(did, birthDate);
                   }
 
                   fetch(request) {

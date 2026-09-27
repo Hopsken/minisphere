@@ -36,6 +36,14 @@ An active user can read and correct the PDS endpoint in their own DID document. 
 
 Writes require an `Origin` header equal to `MINISPHERE_ORIGIN`. A stale `expectedHead` returns `409`. Accounts signs a change only when its managed key is the lowest-priority rotation key; otherwise the result is `409`. After a timeout, `503` or `502` means the outcome is unknown: read again before you retry. Only the PDS endpoint changes. Rotation keys cannot be edited, and changing the endpoint does not migrate a repository.
 
+## Birth date
+
+An active user can set and change a birth date on the Settings page. It cannot be removed. The PDS stores it with the account's preferences; Accounts reads and writes it through the `PDS` binding and does not store it. See [ADR 0014](../../docs/adr/0014-store-actor-preferences-on-the-pds.md).
+
+- `GET /api/account/birth-date` returns `{ "birthDate": "YYYY-MM-DD" }`, or `null` when unset.
+- `PUT /api/account/birth-date` accepts exactly `{ "birthDate" }`: a calendar date from 1900-01-01 to today. Writes require an `Origin` header equal to `MINISPHERE_ORIGIN`.
+- Both return `409` until the account is active.
+
 ## AT Protocol OAuth
 
 [`@minisphere/atproto-oauth-provider`](../../packages/atproto-oauth-provider/README.md) serves `/.well-known/oauth-authorization-server` and the `/oauth/*` routes.

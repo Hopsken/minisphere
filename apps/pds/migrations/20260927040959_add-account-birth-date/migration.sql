@@ -1,0 +1,1 @@
+ALTER TABLE `account_preferences` ADD `birth_date` text;
